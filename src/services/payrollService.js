@@ -127,7 +127,10 @@ async function calculatePayslip(employeeId, year, month) {
   // คำนวณ
   const cfg = await getPayrollSettings();
   const grossIncome    = salary + otPay + bonus + specialAllowance;
-  const socialSecurity = Math.min(salary * cfg.ssRate, cfg.ssMax);
+  // ประกันสังคม: เพดานแบบ 2 ระดับ
+  // รายได้ ≤ 15,000 → สูงสุด 750 บาท | รายได้ ≥ 15,001 → สูงสุด 875 บาท
+  const ssMax = salary <= 15000 ? 750 : 875;
+  const socialSecurity = Math.min(salary * cfg.ssRate, ssMax);
   const providentFund  = cfg.pfEnabled ? salary * cfg.pfRate : 0;
   // ภาษีก้าวหน้าตาม กม. ไทย (ไม่ใช้ flat rate อีกต่อไป)
   const taxWithholding = calcProgressiveTax(salary + otPay); // ไม่รวม bonus ในฐานภาษี (ปรับได้)
