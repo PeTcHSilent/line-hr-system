@@ -216,8 +216,8 @@ async function init() {
   try {
     await liff.init({ liffId: LIFF_ID });
     if (!liff.isLoggedIn()) { liff.login(); return; }
-    const idToken = liff.getDecodedIDToken();
-    lineUserId = idToken.sub;
+    const profile = await liff.getProfile();
+    lineUserId = profile.userId;
 
     // ดึงข้อมูลพนักงาน
     const res = await fetch(`/api/employee/me?line_user_id=${lineUserId}`);

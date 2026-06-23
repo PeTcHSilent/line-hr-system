@@ -381,8 +381,8 @@ async function init() {
     if (!liffId) throw new Error('LIFF ID ยังไม่ได้ตั้งค่า — กรุณาตั้งค่า LIFF_ID_CHECKIN ใน .env แล้ว restart server');
     await liff.init({ liffId });
     if (!liff.isLoggedIn()) { liff.login(); return; }
-    const idToken = liff.getDecodedIDToken();
-    lineUserId = idToken.sub;
+    const profile = await liff.getProfile();
+    lineUserId = profile.userId;
 
     await loadTodayStatus();
     loadHistory();

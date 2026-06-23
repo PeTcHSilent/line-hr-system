@@ -261,8 +261,8 @@ async function initLIFF() {
       liff.login({ redirectUri: location.href });
       return;
     }
-    const idToken = liff.getDecodedIDToken();
-    lineUserId = idToken.sub;
+    const profile = await liff.getProfile();
+    lineUserId = profile.userId;
     loadProfile();
   } catch (err) {
     // Dev mode: ลองดึงจาก URL param

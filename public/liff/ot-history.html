@@ -211,8 +211,8 @@ async function init() {
     const liffId = LIFF_ID_OT_HISTORY || LIFF_ID_OT;
     await liff.init({ liffId });
     if (!liff.isLoggedIn()) { liff.login(); return; }
-    const idToken = liff.getDecodedIDToken();
-    lineUserId = idToken.sub;
+    const profile = await liff.getProfile();
+    lineUserId = profile.userId;
 
     // Avatar
     const img = document.getElementById('avatar-img');

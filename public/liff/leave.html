@@ -236,8 +236,8 @@ async function initLiff() {
       liff.login({ redirectUri: window.location.href });
       return;
     }
-    const idToken = liff.getDecodedIDToken();
-    liffUserId = idToken.sub;
+    const profile = await liff.getProfile();
+    liffUserId = profile.userId;
 
     // ดึงข้อมูลพนักงาน + วันลาคงเหลือ
     try {

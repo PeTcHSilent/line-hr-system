@@ -153,8 +153,8 @@ async function initLiff() {
   try {
     await liff.init({ liffId: '@@LIFF_ID_EXPENSE@@' });
     if (!liff.isLoggedIn()) { liff.login(); return; }
-    const idToken = liff.getDecodedIDToken();
-    lineUserId = idToken.sub;
+    const profile = await liff.getProfile();
+    lineUserId = profile.userId;
   } catch(e) {
     showToast('เกิดข้อผิดพลาด: ' + e.message);
   }
