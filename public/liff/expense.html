@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>เบิกค่าใช้จ่าย</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Noto Sans Thai',sans-serif;background:#f0f4f8;min-height:100vh;padding-bottom:40px}
+    .header{background:linear-gradient(135deg,#1357B0,#0f4a96);color:#fff;padding:20px 16px 16px;text-align:center}
+    .header h1{font-size:18px;font-weight:700}
+    .header p{font-size:12px;opacity:.8;margin-top:4px}
+    .tabs{display:flex;background:#fff;border-bottom:2px solid #e5e7eb}
+    .tab{flex:1;padding:12px 8px;text-align:center;font-size:13px;color:#6b7280;cursor:pointer;transition:.2s}
+    .tab.active{color:#1357B0;border-bottom:2px solid #1357B0;font-weight:600;margin-bottom:-2px}
+    .page{display:none;padding:16px}
+    .page.active{display:block}
+    .card{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+    label{font-size:13px;color:#374151;font-weight:600;display:block;margin-bottom:6px}
+    input,select,textarea{width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;outline:none;transition:.2s}
+    input:focus,select:focus,textarea:focus{border-color:#1357B0;box-shadow:0 0 0 3px rgba(19,87,176,.1)}
+    textarea{resize:vertical;min-height:80px}
+    .form-group{margin-bottom:14px}
+    .btn{width:100%;padding:13px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:.2s;font-family:inherit}
+    .btn-primary{background:#1357B0;color:#fff}
+    .btn-primary:hover{background:#0f4a96}
+    .btn-primary:disabled{background:#9ca3af;cursor:not-allowed}
+    .category-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+    .cat-btn{padding:10px 6px;border:2px solid #e5e7eb;border-radius:10px;background:#fff;cursor:pointer;text-align:center;transition:.2s}
+    .cat-btn.selected{border-color:#1357B0;background:#eff6ff}
+    .cat-btn .icon{font-size:22px;display:block}
+    .cat-btn .label{font-size:11px;color:#374151;margin-top:4px}
+    .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+    .badge-pending{background:#fef3c7;color:#92400e}
+    .badge-approved{background:#d1fae5;color:#065f46}
+    .badge-rejected{background:#fee2e2;color:#991b1b}
+    .badge-paid{background:#dbeafe;color:#1e40af}
+    .claim-card{background:#fff;border-radius:10px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+    .claim-amount{font-size:18px;font-weight:700;color:#1357B0}
+    .claim-desc{font-size:13px;color:#4b5563;margin:4px 0}
+    .claim-meta{font-size:11px;color:#9ca3af;margin-top:6px;display:flex;justify-content:space-between;align-items:center}
+    .empty{text-align:center;padding:40px 16px;color:#9ca3af}
+    .empty .icon{font-size:48px;margin-bottom:12px}
+    .toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:999;opacity:0;transition:opacity .3s}
+    .toast.show{opacity:1}
+    .total-box{background:linear-gradient(135deg,#1357B0,#0f4a96);color:#fff;border-radius:12px;padding:16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+    .total-box .label{font-size:12px;opacity:.8}
+    .total-box .value{font-size:22px;font-weight:700}
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>💰 เบิกค่าใช้จ่าย</h1>
+  <p id="emp-name">กำลังโหลด...</p>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('submit')">ยื่นเบิก</div>
+  <div class="tab" onclick="switchTab('history')">ประวัติ</div>
+</div>
+
+<!-- Submit Tab -->
+<div id="tab-submit" class="page active">
+  <div style="padding:16px">
+    <div class="card">
+      <div class="form-group">
+        <label>📁 ประเภทค่าใช้จ่าย</label>
+        <div class="category-grid" id="cat-grid">
+          <div class="cat-btn selected" data-cat="travel" onclick="selectCat(this)">
+            <span class="icon">🚗</span><span class="label">ค่าเดินทาง</span>
+          </div>
+          <div class="cat-btn" data-cat="meal" onclick="selectCat(this)">
+            <span class="icon">🍱</span><span class="label">ค่าอาหาร</span>
+          </div>
+          <div class="cat-btn" data-cat="accommodation" onclick="selectCat(this)">
+            <span class="icon">🏨</span><span class="label">ที่พัก</span>
+          </div>
+          <div class="cat-btn" data-cat="medical" onclick="selectCat(this)">
+            <span class="icon">🏥</span><span class="label">ค่ารักษา</span>
+          </div>
+          <div class="cat-btn" data-cat="communication" onclick="selectCat(this)">
+            <span class="icon">📞</span><span class="label">ค่าสื่อสาร</span>
+          </div>
+          <div class="cat-btn" data-cat="other" onclick="selectCat(this)">
+            <span class="icon">📋</span><span class="label">อื่นๆ</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>📅 วันที่ใช้จ่าย</label>
+        <input type="date" id="claim-date" value="">
+      </div>
+
+      <div class="form-group">
+        <label>💵 จำนวนเงิน (บาท)</label>
+        <input type="number" id="claim-amount" placeholder="0.00" min="1" step="0.01">
+      </div>
+
+      <div class="form-group">
+        <label>📝 รายละเอียด</label>
+        <textarea id="claim-desc" placeholder="ระบุรายละเอียดค่าใช้จ่าย เช่น ค่าแท็กซี่ไป-กลับ สนามบิน..."></textarea>
+      </div>
+
+      <button class="btn btn-primary" id="submit-btn" onclick="submitExpense()">
+        ส่งคำขอเบิก
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- History Tab -->
+<div id="tab-history" class="page">
+  <div style="padding:16px">
+    <div class="total-box" id="summary-box" style="display:none">
+      <div>
+        <div class="label">ยอดรวมที่อนุมัติ</div>
+        <div class="value" id="approved-total">฿0</div>
+      </div>
+      <div style="text-align:right">
+        <div class="label">รอดำเนินการ</div>
+        <div class="value" id="pending-count">0 รายการ</div>
+      </div>
+    </div>
+    <div id="history-list"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '';
+let lineUserId = null;
+let selectedCat = 'travel';
+
+const CAT_LABEL = {
+  travel: '🚗 ค่าเดินทาง', meal: '🍱 ค่าอาหาร',
+  accommodation: '🏨 ที่พัก', medical: '🏥 ค่ารักษา',
+  communication: '📞 ค่าสื่อสาร', other: '📋 อื่นๆ'
+};
+
+const STATUS_LABEL = {
+  pending: 'รอดำเนินการ', approved: 'อนุมัติแล้ว',
+  rejected: 'ไม่อนุมัติ', paid: 'จ่ายแล้ว'
+};
+
+// set today as default date
+document.getElementById('claim-date').value = new Date().toISOString().slice(0,10);
+
+async function initLiff() {
+  try {
+    await liff.init({ liffId: '@@LIFF_ID_EXPENSE@@' });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    const idToken = liff.getDecodedIDToken();
+    lineUserId = idToken.sub;
+  } catch(e) {
+    showToast('เกิดข้อผิดพลาด: ' + e.message);
+  }
+}
+
+function selectCat(el) {
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedCat = el.dataset.cat;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', (i===0 && tab==='submit') || (i===1 && tab==='history'));
+  });
+  document.getElementById('tab-submit').classList.toggle('active', tab==='submit');
+  document.getElementById('tab-history').classList.toggle('active', tab==='history');
+  if (tab === 'history') loadHistory();
+}
+
+async function submitExpense() {
+  if (!lineUserId) return showToast('ยังไม่ได้ login LINE');
+  const amount = parseFloat(document.getElementById('claim-amount').value);
+  const desc   = document.getElementById('claim-desc').value.trim();
+  const date   = document.getElementById('claim-date').value;
+
+  if (!amount || amount <= 0) return showToast('กรุณาระบุจำนวนเงิน');
+  if (!desc) return showToast('กรุณาระบุรายละเอียด');
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = 'กำลังส่ง...';
+
+  try {
+    const res = await fetch(`${API}/api/expense`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        line_user_id: lineUserId,
+        claim_date: date,
+        category: selectedCat,
+        amount, description: desc
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+
+    showToast('✅ ส่งคำขอเบิกสำเร็จ รอ HR อนุมัติ');
+    document.getElementById('claim-amount').value = '';
+    document.getElementById('claim-desc').value = '';
+    document.getElementById('claim-date').value = new Date().toISOString().slice(0,10);
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'ส่งคำขอเบิก';
+  }
+}
+
+async function loadHistory() {
+  const list = document.getElementById('history-list');
+  list.innerHTML = '<div class="empty"><div class="icon">⏳</div><p>กำลังโหลด...</p></div>';
+  if (!lineUserId) return;
+
+  try {
+    const res = await fetch(`${API}/api/expense/mine?line_user_id=${lineUserId}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    const { claims = [], summary = {} } = data;
+
+    // summary box
+    const box = document.getElementById('summary-box');
+    if (claims.length > 0) {
+      box.style.display = 'flex';
+      document.getElementById('approved-total').textContent =
+        '฿' + (summary.approved_amount || 0).toLocaleString('th-TH', {minimumFractionDigits:2});
+      document.getElementById('pending-count').textContent = (summary.pending || 0) + ' รายการ';
+    }
+
+    if (!claims.length) {
+      list.innerHTML = '<div class="empty"><div class="icon">📋</div><p>ยังไม่มีประวัติการเบิก</p></div>';
+      return;
+    }
+
+    list.innerHTML = claims.map(c => `
+      <div class="claim-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <span style="font-size:12px;color:#6b7280">${CAT_LABEL[c.category] || c.category}</span>
+            <div class="claim-amount">฿${parseFloat(c.amount).toLocaleString('th-TH',{minimumFractionDigits:2})}</div>
+          </div>
+          <span class="badge badge-${c.status}">${STATUS_LABEL[c.status] || c.status}</span>
+        </div>
+        <div class="claim-desc">${c.description}</div>
+        <div class="claim-meta">
+          <span>📅 ${new Date(c.claim_date).toLocaleDateString('th-TH',{year:'numeric',month:'short',day:'numeric'})}</span>
+          ${c.reject_reason ? `<span style="color:#ef4444">เหตุผล: ${c.reject_reason}</span>` : ''}
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    list.innerHTML = `<div class="empty"><p>เกิดข้อผิดพลาด: ${e.message}</p></div>`;
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+initLiff();
+</script>
+</body>
+</html>

@@ -1,0 +1,1802 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HR Admin — ต่อกัน Insurance Broker</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Prompt', 'Segoe UI', sans-serif; background: #F4F6FA; color: #1a1a2e; font-size: 14px; }
+  @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap');
+
+  /* Layout */
+  .sidebar { position: fixed; top:0; left:0; width:220px; height:100vh; background:#1357B0; display:flex; flex-direction:column; z-index:100; }
+  .main { margin-left:220px; min-height:100vh; }
+  .topbar { background:#fff; padding:14px 24px; border-bottom:1px solid #e8ecf0; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:50; }
+  .content { padding:24px; }
+
+  /* Sidebar */
+  .sidebar-logo { padding:20px 16px 16px; border-bottom:1px solid rgba(255,255,255,0.15); }
+  .sidebar-logo h1 { color:#fff; font-size:15px; font-weight:600; line-height:1.3; }
+  .sidebar-logo span { color:rgba(255,255,255,0.6); font-size:11px; }
+  .sidebar-nav { padding:12px 8px; flex:1; }
+  .nav-section { font-size:10px; color:rgba(255,255,255,0.45); text-transform:uppercase; letter-spacing:1px; padding:12px 8px 6px; }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px; color:rgba(255,255,255,0.75); cursor:pointer; margin-bottom:2px; text-decoration:none; font-size:13px; transition:background 0.15s; }
+  .nav-item:hover, .nav-item.active { background:rgba(255,255,255,0.15); color:#fff; }
+  .nav-item svg { width:18px; height:18px; flex-shrink:0; }
+  .nav-badge { margin-left:auto; background:#F47920; color:#fff; font-size:10px; padding:1px 6px; border-radius:10px; }
+
+  /* Cards */
+  .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+  .stat-card { background:#fff; border-radius:12px; padding:16px 20px; border:1px solid #e8ecf0; }
+  .stat-card .label { font-size:12px; color:#6b7280; margin-bottom:6px; }
+  .stat-card .value { font-size:26px; font-weight:600; color:#1357B0; }
+  .stat-card .sub { font-size:11px; color:#9ca3af; margin-top:4px; }
+
+  /* Table card */
+  .card { background:#fff; border-radius:12px; border:1px solid #e8ecf0; overflow:hidden; }
+  .card-header { padding:16px 20px; border-bottom:1px solid #f0f0f0; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .card-title { font-size:15px; font-weight:600; flex:1; }
+  .search-box { display:flex; align-items:center; gap:8px; background:#f4f6fa; border:1px solid #e8ecf0; border-radius:8px; padding:6px 12px; }
+  .search-box input { background:none; border:none; outline:none; font-size:13px; width:180px; }
+  select.filter { padding:6px 10px; border:1px solid #e8ecf0; border-radius:8px; font-size:13px; background:#fff; cursor:pointer; }
+  .btn { padding:7px 16px; border-radius:8px; border:none; cursor:pointer; font-size:13px; font-weight:500; display:inline-flex; align-items:center; gap:6px; transition:opacity 0.15s; }
+  .btn:hover { opacity:0.85; }
+  .btn-primary { background:#1357B0; color:#fff; }
+  .btn-orange { background:#F47920; color:#fff; }
+  .btn-danger { background:#ef4444; color:#fff; }
+  .btn-ghost { background:#f4f6fa; color:#374151; border:1px solid #e8ecf0; }
+  .btn-sm { padding:5px 10px; font-size:12px; }
+
+  /* Table */
+  table { width:100%; border-collapse:collapse; }
+  thead th { padding:10px 16px; text-align:left; font-size:12px; font-weight:600; color:#6b7280; background:#f8fafc; border-bottom:1px solid #e8ecf0; white-space:nowrap; }
+  tbody td { padding:10px 16px; border-bottom:1px solid #f0f4f8; vertical-align:middle; }
+  tbody tr:hover { background:#f8fafc; }
+  tbody tr:last-child td { border-bottom:none; }
+  .emp-avatar { width:34px; height:34px; border-radius:50%; background:#1357B0; color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; }
+  .emp-info { display:flex; align-items:center; gap:10px; }
+  .emp-name { font-weight:500; font-size:13px; }
+  .emp-code { font-size:11px; color:#9ca3af; }
+  .badge { padding:3px 8px; border-radius:20px; font-size:11px; font-weight:500; white-space:nowrap; }
+  .badge-admin { background:#fef3c7; color:#92400e; }
+  .badge-hr { background:#ede9fe; color:#5b21b6; }
+  .badge-manager { background:#dbeafe; color:#1e40af; }
+  .badge-employee { background:#f0fdf4; color:#166534; }
+  .badge-m { background:#eff6ff; color:#1357B0; }
+  .badge-w { background:#fdf2f8; color:#9d174d; }
+  .actions { display:flex; gap:6px; }
+  .no-data { text-align:center; padding:40px; color:#9ca3af; }
+
+  /* Modal */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:200; align-items:center; justify-content:center; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:#fff; border-radius:16px; width:560px; max-width:95vw; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.2); }
+  .modal-header { padding:20px 24px 16px; border-bottom:1px solid #f0f0f0; display:flex; align-items:center; justify-content:space-between; }
+  .modal-header h2 { font-size:16px; font-weight:600; }
+  .modal-close { background:none; border:none; cursor:pointer; font-size:20px; color:#9ca3af; line-height:1; padding:4px; }
+  .modal-body { padding:20px 24px; }
+  .modal-footer { padding:16px 24px; border-top:1px solid #f0f0f0; display:flex; justify-content:flex-end; gap:10px; }
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .form-group { display:flex; flex-direction:column; gap:6px; }
+  .form-group.full { grid-column:1/-1; }
+  .form-group label { font-size:12px; font-weight:500; color:#374151; }
+  .form-group input, .form-group select { padding:8px 12px; border:1px solid #e8ecf0; border-radius:8px; font-size:13px; outline:none; transition:border 0.15s; }
+  .form-group input:focus, .form-group select:focus { border-color:#1357B0; }
+  .req { color:#ef4444; }
+
+  /* Toast */
+  #toast { position:fixed; bottom:24px; right:24px; background:#1a1a2e; color:#fff; padding:12px 20px; border-radius:10px; font-size:13px; opacity:0; transition:opacity 0.3s; z-index:999; pointer-events:none; }
+  #toast.show { opacity:1; }
+  #toast.success { background:#059669; }
+  #toast.error { background:#dc2626; }
+
+  /* Topbar */
+  .topbar-title { font-size:15px; font-weight:600; }
+  .topbar-right { display:flex; align-items:center; gap:12px; font-size:13px; color:#6b7280; }
+  .topbar-dot { width:8px; height:8px; border-radius:50%; background:#22c55e; }
+
+  /* Page tabs */
+  .page { display:none; }
+  .page.active { display:block; }
+
+  /* Leave records */
+  .leave-status-badge { padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; white-space:nowrap; }
+  .ls-pending  { background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; }
+  .ls-approved { background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; }
+  .ls-rejected { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
+  .ls-cancelled{ background:#f9fafb; color:#6b7280; border:1px solid #e5e7eb; }
+  .leave-summary-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:20px; }
+  .leave-sum-card { background:#fff; border-radius:10px; padding:14px 16px; border:1px solid #e8ecf0; text-align:center; }
+  .leave-sum-card .num { font-size:24px; font-weight:700; }
+  .leave-sum-card .lbl { font-size:11px; color:#9ca3af; margin-top:3px; }
+
+  /* Calendar */
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .cal-day-name { text-align:center; font-size:11px; font-weight:600; color:#6b7280; padding:6px 0; }
+  .cal-cell { min-height:76px; border:1px solid #e8ecf0; border-radius:8px; padding:6px 8px; background:#fff; }
+  .cal-cell.today { border-color:#1357B0; background:#eff6ff; }
+  .cal-cell.weekend { background:#fafafa; }
+  .cal-cell.other-month { background:#f8f8f8; opacity:0.4; }
+  .cal-date { font-size:12px; font-weight:600; margin-bottom:4px; }
+  .cal-holiday { font-size:10px; background:#fee2e2; color:#991b1b; border-radius:4px; padding:1px 4px; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cal-leave { font-size:10px; background:#dbeafe; color:#1e40af; border-radius:4px; padding:1px 4px; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  /* Report table */
+  .report-table th, .report-table td { font-size:12px; }
+  .report-table td:not(:first-child):not(:nth-child(2)) { text-align:center; }
+  .ot-badge { padding:3px 8px; border-radius:12px; font-size:10px; font-weight:600; }
+  .ot-pending  { background:#fff7ed; color:#c2410c; }
+  .ot-approved { background:#f0fdf4; color:#166534; }
+  .ot-rejected { background:#fef2f2; color:#991b1b; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <h1>ต่อกัน Insurance<br>Broker HR</h1>
+    <span>Admin Dashboard</span>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section">จัดการพนักงาน</div>
+    <a class="nav-item active" onclick="showPage('employees')" href="#">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Employee Management
+    </a>
+    <a class="nav-item" onclick="showPage('departments')" href="#">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+      Department Management
+    </a>
+    <div class="nav-section">การเข้างาน</div>
+    <a class="nav-item" onclick="showPage('attendance')" href="#">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Attendance
+    </a>
+    <div class="nav-section">การลา & วันหยุด</div>
+    <a class="nav-item" onclick="showPage('leave-records')" href="#">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+      Leave Records
+    </a>
+    <a class="nav-item" onclick="showPage('leaves')" href="#">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Leave Types
+    </a>
+    <a class="nav-item" onclick="showPage('holidays')" href="#">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+      Holiday Management
+    </a>
+    <div class="nav-section">OT & รายงาน</div>
+    <a class="nav-item" onclick="showPage('ot')" href="#">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><line x1="22" y1="2" x2="18" y2="6"/></svg>
+      OT Management
+    </a>
+    <a class="nav-item" onclick="showPage('report')" href="#">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Summary Report
+    </a>
+    <a class="nav-item" onclick="showPage('calendar')" href="#">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><rect x="8" y="14" width="3" height="3" rx="0.5" fill="currentColor"/></svg>
+      Calendar
+    </a>
+  </div>
+</nav>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="page-title">Employee Management</div>
+    <div class="topbar-right">
+      <div class="topbar-dot"></div>
+      <span>Server online</span>
+      <span style="color:#d1d5db">|</span>
+      <span id="current-time"></span>
+      <span style="color:#d1d5db">|</span>
+      <button onclick="logout()" style="background:none;border:1px solid #e8ecf0;border-radius:6px;padding:5px 12px;font-size:12px;color:#6b7280;cursor:pointer;display:flex;align-items:center;gap:5px;" onmouseover="this.style.background='#fee2e2';this.style.color='#dc2626'" onmouseout="this.style.background='none';this.style.color='#6b7280'">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ออกจากระบบ
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ==================== EMPLOYEES PAGE ==================== -->
+    <div class="page active" id="page-employees">
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat-card"><div class="label">พนักงานทั้งหมด</div><div class="value" id="stat-total">—</div><div class="sub">active</div></div>
+        <div class="stat-card"><div class="label">Admin / HR</div><div class="value" id="stat-admin">—</div><div class="sub">คน</div></div>
+        <div class="stat-card"><div class="label">เชื่อม LINE แล้ว</div><div class="value" id="stat-line">—</div><div class="sub">คน</div></div>
+        <div class="stat-card"><div class="label">แผนกทั้งหมด</div><div class="value" id="stat-dept">—</div><div class="sub">แผนก</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">รายชื่อพนักงาน</div>
+          <div class="search-box">
+            <svg width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="search-input" placeholder="ค้นหาชื่อ / รหัส..." oninput="filterTable()">
+          </div>
+          <select class="filter" id="dept-filter" onchange="filterTable()">
+            <option value="">ทุกแผนก</option>
+          </select>
+          <select class="filter" id="role-filter" onchange="filterTable()">
+            <option value="">ทุก Role</option>
+            <option value="employee">Employee</option>
+            <option value="manager">Manager</option>
+            <option value="hr">HR</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button class="btn btn-primary" onclick="openAddModal()">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            เพิ่มพนักงาน
+          </button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>พนักงาน</th>
+                <th>เพศ</th>
+                <th>แผนก</th>
+                <th>Role</th>
+                <th>โทรศัพท์</th>
+                <th>Email</th>
+                <th>LINE</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="emp-tbody">
+              <tr><td colspan="8" class="no-data">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== DEPARTMENTS PAGE ==================== -->
+    <div class="page" id="page-departments">
+      <!-- Summary -->
+      <div class="stat-grid" style="grid-template-columns:repeat(3,1fr);" id="dept-stat-grid">
+        <div class="stat-card"><div class="label">แผนกทั้งหมด</div><div class="value" id="ds-total" style="color:#1357B0;">—</div><div class="sub">แผนก</div></div>
+        <div class="stat-card"><div class="label">พนักงานทั้งหมด</div><div class="value" id="ds-emp" style="color:#22c55e;">—</div><div class="sub">คน (รวมทุกแผนก)</div></div>
+        <div class="stat-card"><div class="label">แผนกที่มีพนักงาน</div><div class="value" id="ds-active" style="color:#F47920;">—</div><div class="sub">แผนก</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">รายการแผนก</div>
+          <div class="search-box">
+            <svg width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="dept-search" placeholder="ค้นหาชื่อแผนก..." oninput="filterDepartments()">
+          </div>
+          <button class="btn btn-primary" onclick="openDeptModal()">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            เพิ่มแผนก
+          </button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>ชื่อแผนก</th>
+                <th>คำอธิบาย</th>
+                <th>จำนวนพนักงาน</th>
+                <th>สถานะ</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="dept-tbody">
+              <tr><td colspan="6" class="no-data">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Employee list panel (expand on dept click) -->
+      <div class="card" id="dept-detail-panel" style="display:none;margin-top:16px;">
+        <div class="card-header">
+          <div class="card-title" id="dept-detail-title">พนักงานในแผนก</div>
+          <button class="btn btn-ghost btn-sm" onclick="closeDeptDetail()">✕ ปิด</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr><th>รหัส</th><th>ชื่อ</th><th>Role</th><th>อีเมล</th><th>LINE</th></tr>
+            </thead>
+            <tbody id="dept-detail-tbody">
+              <tr><td colspan="5" class="no-data">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== ATTENDANCE PAGE ==================== -->
+    <div class="page" id="page-attendance">
+      <div class="leave-summary-grid" style="grid-template-columns:repeat(4,1fr);">
+        <div class="leave-sum-card"><div class="num" id="att-total"   style="color:#1357B0;">—</div><div class="lbl">รายการทั้งหมด</div></div>
+        <div class="leave-sum-card"><div class="num" id="att-in"      style="color:#22c55e;">—</div><div class="lbl">เช็คอินแล้ว</div></div>
+        <div class="leave-sum-card"><div class="num" id="att-out"     style="color:#F47920;">—</div><div class="lbl">เช็คเอาท์แล้ว</div></div>
+        <div class="leave-sum-card"><div class="num" id="att-outside" style="color:#ef4444;">—</div><div class="lbl">นอกรัศมี</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">บันทึกการเข้างาน</div>
+          <input type="date" class="filter" id="att-date" onchange="loadAttendance()" style="padding:6px 10px;">
+          <select class="filter" id="att-dept" onchange="loadAttendance()">
+            <option value="">ทุกแผนก</option>
+          </select>
+          <div class="search-box">
+            <svg width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="att-search" placeholder="ค้นหาชื่อ / รหัส..." oninput="filterAttendance()">
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>พนักงาน</th>
+                <th>แผนก</th>
+                <th>วันที่</th>
+                <th>เช็คอิน</th>
+                <th>เช็คเอาท์</th>
+                <th>ชั่วโมง</th>
+                <th>Check-in GPS</th>
+                <th>Check-out GPS</th>
+              </tr>
+            </thead>
+            <tbody id="att-tbody">
+              <tr><td colspan="8" class="no-data">เลือกวันที่เพื่อดูข้อมูล</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== LEAVE RECORDS PAGE ==================== -->
+    <div class="page" id="page-leave-records">
+      <!-- Summary cards -->
+      <div class="leave-summary-grid">
+        <div class="leave-sum-card"><div class="num" id="lr-total" style="color:#1357B0;">—</div><div class="lbl">ทั้งหมด</div></div>
+        <div class="leave-sum-card"><div class="num ls-pending"  id="lr-pending"  style="color:#c2410c;">—</div><div class="lbl">รอ อนุมัติ</div></div>
+        <div class="leave-sum-card"><div class="num" id="lr-approved" style="color:#22c55e;">—</div><div class="lbl">อนุมัติแล้ว</div></div>
+        <div class="leave-sum-card"><div class="num" id="lr-rejected" style="color:#ef4444;">—</div><div class="lbl">ไม่อนุมัติ</div></div>
+        <div class="leave-sum-card"><div class="num" id="lr-days"    style="color:#F47920;">—</div><div class="lbl">วัน (อนุมัติ)</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">ประวัติการลาพนักงาน</div>
+          <!-- Filters -->
+          <select class="filter" id="lr-year" onchange="loadLeaveRecords()">
+            <option value="">ทุกปี</option>
+          </select>
+          <select class="filter" id="lr-month" onchange="loadLeaveRecords()">
+            <option value="">ทุกเดือน</option>
+            <option value="1">มกราคม</option><option value="2">กุมภาพันธ์</option>
+            <option value="3">มีนาคม</option><option value="4">เมษายน</option>
+            <option value="5">พฤษภาคม</option><option value="6">มิถุนายน</option>
+            <option value="7">กรกฎาคม</option><option value="8">สิงหาคม</option>
+            <option value="9">กันยายน</option><option value="10">ตุลาคม</option>
+            <option value="11">พฤศจิกายน</option><option value="12">ธันวาคม</option>
+          </select>
+          <select class="filter" id="lr-dept" onchange="loadLeaveRecords()">
+            <option value="">ทุกแผนก</option>
+          </select>
+          <select class="filter" id="lr-status" onchange="loadLeaveRecords()">
+            <option value="">ทุกสถานะ</option>
+            <option value="pending">รอ อนุมัติ</option>
+            <option value="approved">อนุมัติแล้ว</option>
+            <option value="rejected">ไม่อนุมัติ</option>
+            <option value="cancelled">ยกเลิก</option>
+          </select>
+          <div class="search-box">
+            <svg width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="lr-search" placeholder="ค้นหาชื่อ / รหัส..." oninput="filterLeaveRecords()">
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>พนักงาน</th>
+                <th>แผนก</th>
+                <th>ประเภทลา</th>
+                <th>วันเริ่ม</th>
+                <th>วันสิ้นสุด</th>
+                <th>รวม</th>
+                <th>สถานะ</th>
+                <th>อนุมัติโดย</th>
+                <th>วันที่ส่ง</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="lr-tbody">
+              <tr><td colspan="11" class="no-data">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== LEAVE TYPES PAGE ==================== -->
+    <div class="page" id="page-leaves">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">ประเภทการลา</div>
+          <button class="btn btn-primary" onclick="openLeaveTypeModal()">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            เพิ่มประเภทลา
+          </button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr><th>#</th><th>ประเภทการลา</th><th>วันสูงสุด</th><th>เพศที่ใช้ได้</th><th>จ่ายเงิน</th><th>จัดการ</th></tr>
+            </thead>
+            <tbody id="leave-tbody">
+              <tr><td colspan="6" class="no-data">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== OT MANAGEMENT PAGE ==================== -->
+    <div class="page" id="page-ot">
+      <div class="leave-summary-grid" style="grid-template-columns:repeat(4,1fr);" id="ot-stat-row">
+        <div class="leave-sum-card"><div class="num" id="ot-stat-pending"  style="color:#c2410c;">—</div><div class="lbl">รอ อนุมัติ</div></div>
+        <div class="leave-sum-card"><div class="num" id="ot-stat-approved" style="color:#22c55e;">—</div><div class="lbl">อนุมัติแล้ว</div></div>
+        <div class="leave-sum-card"><div class="num" id="ot-stat-rejected" style="color:#ef4444;">—</div><div class="lbl">ไม่อนุมัติ</div></div>
+        <div class="leave-sum-card"><div class="num" id="ot-stat-hours"    style="color:#1357B0;">—</div><div class="lbl">รวม OT ชั่วโมง (อนุมัติ)</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">รายการคำขอ OT</div>
+          <select class="filter" id="ot-year" onchange="loadOT()"></select>
+          <select class="filter" id="ot-month" onchange="loadOT()">
+            <option value="">ทุกเดือน</option>
+            <option value="1">ม.ค.</option><option value="2">ก.พ.</option><option value="3">มี.ค.</option>
+            <option value="4">เม.ย.</option><option value="5">พ.ค.</option><option value="6">มิ.ย.</option>
+            <option value="7">ก.ค.</option><option value="8">ส.ค.</option><option value="9">ก.ย.</option>
+            <option value="10">ต.ค.</option><option value="11">พ.ย.</option><option value="12">ธ.ค.</option>
+          </select>
+          <select class="filter" id="ot-dept" onchange="loadOT()">
+            <option value="">ทุกแผนก</option>
+          </select>
+          <select class="filter" id="ot-status" onchange="loadOT()">
+            <option value="">ทุกสถานะ</option>
+            <option value="pending">รอ อนุมัติ</option>
+            <option value="approved">อนุมัติแล้ว</option>
+            <option value="rejected">ไม่อนุมัติ</option>
+          </select>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>พนักงาน</th><th>แผนก</th>
+                <th>วันที่ OT</th><th>เวลา</th><th>ชั่วโมง</th>
+                <th>เหตุผล</th><th>สถานะ</th><th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="ot-tbody">
+              <tr><td colspan="9" class="no-data">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SUMMARY REPORT PAGE ==================== -->
+    <div class="page" id="page-report">
+      <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);" id="rpt-stat-row">
+        <div class="stat-card"><div class="label">พนักงานทั้งหมด</div><div class="value" id="rpt-emp" style="font-size:22px;">—</div></div>
+        <div class="stat-card"><div class="label">รวมวันทำงาน</div><div class="value" id="rpt-work" style="font-size:22px;">—</div></div>
+        <div class="stat-card"><div class="label">รวมวันลา (อนุมัติ)</div><div class="value" id="rpt-leave" style="font-size:22px;">—</div></div>
+        <div class="stat-card"><div class="label">รวม OT ชม. (อนุมัติ)</div><div class="value" id="rpt-ot" style="font-size:22px;">—</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">รายงานสรุปรายเดือน</div>
+          <select class="filter" id="rpt-year" onchange="loadReport()"></select>
+          <select class="filter" id="rpt-month" onchange="loadReport()">
+            <option value="1">มกราคม</option><option value="2">กุมภาพันธ์</option>
+            <option value="3">มีนาคม</option><option value="4">เมษายน</option>
+            <option value="5">พฤษภาคม</option><option value="6">มิถุนายน</option>
+            <option value="7">กรกฎาคม</option><option value="8">สิงหาคม</option>
+            <option value="9">กันยายน</option><option value="10">ตุลาคม</option>
+            <option value="11">พฤศจิกายน</option><option value="12">ธันวาคม</option>
+          </select>
+          <select class="filter" id="rpt-dept" onchange="loadReport()">
+            <option value="">ทุกแผนก</option>
+          </select>
+          <button class="btn btn-ghost" onclick="exportReportCSV()">⬇ Export CSV</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>รหัส</th><th>ชื่อพนักงาน</th><th>แผนก</th>
+                <th>วันเข้างาน</th><th>ชม.เฉลี่ย</th>
+                <th>ลา(อนุมัติ)</th><th>วันลา</th>
+                <th>OT(อนุมัติ)</th><th>OT ชม.</th>
+                <th>นอกรัศมี</th>
+              </tr>
+            </thead>
+            <tbody id="rpt-tbody">
+              <tr><td colspan="10" class="no-data">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== CALENDAR PAGE ==================== -->
+    <div class="page" id="page-calendar">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">ปฏิทินการลา & วันหยุด</div>
+          <select class="filter" id="cal-year" onchange="loadCalendar()"></select>
+          <select class="filter" id="cal-month" onchange="loadCalendar()">
+            <option value="1">มกราคม</option><option value="2">กุมภาพันธ์</option>
+            <option value="3">มีนาคม</option><option value="4">เมษายน</option>
+            <option value="5">พฤษภาคม</option><option value="6">มิถุนายน</option>
+            <option value="7">กรกฎาคม</option><option value="8">สิงหาคม</option>
+            <option value="9">กันยายน</option><option value="10">ตุลาคม</option>
+            <option value="11">พฤศจิกายน</option><option value="12">ธันวาคม</option>
+          </select>
+          <div style="display:flex;gap:12px;align-items:center;font-size:12px;color:#6b7280;">
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#fee2e2;margin-right:4px;"></span>วันหยุดนักขัตฤกษ์</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#dbeafe;margin-right:4px;"></span>ลาอนุมัติ</span>
+          </div>
+        </div>
+      </div>
+      <div class="cal-grid" id="cal-day-names"></div>
+      <div class="cal-grid" style="margin-top:4px;" id="cal-body"></div>
+    </div>
+
+    <!-- ==================== HOLIDAYS PAGE ==================== -->
+    <div class="page" id="page-holidays">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Holiday Management</div>
+          <select class="filter" id="holiday-year" onchange="loadHolidays()">
+            <option value="2026">พ.ศ. 2569 (2026)</option>
+            <option value="2027">พ.ศ. 2570 (2027)</option>
+          </select>
+          <button class="btn btn-primary" onclick="openHolidayModal()">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            เพิ่มวันหยุด
+          </button>
+          <button class="btn btn-ghost" onclick="copyHolidays()">คัดลอกไปปีถัดไป</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr><th>วันที่</th><th>ชื่อวันหยุด</th><th>วัน</th><th>ประเภท</th><th>จัดการ</th></tr>
+            </thead>
+            <tbody id="holiday-tbody">
+              <tr><td colspan="5" class="no-data">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ==================== MODAL: Employee Add/Edit ==================== -->
+<div class="modal-overlay" id="emp-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">เพิ่มพนักงานใหม่</h2>
+      <button class="modal-close" onclick="closeModal('emp-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>รหัสพนักงาน <span class="req">*</span></label>
+          <input type="text" id="f-code" placeholder="TK001" maxlength="10">
+        </div>
+        <div class="form-group">
+          <label>ชื่อ-นามสกุล <span class="req">*</span></label>
+          <input type="text" id="f-name" placeholder="ชื่อ นามสกุล">
+        </div>
+        <div class="form-group">
+          <label>เพศ</label>
+          <select id="f-sex">
+            <option value="">— เลือก —</option>
+            <option value="M">ชาย (M)</option>
+            <option value="W">หญิง (W)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>แผนก</label>
+          <select id="f-dept"></select>
+        </div>
+        <div class="form-group">
+          <label>Role</label>
+          <select id="f-role">
+            <option value="employee">Employee</option>
+            <option value="manager">Manager</option>
+            <option value="hr">HR</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>หัวหน้า (Manager)</label>
+          <select id="f-manager">
+            <option value="">— ไม่มี —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>เบอร์โทร</label>
+          <input type="text" id="f-phone" placeholder="0812345678">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="f-email" placeholder="name@company.com">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('emp-modal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveEmployee()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: Holiday Add ==================== -->
+<div class="modal-overlay" id="holiday-modal">
+  <div class="modal" style="width:420px;">
+    <div class="modal-header">
+      <h2>เพิ่มวันหยุด</h2>
+      <button class="modal-close" onclick="closeModal('holiday-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" style="grid-template-columns:1fr;">
+        <div class="form-group">
+          <label>วันที่ <span class="req">*</span></label>
+          <input type="date" id="h-date">
+        </div>
+        <div class="form-group">
+          <label>ชื่อวันหยุด <span class="req">*</span></label>
+          <input type="text" id="h-name" placeholder="เช่น วันสงกรานต์">
+        </div>
+        <div class="form-group">
+          <label>ปี (ค.ศ.) <span class="req">*</span></label>
+          <input type="number" id="h-year" value="2026">
+        </div>
+        <div class="form-group" style="flex-direction:row; align-items:center; gap:8px;">
+          <input type="checkbox" id="h-sub" style="width:16px;height:16px;">
+          <label for="h-sub" style="cursor:pointer; font-size:13px;">วันหยุดชดเชย</label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('holiday-modal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveHoliday()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: Department Add/Edit ==================== -->
+<div class="modal-overlay" id="dept-modal">
+  <div class="modal" style="width:420px;">
+    <div class="modal-header">
+      <h2 id="dept-modal-title">เพิ่มแผนก</h2>
+      <button class="modal-close" onclick="closeModal('dept-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="d-edit-id">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>ชื่อแผนก <span class="req">*</span></label>
+        <input type="text" id="d-name" placeholder="เช่น Operations">
+      </div>
+      <div class="form-group">
+        <label>คำอธิบาย (ไม่บังคับ)</label>
+        <input type="text" id="d-description" placeholder="เช่น แผนกปฏิบัติการและโลจิสติกส์">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('dept-modal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveDepartment()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: Leave Type Add/Edit ==================== -->
+<div class="modal-overlay" id="leavetype-modal">
+  <div class="modal" style="width:440px;">
+    <div class="modal-header">
+      <h2 id="leavetype-modal-title">เพิ่มประเภทการลา</h2>
+      <button class="modal-close" onclick="closeModal('leavetype-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="lt-edit-id">
+      <div class="form-grid" style="grid-template-columns:1fr;">
+        <div class="form-group">
+          <label>ชื่อประเภทการลา <span class="req">*</span></label>
+          <input type="text" id="lt-name" placeholder="เช่น ลาป่วย">
+        </div>
+        <div class="form-group">
+          <label>จำนวนวันสูงสุด</label>
+          <input type="number" id="lt-max-days" value="30" min="1" max="365">
+        </div>
+        <div class="form-group">
+          <label>เพศที่ใช้ได้</label>
+          <select id="lt-gender">
+            <option value="">ทุกเพศ</option>
+            <option value="M">ชาย</option>
+            <option value="W">หญิง</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;">
+          <input type="checkbox" id="lt-paid" style="width:16px;height:16px;" checked>
+          <label for="lt-paid" style="cursor:pointer;font-size:13px;">จ่ายเงินระหว่างลา</label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('leavetype-modal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveLeaveType()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = '';
+let allEmployees = [], allDepts = [], editingId = null;
+
+// ---- Auth Guard ----
+const _token = localStorage.getItem('adminToken');
+if (!_token) { window.location.href = '/admin/login'; }
+
+// ตรวจ token กับ server
+fetch('/api/auth/verify', { method: 'POST', headers: { Authorization: `Bearer ${_token}` } })
+  .then(r => { if (!r.ok) { localStorage.removeItem('adminToken'); window.location.href = '/admin/login'; } })
+  .catch(() => {});
+
+// helper สำหรับ API call ที่ต้องการ auth
+function authHeaders() {
+  return { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` };
+}
+
+// Logout
+function logout() {
+  localStorage.removeItem('adminToken');
+  window.location.href = '/admin/login';
+}
+
+// Authenticated fetch wrapper — injects Authorization header on every call
+function apiFetch(url, opts = {}) {
+  const headers = Object.assign({}, authHeaders(), opts.headers || {});
+  return fetch(url, Object.assign({}, opts, { headers }));
+}
+
+// ---- Utils ----
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  setTimeout(() => el.className = '', 2800);
+}
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  const titles = {
+    employees:'Employee Management', departments:'Department Management',
+    attendance:'Attendance', 'leave-records':'Leave Records',
+    leaves:'Leave Types', holidays:'Holiday Management',
+    ot:'OT Management', report:'Summary Report', calendar:'Calendar'
+  };
+  document.getElementById('page-title').textContent = titles[name] || name;
+  if (name === 'departments') loadDepartments();
+  if (name === 'attendance') initAttendance();
+  if (name === 'leave-records') initLeaveRecords();
+  if (name === 'leaves') loadLeaveTypes();
+  if (name === 'holidays') loadHolidays();
+  if (name === 'ot') initOT();
+  if (name === 'report') initReport();
+  if (name === 'calendar') initCalendar();
+}
+
+function updateClock() {
+  document.getElementById('current-time').textContent = new Date().toLocaleString('th-TH', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'short' });
+}
+setInterval(updateClock, 1000); updateClock();
+
+// ---- Modal ----
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+
+// ---- EMPLOYEES ----
+async function loadEmployees() {
+  const res = await fetch(`${API}/api/employee/`);
+  allEmployees = await res.json();
+  renderTable(allEmployees);
+  updateStats(allEmployees);
+  populateDeptFilter();
+  populateManagerSelect();
+}
+
+function updateStats(emps) {
+  document.getElementById('stat-total').textContent = emps.length;
+  document.getElementById('stat-admin').textContent = emps.filter(e => e.role === 'admin' || e.role === 'hr').length;
+  document.getElementById('stat-line').textContent = emps.filter(e => e.line_user_id).length;
+  const depts = new Set(emps.map(e => e.department_id).filter(Boolean));
+  document.getElementById('stat-dept').textContent = depts.size;
+}
+
+function populateDeptFilter() {
+  const sel = document.getElementById('dept-filter');
+  const existing = new Set([...sel.options].map(o => o.value));
+  const seen = new Set();
+  allEmployees.forEach(e => {
+    if (e.department_id && !seen.has(e.department_id)) {
+      seen.add(e.department_id);
+      if (!existing.has(String(e.department_id))) {
+        const opt = document.createElement('option');
+        opt.value = e.department_id; opt.textContent = e.department_name || `Dept ${e.department_id}`;
+        sel.appendChild(opt);
+      }
+    }
+  });
+}
+
+function populateManagerSelect() {
+  const sel = document.getElementById('f-manager');
+  sel.innerHTML = '<option value="">— ไม่มี —</option>';
+  allEmployees.filter(e => e.role === 'manager' || e.role === 'admin').forEach(e => {
+    const opt = document.createElement('option');
+    opt.value = e.id; opt.textContent = `${e.name} (${e.employee_code})`;
+    sel.appendChild(opt);
+  });
+}
+
+function roleBadge(role) {
+  const map = { admin:'badge-admin', hr:'badge-hr', manager:'badge-manager', employee:'badge-employee' };
+  return `<span class="badge ${map[role] || ''}">${role}</span>`;
+}
+
+function renderTable(data) {
+  const tbody = document.getElementById('emp-tbody');
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="8" class="no-data">ไม่พบข้อมูล</td></tr>'; return; }
+  tbody.innerHTML = data.map(e => {
+    const initials = e.name ? e.name.trim().split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase() : '?';
+    const lineStatus = e.line_user_id
+      ? '<span style="color:#22c55e;font-size:18px;">●</span>'
+      : '<span style="color:#d1d5db;font-size:18px;">○</span>';
+    return `<tr>
+      <td><div class="emp-info">
+        <div class="emp-avatar">${initials}</div>
+        <div><div class="emp-name">${e.name}</div><div class="emp-code">${e.employee_code}</div></div>
+      </div></td>
+      <td><span class="badge ${e.sex==='M'?'badge-m':'badge-w'}">${e.sex==='M'?'ชาย':'หญิง'}</span></td>
+      <td>${e.department_name || '—'}</td>
+      <td>${roleBadge(e.role)}</td>
+      <td>${e.phone_no || '—'}</td>
+      <td style="font-size:12px;">${e.email || '—'}</td>
+      <td style="text-align:center;">${lineStatus}</td>
+      <td><div class="actions">
+        <button class="btn btn-ghost btn-sm" onclick="openEditModal(${e.id})">แก้ไข</button>
+        <button class="btn btn-danger btn-sm" onclick="confirmDelete(${e.id}, '${e.name}')">ลบ</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function filterTable() {
+  const kw = document.getElementById('search-input').value.toLowerCase();
+  const dept = document.getElementById('dept-filter').value;
+  const role = document.getElementById('role-filter').value;
+  const filtered = allEmployees.filter(e =>
+    (!kw || e.name.toLowerCase().includes(kw) || e.employee_code.toLowerCase().includes(kw)) &&
+    (!dept || String(e.department_id) === dept) &&
+    (!role || e.role === role)
+  );
+  renderTable(filtered);
+}
+
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'เพิ่มพนักงานใหม่';
+  ['f-code','f-name','f-phone','f-email'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-sex').value = '';
+  document.getElementById('f-role').value = 'employee';
+  document.getElementById('f-dept').value = '';
+  document.getElementById('f-manager').value = '';
+  document.getElementById('f-code').disabled = false;
+  populateDeptModalSelect();
+  openModal('emp-modal');
+}
+
+function populateDeptModalSelect() {
+  const sel = document.getElementById('f-dept');
+  sel.innerHTML = '<option value="">— เลือกแผนก —</option>';
+  allDepts.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.id; opt.textContent = d.name;
+    sel.appendChild(opt);
+  });
+}
+
+async function openEditModal(id) {
+  editingId = id;
+  const emp = allEmployees.find(e => e.id === id);
+  if (!emp) return;
+  document.getElementById('modal-title').textContent = `แก้ไข — ${emp.name}`;
+  document.getElementById('f-code').value = emp.employee_code;
+  document.getElementById('f-code').disabled = true;
+  document.getElementById('f-name').value = emp.name || '';
+  document.getElementById('f-sex').value = emp.sex || '';
+  document.getElementById('f-phone').value = emp.phone_no || '';
+  document.getElementById('f-email').value = emp.email || '';
+  document.getElementById('f-role').value = emp.role || 'employee';
+  populateDeptModalSelect();
+  document.getElementById('f-dept').value = emp.department_id || '';
+  populateManagerSelect();
+  document.getElementById('f-manager').value = emp.manager_id || '';
+  openModal('emp-modal');
+}
+
+async function saveEmployee() {
+  const name = document.getElementById('f-name').value.trim();
+  const code = document.getElementById('f-code').value.trim().toUpperCase();
+  if (!name) return toast('กรุณาระบุชื่อพนักงาน', 'error');
+  if (!editingId && !code.match(/^TK\d+$/)) return toast('รหัสต้องเป็น TK001 เป็นต้นไป', 'error');
+
+  const body = {
+    employee_code: code, name,
+    sex: document.getElementById('f-sex').value || null,
+    phone_no: document.getElementById('f-phone').value || null,
+    email: document.getElementById('f-email').value || null,
+    department_id: document.getElementById('f-dept').value ? parseInt(document.getElementById('f-dept').value) : null,
+    role: document.getElementById('f-role').value,
+    manager_id: document.getElementById('f-manager').value ? parseInt(document.getElementById('f-manager').value) : null,
+  };
+
+  try {
+    const url = editingId ? `${API}/api/employee/${editingId}` : `${API}/api/employee/`;
+    const method = editingId ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+    toast(editingId ? 'แก้ไขข้อมูลเรียบร้อย' : 'เพิ่มพนักงานสำเร็จ');
+    closeModal('emp-modal');
+    loadEmployees();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function confirmDelete(id, name) {
+  if (!confirm(`ยืนยันการลบพนักงาน "${name}" ?\n(ข้อมูลจะถูก deactivate ไม่ถูกลบถาวร)`)) return;
+  try {
+    const res = await fetch(`${API}/api/employee/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    toast(`ลบ ${name} เรียบร้อย`);
+    loadEmployees();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ---- DEPARTMENTS ----
+let allDeptData = [];  // เก็บข้อมูล dept ล่าสุดจาก API
+
+async function loadDepartments() {
+  try {
+    const res = await fetch(`${API}/api/department`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    const json = await res.json();
+    allDeptData = Array.isArray(json) ? json : (json.departments || json.data || []);
+    allDepts = allDeptData.map(d => ({ id: d.id, name: d.name }));
+    updateDeptStats(allDeptData);
+    renderDeptTable(allDeptData);
+  } catch(err) {
+    document.getElementById('dept-tbody').innerHTML = `<tr><td colspan="6" class="no-data" style="color:#ef4444;">ไม่สามารถโหลดข้อมูล: ${err.message}<br><small>กรุณา restart server แล้วลองใหม่</small></td></tr>`;
+  }
+}
+
+function updateDeptStats(data) {
+  document.getElementById('ds-total').textContent  = data.length;
+  document.getElementById('ds-emp').textContent    = data.reduce((s, d) => s + parseInt(d.employee_count || 0), 0);
+  document.getElementById('ds-active').textContent = data.filter(d => parseInt(d.employee_count || 0) > 0).length;
+}
+
+function renderDeptTable(data) {
+  const tbody = document.getElementById('dept-tbody');
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="6" class="no-data">ยังไม่มีแผนก</td></tr>'; return; }
+  tbody.innerHTML = data.map(d => {
+    const cnt = parseInt(d.employee_count || 0);
+    const statusBadge = d.is_active
+      ? '<span class="badge badge-employee">ใช้งาน</span>'
+      : '<span class="badge" style="background:#f3f4f6;color:#6b7280;">ปิดใช้งาน</span>';
+    return `<tr>
+      <td style="color:#9ca3af;font-size:12px;">${d.id}</td>
+      <td>
+        <strong>${d.name}</strong>
+        ${cnt > 0 ? `<span style="margin-left:6px;color:#9ca3af;font-size:11px;">(${cnt} คน)</span>` : ''}
+      </td>
+      <td style="font-size:12px;color:#6b7280;">${d.description || '<span style="color:#d1d5db;">—</span>'}</td>
+      <td>
+        ${cnt > 0
+          ? `<button class="btn btn-ghost btn-sm" onclick="viewDeptDetail(${d.id}, '${d.name.replace(/'/g,"\\'")}')">👥 ${cnt} คน</button>`
+          : '<span style="color:#d1d5db;font-size:12px;">ยังไม่มีพนักงาน</span>'}
+      </td>
+      <td>${statusBadge}</td>
+      <td><div class="actions">
+        <button class="btn btn-ghost btn-sm" onclick="openEditDeptModal(${d.id})">แก้ไข</button>
+        <button class="btn btn-danger btn-sm" onclick="confirmDeleteDept(${d.id}, '${d.name.replace(/'/g,"\\'")}', ${cnt})">ลบ</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function filterDepartments() {
+  const kw = document.getElementById('dept-search').value.toLowerCase();
+  const filtered = kw
+    ? allDeptData.filter(d => d.name.toLowerCase().includes(kw) || (d.description || '').toLowerCase().includes(kw))
+    : allDeptData;
+  renderDeptTable(filtered);
+}
+
+function openDeptModal() {
+  document.getElementById('dept-modal-title').textContent = 'เพิ่มแผนกใหม่';
+  document.getElementById('d-edit-id').value  = '';
+  document.getElementById('d-name').value     = '';
+  document.getElementById('d-description').value = '';
+  openModal('dept-modal');
+}
+
+function openEditDeptModal(id) {
+  const dept = allDeptData.find(d => d.id === id);
+  if (!dept) return;
+  document.getElementById('dept-modal-title').textContent = `แก้ไขแผนก — ${dept.name}`;
+  document.getElementById('d-edit-id').value     = dept.id;
+  document.getElementById('d-name').value        = dept.name;
+  document.getElementById('d-description').value = dept.description || '';
+  openModal('dept-modal');
+}
+
+async function saveDepartment() {
+  const editId = document.getElementById('d-edit-id').value;
+  const name   = document.getElementById('d-name').value.trim();
+  const desc   = document.getElementById('d-description').value.trim();
+  if (!name) return toast('กรุณาระบุชื่อแผนก', 'error');
+
+  try {
+    const isEdit = !!editId;
+    const url    = isEdit ? `${API}/api/department/${editId}` : `${API}/api/department`;
+    const method = isEdit ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description: desc || null }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.success === false) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+    toast(data.message || (isEdit ? 'แก้ไขแผนกสำเร็จ' : 'เพิ่มแผนกสำเร็จ'));
+    closeModal('dept-modal');
+    await loadDepartments();
+    populateDeptModalSelect(); // refresh dropdown ใน employee modal
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+async function confirmDeleteDept(id, name, empCount) {
+  if (empCount > 0) {
+    toast(`ไม่สามารถลบได้ เพราะมีพนักงาน ${empCount} คนอยู่ในแผนกนี้`, 'error');
+    return;
+  }
+  if (!confirm(`ยืนยันลบแผนก "${name}" ?\nการลบจะเป็นแบบ soft delete`)) return;
+  try {
+    const res = await fetch(`${API}/api/department/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok || data.success === false) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+    toast(data.message || 'ลบแผนกสำเร็จ');
+    closeDeptDetail();
+    loadDepartments();
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+async function viewDeptDetail(id, name) {
+  document.getElementById('dept-detail-title').textContent = `👥 พนักงานในแผนก: ${name}`;
+  document.getElementById('dept-detail-panel').style.display = 'block';
+  document.getElementById('dept-detail-tbody').innerHTML = '<tr><td colspan="5" class="no-data">กำลังโหลด...</td></tr>';
+  document.getElementById('dept-detail-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  try {
+    const res = await fetch(`${API}/api/department/${id}`);
+    const data = await res.json();
+    const emps = data.employees || [];
+    if (!emps.length) {
+      document.getElementById('dept-detail-tbody').innerHTML = '<tr><td colspan="5" class="no-data">ยังไม่มีพนักงาน</td></tr>';
+      return;
+    }
+    const roleMap = { admin:'badge-admin', hr:'badge-hr', manager:'badge-manager', employee:'badge-employee' };
+    document.getElementById('dept-detail-tbody').innerHTML = emps.map(e => `
+      <tr>
+        <td><span class="emp-code" style="font-size:12px;">${e.employee_code}</span></td>
+        <td><div class="emp-info">
+          <div class="emp-avatar" style="width:28px;height:28px;font-size:11px;">${e.name.trim().split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}</div>
+          <span class="emp-name">${e.name}</span>
+        </div></td>
+        <td><span class="badge ${roleMap[e.role]||''}">${e.role}</span></td>
+        <td style="font-size:12px;">${e.email || '—'}</td>
+        <td style="text-align:center;">${e.line_user_id ? '<span style="color:#22c55e;">●</span>' : '<span style="color:#d1d5db;">○</span>'}</td>
+      </tr>
+    `).join('');
+  } catch(err) {
+    document.getElementById('dept-detail-tbody').innerHTML = `<tr><td colspan="5" class="no-data" style="color:#ef4444;">${err.message}</td></tr>`;
+  }
+}
+
+function closeDeptDetail() {
+  document.getElementById('dept-detail-panel').style.display = 'none';
+}
+
+// ---- LEAVE TYPES ----
+let allLeaveTypes = [];
+
+async function loadLeaveTypes() {
+  const tbody = document.getElementById('leave-tbody');
+  try {
+    const res = await fetch(`${API}/api/leave/types`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    allLeaveTypes = Array.isArray(json) ? json : (json.types || json.data || []);
+    tbody.innerHTML = allLeaveTypes.map(lt => `
+      <tr>
+        <td style="color:#9ca3af;font-size:12px;">${lt.id}</td>
+        <td><strong>${lt.name}</strong></td>
+        <td>${lt.max_days || '—'} วัน</td>
+        <td>${lt.gender_restriction
+          ? (lt.gender_restriction==='M'
+            ? '<span class="badge badge-m">ชาย</span>'
+            : '<span class="badge badge-w">หญิง</span>')
+          : '<span class="badge badge-employee">ทุกเพศ</span>'}</td>
+        <td>${lt.is_paid ? '<span style="color:#22c55e;">✓ จ่ายเงิน</span>' : '<span style="color:#9ca3af;">—</span>'}</td>
+        <td><div class="actions">
+          <button class="btn btn-ghost btn-sm" onclick="openEditLeaveTypeModal(${lt.id})">แก้ไข</button>
+          <button class="btn btn-danger btn-sm" onclick="confirmDeleteLeaveType(${lt.id},'${lt.name.replace(/'/g,"\\'")}')">ลบ</button>
+        </div></td>
+      </tr>
+    `).join('');
+  } catch(err) {
+    tbody.innerHTML = `<tr><td colspan="6" class="no-data" style="color:#ef4444;">โหลดไม่สำเร็จ: ${err.message}</td></tr>`;
+  }
+}
+
+function openLeaveTypeModal() {
+  document.getElementById('leavetype-modal-title').textContent = 'เพิ่มประเภทการลา';
+  document.getElementById('lt-edit-id').value = '';
+  document.getElementById('lt-name').value = '';
+  document.getElementById('lt-max-days').value = '30';
+  document.getElementById('lt-gender').value = '';
+  document.getElementById('lt-paid').checked = true;
+  openModal('leavetype-modal');
+}
+
+function openEditLeaveTypeModal(id) {
+  const lt = allLeaveTypes.find(t => t.id === id);
+  if (!lt) return;
+  document.getElementById('leavetype-modal-title').textContent = `แก้ไข — ${lt.name}`;
+  document.getElementById('lt-edit-id').value = lt.id;
+  document.getElementById('lt-name').value = lt.name;
+  document.getElementById('lt-max-days').value = lt.max_days || 30;
+  document.getElementById('lt-gender').value = lt.gender_restriction || '';
+  document.getElementById('lt-paid').checked = !!lt.is_paid;
+  openModal('leavetype-modal');
+}
+
+async function saveLeaveType() {
+  const editId = document.getElementById('lt-edit-id').value;
+  const name   = document.getElementById('lt-name').value.trim();
+  if (!name) return toast('กรุณาระบุชื่อประเภทการลา', 'error');
+  const body = {
+    name,
+    max_days: parseInt(document.getElementById('lt-max-days').value) || 30,
+    gender_restriction: document.getElementById('lt-gender').value || null,
+    is_paid: document.getElementById('lt-paid').checked,
+  };
+  try {
+    const url    = editId ? `${API}/api/leave/types/${editId}` : `${API}/api/leave/types`;
+    const method = editId ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+    toast(data.message || (editId ? 'แก้ไขสำเร็จ' : 'เพิ่มสำเร็จ'));
+    closeModal('leavetype-modal');
+    loadLeaveTypes();
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+async function confirmDeleteLeaveType(id, name) {
+  if (!confirm(`ยืนยันลบประเภทการลา "${name}" ?`)) return;
+  try {
+    const res = await fetch(`${API}/api/leave/types/${id}`, { method:'DELETE' });
+    const data = await res.json();
+    if (!res.ok || data.success === false) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+    toast(data.message || 'ลบสำเร็จ');
+    loadLeaveTypes();
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+// ---- ATTENDANCE ----
+let allAttendance = [];
+let attInited = false;
+
+function initAttendance() {
+  if (!attInited) {
+    // Set today's date as default
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('att-date').value = today;
+    // Populate dept filter
+    const deptSel = document.getElementById('att-dept');
+    allDepts.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.id; opt.textContent = d.name;
+      deptSel.appendChild(opt);
+    });
+    attInited = true;
+  }
+  loadAttendance();
+}
+
+async function loadAttendance() {
+  const date = document.getElementById('att-date').value;
+  const dept = document.getElementById('att-dept').value;
+  const params = new URLSearchParams();
+  if (date) params.append('date', date);
+  if (dept) params.append('department_id', dept);
+
+  const res = await fetch(`${API}/api/attendance/all?${params}`);
+  allAttendance = await res.json();
+  filterAttendance();
+}
+
+function filterAttendance() {
+  const kw = (document.getElementById('att-search').value || '').toLowerCase();
+  const data = kw
+    ? allAttendance.filter(r =>
+        (r.employee_name || '').toLowerCase().includes(kw) ||
+        (r.employee_code || '').toLowerCase().includes(kw)
+      )
+    : allAttendance;
+
+  // Summary
+  document.getElementById('att-total').textContent   = data.length;
+  document.getElementById('att-in').textContent      = data.filter(r => r.check_in).length;
+  document.getElementById('att-out').textContent     = data.filter(r => r.check_out).length;
+  document.getElementById('att-outside').textContent = data.filter(r =>
+    r.check_in_within_radius === false || r.check_out_within_radius === false
+  ).length;
+
+  const tbody = document.getElementById('att-tbody');
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="8" class="no-data">ไม่พบข้อมูล</td></tr>'; return; }
+
+  const fmtTime = s => s ? new Date(s).toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' }) : '—';
+  const fmtDate = s => s ? new Date(s).toLocaleDateString('th-TH', { day:'numeric', month:'short', year:'numeric' }) : '—';
+  const gpsBadge = (within, dist) => {
+    if (within === null || within === undefined) return '<span style="color:#9ca3af;">—</span>';
+    return within
+      ? `<span style="color:#22c55e;font-size:12px;">✅ ${dist ? dist+'ม.' : ''}</span>`
+      : `<span style="color:#ef4444;font-size:12px;">⚠️ ${dist ? dist+'ม.' : 'นอกรัศมี'}</span>`;
+  };
+
+  tbody.innerHTML = data.map(r => {
+    const initials = (r.employee_name||'?').trim().split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const hrs = r.hours_worked ? `${parseFloat(r.hours_worked).toFixed(1)} ชม.` : '—';
+    return `<tr>
+      <td><div class="emp-info">
+        <div class="emp-avatar" style="width:28px;height:28px;font-size:11px;">${initials}</div>
+        <div><div class="emp-name">${r.employee_name}</div><div class="emp-code">${r.employee_code||''}</div></div>
+      </div></td>
+      <td style="font-size:12px;">${r.department_name||'—'}</td>
+      <td style="font-size:12px;">${fmtDate(r.work_date)}</td>
+      <td style="font-weight:600;color:#22c55e;">${fmtTime(r.check_in)}</td>
+      <td style="font-weight:600;color:#F47920;">${fmtTime(r.check_out)}</td>
+      <td style="font-size:13px;font-weight:600;">${hrs}</td>
+      <td>${gpsBadge(r.check_in_within_radius, r.check_in_distance)}</td>
+      <td>${gpsBadge(r.check_out_within_radius, r.check_out_distance)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ---- LEAVE RECORDS ----
+let allLeaveRecords = [];
+let lrInited = false;
+
+function initLeaveRecords() {
+  if (!lrInited) {
+    // Populate year selector (current year + 2 back)
+    const yearSel = document.getElementById('lr-year');
+    const cy = new Date().getFullYear();
+    for (let y = cy; y >= cy - 3; y--) {
+      const opt = document.createElement('option');
+      opt.value = y;
+      opt.textContent = `พ.ศ. ${y + 543} (${y})`;
+      if (y === cy) opt.selected = true;
+      yearSel.appendChild(opt);
+    }
+    // Populate dept filter from allDepts
+    const deptSel = document.getElementById('lr-dept');
+    allDepts.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.id; opt.textContent = d.name;
+      deptSel.appendChild(opt);
+    });
+    lrInited = true;
+  }
+  loadLeaveRecords();
+}
+
+async function loadLeaveRecords() {
+  const year  = document.getElementById('lr-year').value;
+  const month = document.getElementById('lr-month').value;
+  const dept  = document.getElementById('lr-dept').value;
+  const stat  = document.getElementById('lr-status').value;
+  const params = new URLSearchParams();
+  if (year)  params.append('year',  year);
+  if (month) params.append('month', month);
+  if (dept)  params.append('department_id', dept);
+  if (stat)  params.append('status', stat);
+
+  const res = await fetch(`${API}/api/leave/all?${params}`);
+  allLeaveRecords = await res.json();
+  filterLeaveRecords();
+}
+
+function filterLeaveRecords() {
+  const kw = (document.getElementById('lr-search').value || '').toLowerCase();
+  const data = kw
+    ? allLeaveRecords.filter(r =>
+        (r.employee_name || '').toLowerCase().includes(kw) ||
+        (r.employee_code || '').toLowerCase().includes(kw)
+      )
+    : allLeaveRecords;
+
+  // Update summary
+  document.getElementById('lr-total').textContent    = data.length;
+  document.getElementById('lr-pending').textContent  = data.filter(r => r.status === 'pending').length;
+  document.getElementById('lr-approved').textContent = data.filter(r => r.status === 'approved').length;
+  document.getElementById('lr-rejected').textContent = data.filter(r => r.status === 'rejected').length;
+  document.getElementById('lr-days').textContent     = data.filter(r => r.status === 'approved').reduce((s,r) => s + (r.total_days||0), 0);
+
+  const tbody = document.getElementById('lr-tbody');
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="11" class="no-data">ไม่พบข้อมูล</td></tr>'; return; }
+
+  const statusMap = { pending:'รอ อนุมัติ', approved:'อนุมัติแล้ว', rejected:'ไม่อนุมัติ', cancelled:'ยกเลิก' };
+
+  tbody.innerHTML = data.map(r => {
+    const fmtDate = s => s ? new Date(s).toLocaleDateString('th-TH', { day:'numeric', month:'short', year:'numeric' }) : '—';
+    const initials = (r.employee_name||'?').trim().split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const actionBtns = r.status === 'pending'
+      ? `<button class="btn btn-primary btn-sm" onclick="approveLeave(${r.id})">✓ อนุมัติ</button>
+         <button class="btn btn-danger btn-sm" onclick="rejectLeave(${r.id})">✗ ปฏิเสธ</button>`
+      : `<span style="font-size:11px;color:#9ca3af;">—</span>`;
+    return `<tr>
+      <td style="color:#9ca3af;font-size:12px;">#${r.id}</td>
+      <td><div class="emp-info">
+        <div class="emp-avatar" style="width:28px;height:28px;font-size:11px;">${initials}</div>
+        <div><div class="emp-name">${r.employee_name}</div><div class="emp-code">${r.employee_code || ''}</div></div>
+      </div></td>
+      <td style="font-size:12px;">${r.department_name || '—'}</td>
+      <td style="font-size:12px;font-weight:500;color:#1357B0;">${r.leave_type_name}</td>
+      <td style="font-size:12px;">${fmtDate(r.start_date)}</td>
+      <td style="font-size:12px;">${fmtDate(r.end_date)}</td>
+      <td style="text-align:center;font-weight:600;">${r.total_days}</td>
+      <td><span class="leave-status-badge ls-${r.status}">${statusMap[r.status]||r.status}</span></td>
+      <td style="font-size:12px;">${r.approved_by_name || '—'}</td>
+      <td style="font-size:12px;color:#9ca3af;">${fmtDate(r.created_at)}</td>
+      <td><div class="actions">${actionBtns}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+async function approveLeave(id) {
+  if (!confirm('อนุมัติใบลานี้?')) return;
+  try {
+    const res = await fetch(`${API}/api/leave/${id}/approve`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:'{}' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+    toast(data.message || 'อนุมัติสำเร็จ');
+    loadLeaveRecords();
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+async function rejectLeave(id) {
+  if (!confirm('ปฏิเสธใบลานี้?')) return;
+  try {
+    const res = await fetch(`${API}/api/leave/${id}/reject`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:'{}' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+    toast(data.message || 'ปฏิเสธสำเร็จ');
+    loadLeaveRecords();
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+// ---- HOLIDAYS ----
+async function loadHolidays() {
+  const year = document.getElementById('holiday-year').value;
+  const res = await fetch(`${API}/api/holidays?year=${year}`);
+  const data = await res.json();
+  const days = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์'];
+  const tbody = document.getElementById('holiday-tbody');
+  if (!data.holidays.length) { tbody.innerHTML = '<tr><td colspan="5" class="no-data">ไม่มีข้อมูลวันหยุด</td></tr>'; return; }
+  tbody.innerHTML = data.holidays.map(h => {
+    const d = new Date(h.date);
+    const dateStr = d.toLocaleDateString('th-TH', { day:'2-digit', month:'long', year:'numeric' });
+    const dayName = days[d.getDay()];
+    return `<tr>
+      <td>${dateStr}</td>
+      <td><strong>${h.name}</strong></td>
+      <td>${dayName}</td>
+      <td>${h.is_substitute ? '<span class="badge badge-hr">ชดเชย</span>' : '<span class="badge badge-employee">ปกติ</span>'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteHoliday(${h.id}, '${h.name}')">ลบ</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function openHolidayModal() {
+  document.getElementById('h-date').value = '';
+  document.getElementById('h-name').value = '';
+  document.getElementById('h-year').value = document.getElementById('holiday-year').value;
+  document.getElementById('h-sub').checked = false;
+  openModal('holiday-modal');
+}
+
+async function saveHoliday() {
+  const date = document.getElementById('h-date').value;
+  const name = document.getElementById('h-name').value.trim();
+  const year = parseInt(document.getElementById('h-year').value);
+  if (!date || !name) return toast('กรุณากรอกข้อมูลให้ครบ', 'error');
+  try {
+    const res = await fetch(`${API}/api/holidays`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ date, name, year, is_substitute: document.getElementById('h-sub').checked })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    toast('เพิ่มวันหยุดสำเร็จ');
+    closeModal('holiday-modal');
+    loadHolidays();
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+async function deleteHoliday(id, name) {
+  if (!confirm(`ลบ "${name}" ?`)) return;
+  const res = await fetch(`${API}/api/holidays/${id}`, { method:'DELETE' });
+  const data = await res.json();
+  if (data.success) { toast('ลบเรียบร้อย'); loadHolidays(); }
+  else toast(data.error, 'error');
+}
+
+async function copyHolidays() {
+  const year = parseInt(document.getElementById('holiday-year').value);
+  if (!confirm(`คัดลอกวันหยุดจาก พ.ศ. ${year+543} ไปยัง พ.ศ. ${year+544} ?`)) return;
+  try {
+    const res = await fetch(`${API}/api/holidays/copy`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ source_year: year, target_year: year+1 })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    toast(data.message);
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+// ---- OT MANAGEMENT ----
+let allOT = [];
+let otInited = false;
+
+function initOT() {
+  if (!otInited) {
+    const cy = new Date().getFullYear();
+    const yearSel = document.getElementById('ot-year');
+    for (let y = cy; y >= cy - 2; y--) {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = `พ.ศ. ${y+543} (${y})`;
+      if (y === cy) opt.selected = true;
+      yearSel.appendChild(opt);
+    }
+    const deptSel = document.getElementById('ot-dept');
+    allDepts.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.id; opt.textContent = d.name;
+      deptSel.appendChild(opt);
+    });
+    // Default month = current month
+    document.getElementById('ot-month').value = String(new Date().getMonth() + 1);
+    otInited = true;
+  }
+  loadOT();
+}
+
+async function loadOT() {
+  const year   = document.getElementById('ot-year').value;
+  const month  = document.getElementById('ot-month').value;
+  const dept   = document.getElementById('ot-dept').value;
+  const status = document.getElementById('ot-status').value;
+  const params = new URLSearchParams();
+  if (year)   params.append('year', year);
+  if (month)  params.append('month', month);
+  if (dept)   params.append('department_id', dept);
+  if (status) params.append('status', status);
+
+  const tbody = document.getElementById('ot-tbody');
+  try {
+    const [listRes, sumRes] = await Promise.all([
+      fetch(`${API}/api/ot?${params}`),
+      fetch(`${API}/api/ot/summary?year=${year}&month=${month}`),
+    ]);
+    allOT = await listRes.json();
+    if (!Array.isArray(allOT)) allOT = [];
+
+    const sum = await sumRes.json();
+    document.getElementById('ot-stat-pending').textContent  = sum.pending   || 0;
+    document.getElementById('ot-stat-approved').textContent = sum.approved  || 0;
+    document.getElementById('ot-stat-rejected').textContent = sum.rejected  || 0;
+    document.getElementById('ot-stat-hours').textContent    = parseFloat(sum.total_ot_hours || 0).toFixed(1);
+
+    if (!allOT.length) { tbody.innerHTML = '<tr><td colspan="9" class="no-data">ไม่พบข้อมูล</td></tr>'; return; }
+    const fmtDate = s => s ? new Date(s).toLocaleDateString('th-TH', {day:'2-digit',month:'short',year:'numeric'}) : '—';
+    tbody.innerHTML = allOT.map(r => {
+      const initials = (r.employee_name||'?').trim().split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+      const timeRange = `${(r.start_time||'').slice(0,5)} – ${(r.end_time||'').slice(0,5)}`;
+      const hours = parseFloat(r.total_hours||0).toFixed(1);
+      const actionBtns = r.status === 'pending'
+        ? `<button class="btn btn-primary btn-sm" onclick="approveOT(${r.id})">✓</button>
+           <button class="btn btn-danger btn-sm" onclick="rejectOT(${r.id})">✗</button>`
+        : `<span class="ot-badge ot-${r.status}">${r.status==='approved'?'อนุมัติแล้ว':'ปฏิเสธ'}</span>`;
+      return `<tr>
+        <td style="color:#9ca3af;font-size:12px;">#${r.id}</td>
+        <td><div class="emp-info">
+          <div class="emp-avatar" style="width:28px;height:28px;font-size:11px;">${initials}</div>
+          <div><div class="emp-name">${r.employee_name||'—'}</div><div class="emp-code">${r.employee_code||''}</div></div>
+        </div></td>
+        <td style="font-size:12px;">${r.department_name||'—'}</td>
+        <td style="font-size:12px;">${fmtDate(r.ot_date)}</td>
+        <td style="font-size:12px;">${timeRange}</td>
+        <td style="text-align:center;font-weight:600;color:#1357B0;">${hours}</td>
+        <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.reason||'—'}</td>
+        <td><span class="ot-badge ot-${r.status}">${{pending:'รอ อนุมัติ',approved:'อนุมัติ',rejected:'ปฏิเสธ'}[r.status]||r.status}</span></td>
+        <td><div class="actions">${r.status==='pending'?`<button class="btn btn-primary btn-sm" onclick="approveOT(${r.id})">✓ อนุมัติ</button><button class="btn btn-danger btn-sm" onclick="rejectOT(${r.id})">✗</button>`:'—'}</div></td>
+      </tr>`;
+    }).join('');
+  } catch(err) {
+    tbody.innerHTML = `<tr><td colspan="9" class="no-data" style="color:#ef4444;">${err.message}</td></tr>`;
+  }
+}
+
+async function approveOT(id) {
+  if (!confirm('อนุมัติ OT นี้?')) return;
+  try {
+    const res = await fetch(`${API}/api/ot/${id}/approve`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:'{}' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+    toast(data.message || 'อนุมัติ OT สำเร็จ');
+    loadOT();
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+async function rejectOT(id) {
+  if (!confirm('ปฏิเสธ OT นี้?')) return;
+  try {
+    const res = await fetch(`${API}/api/ot/${id}/reject`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:'{}' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+    toast(data.message || 'ปฏิเสธ OT สำเร็จ');
+    loadOT();
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+// ---- SUMMARY REPORT ----
+let reportData = [];
+let reportInited = false;
+
+function initReport() {
+  if (!reportInited) {
+    const cy = new Date().getFullYear();
+    const cm = new Date().getMonth() + 1;
+    const ySel = document.getElementById('rpt-year');
+    for (let y = cy; y >= cy - 2; y--) {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = `พ.ศ. ${y+543} (${y})`;
+      if (y === cy) opt.selected = true;
+      ySel.appendChild(opt);
+    }
+    document.getElementById('rpt-month').value = String(cm);
+    const dSel = document.getElementById('rpt-dept');
+    allDepts.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.id; opt.textContent = d.name;
+      dSel.appendChild(opt);
+    });
+    reportInited = true;
+  }
+  loadReport();
+}
+
+async function loadReport() {
+  const year  = document.getElementById('rpt-year').value;
+  const month = document.getElementById('rpt-month').value;
+  const dept  = document.getElementById('rpt-dept').value;
+  const params = new URLSearchParams({ year, month });
+  if (dept) params.append('department_id', dept);
+
+  const tbody = document.getElementById('rpt-tbody');
+  tbody.innerHTML = '<tr><td colspan="10" class="no-data">กำลังโหลด...</td></tr>';
+  try {
+    const res = await fetch(`${API}/api/report/monthly?${params}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    reportData = json.rows || [];
+
+    // Update summary cards
+    const s = json.summary || {};
+    document.getElementById('rpt-emp').textContent   = s.totalEmp   || 0;
+    document.getElementById('rpt-work').textContent  = s.totalWorkDays || 0;
+    document.getElementById('rpt-leave').textContent = s.totalLeaveDays || 0;
+    document.getElementById('rpt-ot').textContent    = s.totalOTHours || 0;
+
+    if (!reportData.length) { tbody.innerHTML = '<tr><td colspan="10" class="no-data">ไม่พบข้อมูล</td></tr>'; return; }
+    tbody.innerHTML = reportData.map(r => `<tr>
+      <td style="font-size:12px;color:#6b7280;">${r.employee_code}</td>
+      <td><div class="emp-name" style="font-size:13px;">${r.employee_name}</div></td>
+      <td style="font-size:12px;">${r.department_name||'—'}</td>
+      <td>${r.checkin_days||0}</td>
+      <td>${parseFloat(r.avg_hours||0).toFixed(1)}</td>
+      <td>${r.approved_leaves||0}</td>
+      <td>${parseFloat(r.leave_days||0).toFixed(1)}</td>
+      <td>${r.approved_ot||0}</td>
+      <td>${parseFloat(r.ot_hours||0).toFixed(1)}</td>
+      <td>${r.outside_radius_days||0}</td>
+    </tr>`).join('');
+  } catch(err) {
+    tbody.innerHTML = `<tr><td colspan="10" class="no-data" style="color:#ef4444;">${err.message}</td></tr>`;
+  }
+}
+
+function exportReportCSV() {
+  if (!reportData.length) return toast('ไม่มีข้อมูลสำหรับ Export', 'error');
+  const headers = ['รหัส','ชื่อ','แผนก','วันเข้างาน','ชม.เฉลี่ย','ลา(อนุมัติ)','วันลา','OT(อนุมัติ)','OT ชม.','นอกรัศมี'];
+  const rows = reportData.map(r => [
+    r.employee_code, r.employee_name, r.department_name||'',
+    r.checkin_days||0, parseFloat(r.avg_hours||0).toFixed(1),
+    r.approved_leaves||0, parseFloat(r.leave_days||0).toFixed(1),
+    r.approved_ot||0, parseFloat(r.ot_hours||0).toFixed(1),
+    r.outside_radius_days||0,
+  ].join(','));
+  const csv = '﻿' + [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const y = document.getElementById('rpt-year').value;
+  const m = document.getElementById('rpt-month').value;
+  a.download = `report_${y}_${String(m).padStart(2,'0')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ---- CALENDAR ----
+let calInited = false;
+
+function initCalendar() {
+  if (!calInited) {
+    const cy = new Date().getFullYear();
+    const cm = new Date().getMonth() + 1;
+    const ySel = document.getElementById('cal-year');
+    for (let y = cy + 1; y >= cy - 1; y--) {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = `พ.ศ. ${y+543} (${y})`;
+      if (y === cy) opt.selected = true;
+      ySel.appendChild(opt);
+    }
+    document.getElementById('cal-month').value = String(cm);
+    // Render day name header
+    const dayNames = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+    document.getElementById('cal-day-names').innerHTML = dayNames.map(
+      d => `<div class="cal-day-name">${d}</div>`
+    ).join('');
+    calInited = true;
+  }
+  loadCalendar();
+}
+
+async function loadCalendar() {
+  const year  = document.getElementById('cal-year').value;
+  const month = document.getElementById('cal-month').value;
+  const calBody = document.getElementById('cal-body');
+  calBody.innerHTML = '<div style="grid-column:1/-1;padding:20px;text-align:center;color:#9ca3af;">กำลังโหลด...</div>';
+
+  try {
+    const res = await fetch(`${API}/api/report/calendar?year=${year}&month=${month}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { holidays, leaves } = await res.json();
+
+    // Build holiday map: date string -> name
+    const holMap = {};
+    (holidays||[]).forEach(h => { holMap[h.date.slice(0,10)] = h.name; });
+
+    // Build leave map: date string -> [employee names]
+    const leaveMap = {};
+    (leaves||[]).forEach(l => {
+      const start = new Date(l.start_date);
+      const end   = new Date(l.end_date);
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1)) {
+        const key = d.toISOString().slice(0,10);
+        if (!leaveMap[key]) leaveMap[key] = [];
+        leaveMap[key].push(`${l.employee_name} (${l.leave_type_name})`);
+      }
+    });
+
+    const today  = new Date().toISOString().slice(0,10);
+    const y = parseInt(year), m = parseInt(month);
+    const firstDay = new Date(y, m-1, 1).getDay(); // 0=Sun
+    const daysInMonth = new Date(y, m, 0).getDate();
+
+    let cells = '';
+    // Padding cells before first day
+    for (let i = 0; i < firstDay; i++) {
+      cells += '<div class="cal-cell other-month"></div>';
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      const dow = new Date(y, m-1, day).getDay();
+      const isWeekend  = dow === 0 || dow === 6;
+      const isToday    = dateStr === today;
+      const holName    = holMap[dateStr];
+      const leaveList  = leaveMap[dateStr] || [];
+      const cls = ['cal-cell', isToday?'today':'', isWeekend&&!isToday?'weekend':''].filter(Boolean).join(' ');
+
+      cells += `<div class="${cls}">
+        <div class="cal-date" style="color:${isWeekend||holName?'#ef4444':'#374151'}">${day}</div>
+        ${holName ? `<div class="cal-holiday" title="${holName}">${holName}</div>` : ''}
+        ${leaveList.slice(0,2).map(n=>`<div class="cal-leave" title="${n}">${n.split('(')[0].trim()}</div>`).join('')}
+        ${leaveList.length > 2 ? `<div style="font-size:9px;color:#9ca3af;">+${leaveList.length-2} more</div>` : ''}
+      </div>`;
+    }
+    calBody.innerHTML = cells;
+  } catch(err) {
+    calBody.innerHTML = `<div style="grid-column:1/-1;padding:20px;text-align:center;color:#ef4444;">${err.message}</div>`;
+  }
+}
+
+// ---- INIT ----
+async function init() {
+  // โหลด departments ก่อน แล้วค่อยโหลด employees เพื่อให้ dropdown แผนกครบ
+  try {
+    const dRes = await fetch(`${API}/api/department`);
+    if (dRes.ok) {
+      const json = await dRes.json();
+      allDeptData = Array.isArray(json) ? json : (json.departments || json.data || []);
+      allDepts = allDeptData.map(d => ({ id: d.id, name: d.name }));
+    }
+  } catch(e) { allDepts = []; }
+
+  const eRes = await fetch(`${API}/api/employee/`);
+  allEmployees = await eRes.json();
+  renderTable(allEmployees);
+  updateStats(allEmployees);
+  populateDeptFilter();
+  populateManagerSelect();
+  populateDeptModalSelect();
+}
+init();
+</script>
+</body>
+</html>

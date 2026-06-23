@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Clock In / Out</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Prompt', 'Segoe UI', sans-serif; background: #F4F6FA; color: #1a1a2e; font-size: 14px; min-height: 100vh; }
+
+  .header { background: #1357B0; padding: 16px 16px 18px; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .header-title { color: #fff; font-size: 16px; font-weight: 600; }
+  .header-name  { color: rgba(255,255,255,0.75); font-size: 12px; }
+  .back-btn { background: rgba(255,255,255,0.15); border: none; color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+  .datetime-bar { background: rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 12px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between; }
+  .datetime-bar .date { color: rgba(255,255,255,0.85); font-size: 13px; }
+  .datetime-bar .time { color: #fff; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+
+  .content { padding: 14px 14px 80px; }
+
+  /* Status card */
+  .card { background: #fff; border-radius: 14px; border: 1px solid #e8ecf0; padding: 14px 16px; margin-bottom: 12px; }
+  .row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .row:last-child { margin-bottom: 0; }
+  .row-label { font-size: 12px; color: #6b7280; }
+  .row-val   { font-size: 14px; font-weight: 600; }
+  .val-in    { color: #059669; }
+  .val-out   { color: #6b7280; }
+  .hours-badge { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+
+  /* GPS card */
+  .gps-card { background: #fff; border-radius: 14px; border: 1px solid #e8ecf0; padding: 18px 16px 14px; margin-bottom: 12px; text-align: center; }
+  .gps-card-title { font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; text-align: left; display: flex; align-items: center; gap: 6px; }
+
+  /* Radar */
+  .radar-wrap { position: relative; width: 90px; height: 90px; margin: 0 auto 10px; }
+  .radar-ring { position: absolute; border-radius: 50%; border: 2px solid; animation: ripple 2s ease-out infinite; }
+  .radar-ring:nth-child(1) { inset: 0; }
+  .radar-ring:nth-child(2) { inset: 18px; animation-delay: 0.55s; }
+  .radar-ring:nth-child(3) { inset: 36px; animation-delay: 1.1s; }
+  .radar-dot  { position: absolute; inset: 38px; border-radius: 50%; }
+  @keyframes ripple { 0% { transform: scale(1); opacity: 0.65; } 100% { transform: scale(1.35); opacity: 0; } }
+
+  .radar-safe   .radar-ring { border-color: #22c55e; }
+  .radar-safe   .radar-dot  { background: #22c55e; }
+  .radar-danger .radar-ring { border-color: #ef4444; }
+  .radar-danger .radar-dot  { background: #ef4444; }
+  .radar-idle   .radar-ring { border-color: #d1d5db; animation: none; }
+  .radar-idle   .radar-dot  { background: #9ca3af; }
+
+  .dist-num  { font-size: 28px; font-weight: 700; line-height: 1; }
+  .dist-unit { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+  .dist-safe   { color: #22c55e; }
+  .dist-warn   { color: #F47920; }
+  .dist-danger { color: #ef4444; }
+  .dist-idle   { color: #9ca3af; }
+
+  .gps-status-text { font-size: 13px; font-weight: 600; margin: 8px 0 4px; }
+  .gps-coords-text { font-size: 11px; color: #9ca3af; }
+  .gps-reload { margin-top: 10px; background: #f4f6fa; border: 1px solid #e8ecf0; border-radius: 8px; padding: 6px 16px; font-size: 12px; cursor: pointer; }
+
+  /* Outside warning */
+  .outside-warn { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; display: none; }
+  .outside-warn.show { display: block; }
+  .outside-warn p { font-size: 12px; color: #92400e; line-height: 1.6; }
+  .warn-btns { display: flex; gap: 8px; margin-top: 8px; }
+  .btn-ghost { padding: 6px 14px; border: 1px solid #e8ecf0; border-radius: 8px; background: #fff; font-size: 12px; cursor: pointer; }
+  .btn-force { padding: 6px 14px; border: 1px solid #fcd34d; border-radius: 8px; background: #fffbeb; color: #92400e; font-size: 12px; font-weight: 600; cursor: pointer; }
+
+  /* Action button */
+  .btn-main { width: 100%; padding: 16px; border: none; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 14px; transition: transform 0.1s; }
+  .btn-main:active { transform: scale(0.97); }
+  .btn-checkin  { background: linear-gradient(135deg, #1357B0, #1a6fd4); color: #fff; }
+  .btn-checkout { background: linear-gradient(135deg, #F47920, #f59332); color: #fff; }
+  .btn-done     { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; }
+  .btn-main svg { width: 22px; height: 22px; }
+
+  /* History */
+  .history-card { background: #fff; border-radius: 14px; border: 1px solid #e8ecf0; overflow: hidden; }
+  .history-title { padding: 12px 16px; border-bottom: 1px solid #f0f4f8; font-size: 13px; font-weight: 600; }
+  .hist-row { display: flex; align-items: center; padding: 10px 16px; border-bottom: 1px solid #f8fafc; gap: 12px; }
+  .hist-row:last-child { border-bottom: none; }
+  .hist-date  { font-size: 12px; font-weight: 600; min-width: 56px; }
+  .hist-day   { font-size: 11px; color: #9ca3af; }
+  .hist-times { flex: 1; }
+  .hist-t     { font-size: 12px; color: #374151; }
+  .hist-hours { font-size: 12px; color: #6b7280; }
+
+  /* Toast */
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; z-index: 99; }
+  #toast.show    { opacity: 1; }
+  #toast.success { background: #059669; }
+  #toast.error   { background: #dc2626; }
+
+  /* Loading */
+  .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); display: flex; align-items: center; justify-content: center; z-index: 50; }
+  .spinner { width: 32px; height: 32px; border: 3px solid #e8ecf0; border-top-color: #1357B0; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div>
+      <div class="header-title">Clock In / Out</div>
+      <div class="header-name" id="emp-name">กำลังโหลด...</div>
+    </div>
+    <button class="back-btn" onclick="liff.closeWindow()">✕ ปิด</button>
+  </div>
+  <div class="datetime-bar">
+    <div class="date" id="today-date">—</div>
+    <div class="time" id="live-clock">--:--:--</div>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- สถานะวันนี้ -->
+  <div class="card" id="status-card">
+    <div style="text-align:center;padding:10px;color:#9ca3af;font-size:12px;">กำลังโหลดสถานะ...</div>
+  </div>
+
+  <!-- GPS -->
+  <div class="gps-card">
+    <div class="gps-card-title">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3"/><path d="M19.94 11A7.97 7.97 0 0 0 13 4.06V2h-2v2.06A7.97 7.97 0 0 0 4.06 11H2v2h2.06A7.97 7.97 0 0 0 11 19.94V22h2v-2.06A7.97 7.97 0 0 0 19.94 13H22v-2h-2.06z"/>
+      </svg>
+      ตำแหน่ง GPS
+    </div>
+
+    <div class="radar-wrap radar-idle" id="radar">
+      <div class="radar-ring"></div>
+      <div class="radar-ring"></div>
+      <div class="radar-ring"></div>
+      <div class="radar-dot"></div>
+    </div>
+
+    <div class="dist-num dist-idle" id="dist-num">—</div>
+    <div class="dist-unit">เมตรจากออฟฟิศ</div>
+
+    <div class="gps-status-text" id="gps-status">กำลังระบุตำแหน่ง...</div>
+    <div class="gps-coords-text" id="gps-coords"></div>
+    <button class="gps-reload" onclick="retryGPS()">🔄 รีเฟรชตำแหน่ง</button>
+  </div>
+
+  <!-- นอกรัศมีแจ้งเตือน -->
+  <div class="outside-warn" id="outside-warn">
+    <p>📍 ตำแหน่งของคุณอยู่นอกรัศมีออฟฟิศ <strong>(<span id="outside-dist">—</span> ม.)</strong><br>
+    ระบบยังสามารถบันทึกได้ แต่จะมีหมายเหตุ "นอกรัศมี"</p>
+    <div class="warn-btns">
+      <button class="btn-ghost" onclick="retryGPS()">ลองใหม่</button>
+      <button class="btn-force" id="force-btn">บันทึกต่อไป</button>
+    </div>
+  </div>
+
+  <!-- ปุ่มหลัก -->
+  <button class="btn-main btn-done" id="main-btn" disabled>
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg>
+    กำลังโหลด...
+  </button>
+
+  <!-- ประวัติ 7 วัน -->
+  <div class="history-card">
+    <div class="history-title">ประวัติ 7 วันล่าสุด</div>
+    <div id="history-list">
+      <div style="text-align:center;padding:18px;color:#9ca3af;font-size:12px;">กำลังโหลด...</div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+<div class="loading-overlay" id="loading"><div class="spinner"></div></div>
+
+<script>
+const LIFF_ID = '2010328906-gmno4KOR'; // LIFF สำหรับ /liff/checkin
+const API = '';
+let lineUserId  = null;
+let gpsCoords   = null;
+let todayStatus = null;
+let officeConfig = { lat: 13.7563, lng: 100.5018, radius: 300 };
+
+// ---- Clock ----
+function updateClock() {
+  const now = new Date();
+  document.getElementById('live-clock').textContent =
+    now.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  document.getElementById('today-date').textContent =
+    now.toLocaleDateString('th-TH', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+}
+setInterval(updateClock, 1000); updateClock();
+
+// ---- Helpers ----
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'show ' + type;
+  setTimeout(() => el.className = '', 3000);
+}
+function fmtTime(ts) {
+  return ts ? new Date(ts).toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' }) : '—';
+}
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371000, r = d => d * Math.PI / 180;
+  const dLat = r(lat2-lat1), dLng = r(lng2-lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(r(lat1))*Math.cos(r(lat2))*Math.sin(dLng/2)**2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+}
+
+// ---- Status ----
+function renderStatus(s) {
+  const ci = s.has_checked_in, co = s.has_checked_out, r = s.record;
+  document.getElementById('status-card').innerHTML = `
+    <div class="row">
+      <span class="row-label">สถานะวันนี้</span>
+      <span class="row-val ${ci ? 'val-in' : 'val-out'}">
+        ${!ci ? '⭕ ยังไม่เช็คอิน' : co ? '✅ เสร็จสิ้น' : '🟢 กำลังทำงาน'}
+      </span>
+    </div>
+    ${ci ? `<div class="row"><span class="row-label">เช็คอิน</span><span class="row-val">${fmtTime(r?.check_in)}</span></div>` : ''}
+    ${co ? `
+      <div class="row"><span class="row-label">เช็คเอาท์</span><span class="row-val">${fmtTime(r?.check_out)}</span></div>
+      <div class="row"><span class="row-label">รวม</span>
+        ${r?.check_in && r?.check_out
+          ? `<span class="hours-badge">${((new Date(r.check_out)-new Date(r.check_in))/3600000).toFixed(1)} ชั่วโมง</span>`
+          : '<span>—</span>'}
+      </div>` : ''}
+  `;
+  renderBtn(ci, co);
+}
+
+function renderBtn(ci, co) {
+  const btn = document.getElementById('main-btn');
+  if (ci && co) {
+    btn.className = 'btn-main btn-done'; btn.disabled = true;
+    btn.innerHTML = `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> เสร็จสิ้นการทำงานวันนี้`;
+  } else if (!ci) {
+    btn.className = 'btn-main btn-checkin'; btn.disabled = false;
+    btn.innerHTML = `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> เช็คอินเข้างาน`;
+    btn.onclick = () => handleAction('checkin');
+  } else {
+    btn.className = 'btn-main btn-checkout'; btn.disabled = false;
+    btn.innerHTML = `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> เช็คเอาท์ออกงาน`;
+    btn.onclick = () => handleAction('checkout');
+  }
+}
+
+// ---- GPS ----
+function getGPS() {
+  setGPSLoading();
+  if (!navigator.geolocation) { setGPSError('อุปกรณ์ไม่รองรับ GPS'); return; }
+  navigator.geolocation.getCurrentPosition(onSuccess, onError,
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 });
+}
+
+function setGPSLoading() {
+  document.getElementById('radar').className = 'radar-wrap radar-idle';
+  document.getElementById('dist-num').textContent = '—';
+  document.getElementById('dist-num').className   = 'dist-num dist-idle';
+  document.getElementById('gps-status').textContent = 'กำลังระบุตำแหน่ง...';
+  document.getElementById('gps-coords').textContent  = '';
+  document.getElementById('outside-warn').classList.remove('show');
+  gpsCoords = null;
+}
+
+function onSuccess(pos) {
+  gpsCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  const dist  = haversine(officeConfig.lat, officeConfig.lng, gpsCoords.lat, gpsCoords.lng);
+  const safe  = dist <= officeConfig.radius;
+  const distClass = dist <= officeConfig.radius ? 'dist-safe'
+    : dist <= officeConfig.radius * 2 ? 'dist-warn' : 'dist-danger';
+
+  document.getElementById('radar').className     = `radar-wrap ${safe ? 'radar-safe' : 'radar-danger'}`;
+  document.getElementById('dist-num').textContent = dist;
+  document.getElementById('dist-num').className   = `dist-num ${distClass}`;
+  document.getElementById('gps-status').textContent =
+    safe ? `✅ อยู่ในรัศมี (รัศมี ${officeConfig.radius} ม.)` : `⚠️ นอกรัศมีออฟฟิศ (รัศมี ${officeConfig.radius} ม.)`;
+  document.getElementById('gps-status').style.color = safe ? '#22c55e' : '#ef4444';
+  document.getElementById('gps-coords').textContent =
+    `${gpsCoords.lat.toFixed(5)}, ${gpsCoords.lng.toFixed(5)}`;
+
+  if (!safe) {
+    document.getElementById('outside-dist').textContent = dist;
+    document.getElementById('outside-warn').classList.add('show');
+    const action = todayStatus?.has_checked_in ? 'checkout' : 'checkin';
+    document.getElementById('force-btn').onclick = () => doAction(action, gpsCoords.lat, gpsCoords.lng);
+  }
+}
+
+function onError(err) {
+  setGPSError(err.code === 1 ? 'กรุณาอนุญาตการเข้าถึงตำแหน่ง' : 'ไม่สามารถระบุตำแหน่งได้');
+}
+function setGPSError(msg) {
+  document.getElementById('radar').className = 'radar-wrap radar-idle';
+  document.getElementById('gps-status').textContent = msg;
+  document.getElementById('gps-status').style.color = '#ef4444';
+}
+function retryGPS() { getGPS(); }
+
+// ---- Action ----
+async function handleAction(action) {
+  if (!gpsCoords) { toast('กำลังระบุตำแหน่ง กรุณารอสักครู่', 'error'); getGPS(); return; }
+  const dist = haversine(officeConfig.lat, officeConfig.lng, gpsCoords.lat, gpsCoords.lng);
+  if (dist > officeConfig.radius) {
+    document.getElementById('outside-dist').textContent = dist;
+    document.getElementById('outside-warn').classList.add('show');
+    document.getElementById('force-btn').onclick = () => doAction(action, gpsCoords.lat, gpsCoords.lng);
+    return;
+  }
+  await doAction(action, gpsCoords.lat, gpsCoords.lng);
+}
+
+async function doAction(action, lat, lng) {
+  document.getElementById('outside-warn').classList.remove('show');
+  document.getElementById('loading').style.display = 'flex';
+  try {
+    const res = await fetch(`${API}/api/attendance/${action}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ line_user_id: lineUserId, lat, lng }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.success === false) throw new Error(data.message || data.error);
+    toast(data.message || (action === 'checkin' ? 'เช็คอินสำเร็จ!' : 'เช็คเอาท์สำเร็จ!'));
+    await loadTodayStatus();
+    loadHistory();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+
+// ---- Data ----
+async function loadTodayStatus() {
+  const res = await fetch(`${API}/api/attendance/today?line_user_id=${lineUserId}`);
+  todayStatus = await res.json();
+  renderStatus(todayStatus);
+}
+
+async function loadHistory() {
+  const res = await fetch(`${API}/api/attendance/history?line_user_id=${lineUserId}&days=7`);
+  const data = await res.json();
+  const rows = data.history || [];
+  const list = document.getElementById('history-list');
+  if (!rows.length) { list.innerHTML = '<div style="text-align:center;padding:16px;color:#9ca3af;font-size:12px;">ไม่มีข้อมูล</div>'; return; }
+  list.innerHTML = rows.map(r => {
+    const d = new Date(r.work_date);
+    const inGPS  = r.check_in_within_radius  === false ? ' ⚠️' : '';
+    const outGPS = r.check_out_within_radius === false ? ' ⚠️' : '';
+    const hrs = r.hours_worked ? `${parseFloat(r.hours_worked).toFixed(1)} ชม.` : '—';
+    return `<div class="hist-row">
+      <div>
+        <div class="hist-date">${d.toLocaleDateString('th-TH',{day:'numeric',month:'short'})}</div>
+        <div class="hist-day">${d.toLocaleDateString('th-TH',{weekday:'short'})}</div>
+      </div>
+      <div class="hist-times" style="flex:1;">
+        <div class="hist-t">▶ ${fmtTime(r.check_in)}${inGPS}</div>
+        <div class="hist-t" style="color:#9ca3af;">◀ ${fmtTime(r.check_out)}${outGPS}</div>
+      </div>
+      <div class="hist-hours">${hrs}</div>
+    </div>`;
+  }).join('');
+}
+
+// ---- Init ----
+async function init() {
+  try {
+    // ดึง config จาก server ก่อน (รับ LIFF ID + office coords ในครั้งเดียว)
+    let liffId = LIFF_ID; // fallback ใช้ค่าที่ hardcode ไว้
+    try {
+      const configUrl = window.location.origin + '/api/config';
+      const cfg = await fetch(configUrl).then(r => r.json());
+      if (cfg.liff_id_checkin) liffId = cfg.liff_id_checkin;
+      officeConfig = { lat: cfg.office_lat, lng: cfg.office_lng, radius: cfg.office_radius };
+    } catch (e) { /* ใช้ค่า default */ }
+
+    if (!liffId) throw new Error('LIFF ID ยังไม่ได้ตั้งค่า — กรุณาตั้งค่า LIFF_ID_CHECKIN ใน .env แล้ว restart server');
+    await liff.init({ liffId });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    const idToken = liff.getDecodedIDToken();
+    lineUserId = idToken.sub;
+
+    await loadTodayStatus();
+    loadHistory();
+    getGPS();
+  } catch (err) {
+    document.getElementById('status-card').innerHTML =
+      `<div style="text-align:center;padding:18px;color:#ef4444;">เกิดข้อผิดพลาด: ${err.message}</div>`;
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+
+init();
+</script>
+</body>
+</html>

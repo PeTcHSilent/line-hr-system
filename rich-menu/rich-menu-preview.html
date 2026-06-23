@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LINE Rich Menu Preview — ต่อกัน HR</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #e8ecf0; display: flex; align-items: center; justify-content: center;
+           min-height: 100vh; font-family: 'Sarabun', sans-serif; }
+
+    .wrapper { width: 960px; }
+    h1 { font-size: 14px; color: #666; margin-bottom: 10px; font-weight: 400; }
+
+    /* ==============================
+       RICH MENU CANVAS
+       LINE Full Size: 2500 × 1686 px
+       Preview ratio maintained
+    ============================== */
+    .rich-menu {
+      width: 100%;
+      aspect-ratio: 2500 / 1686;
+      background: #1357B0;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 3px solid #0d4691;
+    }
+
+    /* --- HEADER --- */
+    .header {
+      background: #1357B0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      height: 27%;
+      border-bottom: 2px solid rgba(255,255,255,0.1);
+      position: relative;
+    }
+
+    .logo-block {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .logo-icon {
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+      height: 44px;
+    }
+    .bar { border-radius: 3px 3px 0 0; }
+    .bar-l { width: 12px; height: 44px; background: #fff; }
+    .bar-m { width: 12px; height: 26px; background: #F47920; transform: skewX(-8deg); }
+    .bar-r { width: 12px; height: 34px; background: #fff; }
+
+    .brand-text { color: #fff; }
+    .brand-name { font-size: 28px; font-weight: 700; }
+    .brand-sub  { font-size: 11px; letter-spacing: 2.5px; color: rgba(255,255,255,0.6); text-transform: uppercase; margin-top: -2px; }
+
+    .divider { width: 1px; height: 48px; background: rgba(255,255,255,0.25); }
+
+    .greeting { }
+    .greeting-hi   { color: rgba(255,255,255,0.7); font-size: 14px; }
+    .greeting-main { color: #fff; font-size: 20px; font-weight: 700; }
+
+    /* mascot placeholder — replace with actual mascot PNG */
+    .mascot {
+      position: absolute;
+      right: 60px;
+      bottom: 0;
+      width: 130px;
+      text-align: center;
+    }
+    .mascot img { width: 100%; }
+    .mascot-placeholder {
+      width: 100px;
+      height: 110px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 50% 50% 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 56px;
+    }
+
+    /* --- MENU GRID --- */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      flex: 1;
+      gap: 3px;
+      padding: 3px;
+      background: #0a3a7c;
+    }
+
+    .btn {
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      border-radius: 6px;
+      padding: 10px;
+      transition: background 0.15s;
+    }
+    .btn:hover { background: #EFF6FF; }
+
+    .btn-icon {
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+    }
+    .i-leave { background: #FFF0E6; }
+    .i-in    { background: #E8F4FD; }
+    .i-out   { background: #FFF3E0; }
+    .i-bal   { background: #EBF5FB; }
+    .i-ot    { background: #FFF8E1; }
+    .i-ann   { background: #E8F5E9; }
+
+    .btn-label { color: #1A3A6B; font-size: 16px; font-weight: 700; text-align: center; }
+    .btn-sub   { color: #94A3B8; font-size: 11px; text-align: center; }
+
+    /* --- ANNOTATIONS --- */
+    .annotations {
+      margin-top: 16px;
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+      font-size: 12px;
+      color: #666;
+    }
+    .swatch { display: inline-flex; align-items: center; gap: 6px; }
+    .sw { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+    .note { margin-left: auto; font-size: 11px; color: #aaa; }
+    .areas {
+      margin-top: 12px;
+      background: white;
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 12px;
+      color: #444;
+    }
+    .areas h3 { font-size: 13px; color: #1357B0; margin-bottom: 8px; }
+    .area-row { display: flex; gap: 8px; margin-bottom: 4px; align-items: center; }
+    .badge { background: #EEF4FF; color: #1357B0; border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 600; min-width: 90px; text-align: center; }
+    .badge-o { background: #FFF0E6; color: #F47920; }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+  <h1>LINE Rich Menu — ต่อกัน Insurance Broker HR System (Preview 2500 × 1686 px)</h1>
+
+  <div class="rich-menu">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo-block">
+        <div class="logo-icon">
+          <div class="bar bar-l"></div>
+          <div class="bar bar-m"></div>
+          <div class="bar bar-r"></div>
+        </div>
+        <div class="brand-text">
+          <div class="brand-name">ต่อกัน</div>
+          <div class="brand-sub">Insurance Broker</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="greeting">
+        <div class="greeting-hi">ระบบ HR สำหรับพนักงาน</div>
+        <div class="greeting-main">เลือกรายการที่ต้องการ</div>
+      </div>
+      <div class="mascot">
+        <!-- แทนที่ด้วย <img src="mascot.png" alt=""> -->
+        <div class="mascot-placeholder">🐾</div>
+      </div>
+    </div>
+
+    <!-- 3×2 Menu Grid -->
+    <div class="grid">
+      <div class="btn">
+        <div class="btn-icon i-leave">📋</div>
+        <div class="btn-label">ลางาน</div>
+        <div class="btn-sub">ขออนุมัติลาหยุด</div>
+      </div>
+      <div class="btn">
+        <div class="btn-icon i-in">⏱️</div>
+        <div class="btn-label">เช็คอิน</div>
+        <div class="btn-sub">บันทึกเวลาเข้างาน</div>
+      </div>
+      <div class="btn">
+        <div class="btn-icon i-out">🚪</div>
+        <div class="btn-label">เช็คเอาท์</div>
+        <div class="btn-sub">บันทึกเวลาออกงาน</div>
+      </div>
+      <div class="btn">
+        <div class="btn-icon i-bal">📊</div>
+        <div class="btn-label">วันลาคงเหลือ</div>
+        <div class="btn-sub">ตรวจสอบโควต้าลา</div>
+      </div>
+      <div class="btn">
+        <div class="btn-icon i-ot">🕐</div>
+        <div class="btn-label">บันทึก OT</div>
+        <div class="btn-sub">แจ้งทำงานล่วงเวลา</div>
+      </div>
+      <div class="btn">
+        <div class="btn-icon i-ann">📢</div>
+        <div class="btn-label">ประกาศ HR</div>
+        <div class="btn-sub">ข่าวสารองค์กร</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Color palette -->
+  <div class="annotations">
+    <span class="swatch"><span class="sw" style="background:#1357B0"></span> Primary #1357B0</span>
+    <span class="swatch"><span class="sw" style="background:#F47920"></span> Accent #F47920</span>
+    <span class="swatch"><span class="sw" style="background:#0a3a7c"></span> Grid Border #0A3A7C</span>
+    <span class="swatch"><span class="sw" style="background:#ffffff; border:1px solid #ccc"></span> Button #FFFFFF</span>
+    <span class="note">⚠️ เปลี่ยน 🐾 เป็น &lt;img src="mascot.png"&gt; ก่อน export</span>
+  </div>
+
+  <!-- Area mapping reference -->
+  <div class="areas">
+    <h3>Postback Data Mapping (ใส่ใน LINE Developers Console)</h3>
+    <div class="area-row"><span class="badge badge-o">ลางาน</span> action=open_leave_form</div>
+    <div class="area-row"><span class="badge">เช็คอิน</span> action=check_in</div>
+    <div class="area-row"><span class="badge">เช็คเอาท์</span> action=check_out</div>
+    <div class="area-row"><span class="badge">วันลาคงเหลือ</span> action=check_balance</div>
+    <div class="area-row"><span class="badge badge-o">บันทึก OT</span> action=open_ot_form</div>
+    <div class="area-row"><span class="badge">ประกาศ HR</span> action=announcements</div>
+  </div>
+</div>
+</body>
+</html>

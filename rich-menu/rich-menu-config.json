@@ -1,0 +1,50 @@
+{
+  "_comment": "LINE Rich Menu Config — ใช้กับ LINE Messaging API v3",
+  "_reference": "POST https://api.line.me/v2/bot/richmenu",
+
+  "size": {
+    "width": 2500,
+    "height": 1686
+  },
+  "selected": true,
+  "name": "ต่อกัน HR Menu",
+  "chatBarText": "เมนู HR ต่อกัน",
+  "areas": [
+
+    {
+      "_label": "ลางาน (แถว 1 คอลัมน์ 1)",
+      "bounds": { "x": 0,    "y": 456, "width": 833, "height": 615 },
+      "action": { "type": "postback", "data": "action=open_leave_form", "displayText": "ลางาน" }
+    },
+
+    {
+      "_label": "เช็คอิน (แถว 1 คอลัมน์ 2)",
+      "bounds": { "x": 833,  "y": 456, "width": 834, "height": 615 },
+      "action": { "type": "postback", "data": "action=check_in", "displayText": "เช็คอิน" }
+    },
+
+    {
+      "_label": "เช็คเอาท์ (แถว 1 คอลัมน์ 3)",
+      "bounds": { "x": 1667, "y": 456, "width": 833, "height": 615 },
+      "action": { "type": "postback", "data": "action=check_out", "displayText": "เช็คเอาท์" }
+    },
+
+    {
+      "_label": "วันลาคงเหลือ (แถว 2 คอลัมน์ 1)",
+      "bounds": { "x": 0,    "y": 1071, "width": 833, "height": 615 },
+      "action": { "type": "postback", "data": "action=check_balance", "displayText": "ดูวันลาคงเหลือ" }
+    },
+
+    {
+      "_label": "บันทึก OT (แถว 2 คอลัมน์ 2)",
+      "bounds": { "x": 833,  "y": 1071, "width": 834, "height": 615 },
+      "action": { "type": "postback", "data": "action=open_ot_form", "displayText": "บันทึก OT" }
+    },
+
+    {
+      "_label": "ประกาศ HR (แถว 2 คอลัมน์ 3)",
+      "bounds": { "x": 1667, "y": 1071, "width": 833, "height": 615 },
+      "action": { "type": "postback", "data": "action=announcements", "displayText": "ดูประกาศ HR" }
+    }
+  ]
+}

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>โปรไฟล์ของฉัน — ต่อกัน HR</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Sarabun', 'Helvetica Neue', Arial, sans-serif;
+      background: #F3F4F6;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #1357B0 0%, #0d3f82 100%);
+      padding: 20px 20px 32px;
+      color: white;
+      position: relative;
+    }
+    .header-top {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .header-title { font-size: 16px; font-weight: 600; opacity: 0.9; }
+    .header-date { font-size: 12px; opacity: 0.65; }
+
+    .avatar-row { display: flex; align-items: center; gap: 14px; }
+    .avatar {
+      width: 60px; height: 60px; border-radius: 50%;
+      background: rgba(255,255,255,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; font-weight: 700; color: #fff;
+      border: 3px solid rgba(255,255,255,0.5);
+      flex-shrink: 0; overflow: hidden;
+    }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-info {}
+    .profile-name { font-size: 20px; font-weight: 700; color: #fff; }
+    .profile-code { font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 2px; }
+    .profile-dept { font-size: 13px; color: rgba(255,255,255,0.85); margin-top: 4px; }
+
+    .role-badge {
+      display: inline-block; margin-top: 6px;
+      padding: 2px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+      background: rgba(255,255,255,0.2); color: #fff;
+    }
+
+    /* Content */
+    .content {
+      margin-top: -16px;
+      border-radius: 16px 16px 0 0;
+      background: #F3F4F6;
+      padding: 16px;
+      min-height: calc(100vh - 130px);
+    }
+
+    .section-title {
+      font-size: 12px; font-weight: 700; color: #9CA3AF;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin: 16px 0 8px;
+    }
+    .section-title:first-child { margin-top: 0; }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+      overflow: hidden;
+    }
+
+    /* Leave balance grid */
+    .balance-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1px;
+      background: #F3F4F6;
+    }
+    .balance-item {
+      background: white;
+      padding: 14px 16px;
+      display: flex; flex-direction: column;
+    }
+    .balance-item:nth-child(1) { border-radius: 12px 0 0 0; }
+    .balance-item:nth-child(2) { border-radius: 0 12px 0 0; }
+    .balance-item:last-child:nth-child(odd) { border-radius: 0 0 0 12px; }
+    .balance-item:last-child:nth-child(even) { border-radius: 0 0 12px 0; }
+    .balance-label { font-size: 12px; color: #6B7280; margin-bottom: 6px; }
+    .balance-used { font-size: 22px; font-weight: 700; color: #1357B0; }
+    .balance-max  { font-size: 11px; color: #9CA3AF; }
+    .balance-bar  {
+      height: 4px; border-radius: 2px;
+      background: #E5E7EB; margin-top: 8px; overflow: hidden;
+    }
+    .balance-bar-fill {
+      height: 100%; border-radius: 2px;
+      background: #1357B0; transition: width 0.6s ease;
+    }
+    .balance-bar-fill.warn { background: #F59E0B; }
+    .balance-bar-fill.full { background: #EF4444; }
+
+    /* OT summary */
+    .ot-summary {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 14px 16px;
+      gap: 0;
+    }
+    .ot-stat { text-align: center; }
+    .ot-stat + .ot-stat { border-left: 1px solid #F3F4F6; }
+    .ot-stat .num { font-size: 20px; font-weight: 700; }
+    .ot-stat .lbl { font-size: 10px; color: #9CA3AF; margin-top: 2px; }
+    .ot-stat .num.blue   { color: #1357B0; }
+    .ot-stat .num.green  { color: #22c55e; }
+    .ot-stat .num.yellow { color: #F59E0B; }
+    .ot-stat .num.red    { color: #EF4444; }
+
+    /* OT list */
+    .ot-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid #F9FAFB;
+    }
+    .ot-item:last-child { border-bottom: none; }
+    .ot-date-col { text-align: center; min-width: 44px; }
+    .ot-day  { font-size: 20px; font-weight: 700; color: #1357B0; line-height: 1; }
+    .ot-mon  { font-size: 10px; color: #9CA3AF; }
+    .ot-info { flex: 1; }
+    .ot-time { font-size: 13px; font-weight: 600; color: #374151; }
+    .ot-reason { font-size: 12px; color: #9CA3AF; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+    .ot-hours { font-size: 12px; font-weight: 600; color: #6B7280; white-space: nowrap; }
+
+    .status-badge {
+      padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600;
+    }
+    .s-pending  { background: #fff7ed; color: #c2410c; }
+    .s-approved { background: #f0fdf4; color: #166534; }
+    .s-rejected { background: #fef2f2; color: #991b1b; }
+
+    /* Info rows */
+    .info-row {
+      display: flex; align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid #F9FAFB;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-icon { font-size: 16px; width: 28px; text-align: center; }
+    .info-label { font-size: 12px; color: #9CA3AF; flex: 1; margin-left: 8px; }
+    .info-value { font-size: 13px; font-weight: 500; color: #374151; }
+
+    /* Quick actions */
+    .quick-actions {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    }
+    .qa-btn {
+      background: white; border-radius: 12px;
+      padding: 14px 8px; text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+      cursor: pointer; text-decoration: none;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 6px;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .qa-btn:active { transform: scale(0.96); box-shadow: none; }
+    .qa-icon { font-size: 22px; }
+    .qa-label { font-size: 11px; color: #374151; font-weight: 500; }
+
+    /* Loading / error */
+    .loading { text-align: center; padding: 48px 16px; }
+    .loading-spinner {
+      width: 36px; height: 36px; border: 3px solid #E5E7EB;
+      border-top-color: #1357B0; border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading p { color: #9CA3AF; font-size: 13px; }
+
+    .empty-state { text-align: center; padding: 24px; color: #9CA3AF; font-size: 13px; }
+
+    .year-selector {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 16px; border-bottom: 1px solid #F3F4F6;
+    }
+    .year-selector select {
+      flex: 1; border: 1px solid #E5E7EB; border-radius: 8px;
+      padding: 6px 10px; font-size: 13px; background: white; outline: none;
+    }
+    .year-selector label { font-size: 12px; color: #9CA3AF; white-space: nowrap; }
+  </style>
+</head>
+<body>
+
+<!-- Header (ใส่ข้อมูลจาก API) -->
+<div class="header">
+  <div class="header-top">
+    <div class="header-title">👤 โปรไฟล์ของฉัน</div>
+    <div class="header-date" id="header-date">—</div>
+  </div>
+  <div class="avatar-row">
+    <div class="avatar" id="avatar">?</div>
+    <div class="profile-info">
+      <div class="profile-name" id="profile-name">กำลังโหลด...</div>
+      <div class="profile-code" id="profile-code"></div>
+      <div class="profile-dept" id="profile-dept"></div>
+      <span class="role-badge" id="role-badge"></span>
+    </div>
+  </div>
+</div>
+
+<!-- Content -->
+<div class="content" id="main-content">
+  <div class="loading" id="loading-state">
+    <div class="loading-spinner"></div>
+    <p>กำลังโหลดข้อมูล...</p>
+  </div>
+</div>
+
+<script>
+const LIFF_ID_PROFILE = '2010328906-dL5V0qlL'; // LIFF สำหรับ /liff/profile
+
+let lineUserId = null;
+let employeeData = null;
+
+// ─── Date helpers ─────────────────────────────────────────────────────────
+const THAI_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.',
+                     'ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+function thaiDate(isoStr) {
+  const d = new Date(isoStr);
+  return `${d.getDate()} ${THAI_MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`;
+}
+function shortThaiDate(isoStr) {
+  const d = new Date(isoStr);
+  return { day: d.getDate(), mon: THAI_MONTHS[d.getMonth()] };
+}
+function thaiTime(isoStr) {
+  if (!isoStr) return '—';
+  // อาจเป็น "08:00" หรือ full ISO
+  if (isoStr.length <= 8) return isoStr.slice(0,5);
+  return new Date(isoStr).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+}
+const now = new Date();
+const currentYear = now.getFullYear() + 543;
+document.getElementById('header-date').textContent =
+  `${now.getDate()} ${THAI_MONTHS[now.getMonth()]} ${now.getFullYear() + 543}`;
+
+// ─── LIFF Init ─────────────────────────────────────────────────────────────
+async function initLIFF() {
+  try {
+    let liffId = LIFF_ID_PROFILE;
+    try {
+      const configUrl = window.location.origin + '/api/config';
+      const cfg = await fetch(configUrl).then(r => r.json());
+      if (cfg.liff_id_profile) liffId = cfg.liff_id_profile;
+    } catch (e) { /* use default */ }
+    if (!liffId) throw new Error('LIFF ID ยังไม่ได้ตั้งค่า — กรุณาตั้งค่า LIFF_ID_PROFILE ใน .env แล้ว restart server');
+    await liff.init({ liffId }); // LIFF ID สำหรับ /liff/profile (โหลดจาก /api/config)
+    if (!liff.isLoggedIn()) {
+      liff.login({ redirectUri: location.href });
+      return;
+    }
+    const idToken = liff.getDecodedIDToken();
+    lineUserId = idToken.sub;
+    loadProfile();
+  } catch (err) {
+    // Dev mode: ลองดึงจาก URL param
+    const params = new URLSearchParams(location.search);
+    lineUserId = params.get('uid');
+    if (lineUserId) {
+      loadProfile();
+    } else {
+      showError('ไม่สามารถดึงข้อมูล LINE ได้<br><small>' + err.message + '</small>');
+    }
+  }
+}
+
+// ─── Load all data ─────────────────────────────────────────────────────────
+async function loadProfile() {
+  try {
+    const [empRes, balRes, otRes] = await Promise.all([
+      fetch(`/api/employee/me?line_user_id=${lineUserId}`),
+      fetch(`/api/employee/leave-balance?line_user_id=${lineUserId}`),
+      fetch(`/api/ot/mine?line_user_id=${lineUserId}&year=${now.getFullYear()}`),
+    ]);
+
+    if (!empRes.ok) { showError('ไม่พบข้อมูลพนักงาน กรุณาติดต่อ HR'); return; }
+    employeeData = await empRes.json();
+    const balance = balRes.ok ? await balRes.json() : [];
+    const otData  = otRes.ok  ? await otRes.json()  : { records: [], summary: {} };
+
+    renderHeader(employeeData);
+    renderContent(employeeData, balance, otData);
+  } catch (err) {
+    showError('โหลดข้อมูลไม่สำเร็จ<br><small>' + err.message + '</small>');
+  }
+}
+
+// ─── Render header ─────────────────────────────────────────────────────────
+function renderHeader(emp) {
+  document.getElementById('loading-state')?.remove();
+  const initials = (emp.name || '?').trim().split(' ')
+    .map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  const av = document.getElementById('avatar');
+  if (!av.querySelector('img')) av.textContent = initials;
+  document.getElementById('profile-name').textContent = emp.name || '—';
+  document.getElementById('profile-code').textContent = emp.employee_code || '';
+  document.getElementById('profile-dept').textContent = emp.department_name
+    ? `🏢 ${emp.department_name}` : '';
+  const roleLabels = { admin: 'Admin', hr: 'HR', manager: 'Manager', employee: 'พนักงาน' };
+  document.getElementById('role-badge').textContent = roleLabels[emp.role] || emp.role;
+}
+
+// ─── Render content ─────────────────────────────────────────────────────────
+function renderContent(emp, balance, otData) {
+  const content = document.getElementById('main-content');
+  content.innerHTML = '';
+
+  // 1. Quick actions
+  content.insertAdjacentHTML('beforeend', `
+    <div class="section-title">ลัดเมนู</div>
+    <div class="quick-actions">
+      <a class="qa-btn" href="https://liff.line.me/${getLiffId('leave')}">
+        <span class="qa-icon">📋</span>
+        <span class="qa-label">ลางาน</span>
+      </a>
+      <a class="qa-btn" href="/liff/history?line_user_id=${lineUserId}">
+        <span class="qa-icon">📜</span>
+        <span class="qa-label">ประวัติลา</span>
+      </a>
+      <a class="qa-btn" href="/liff/checkin">
+        <span class="qa-icon">⏰</span>
+        <span class="qa-label">เข้า-ออกงาน</span>
+      </a>
+    </div>
+  `);
+
+  // 2. Leave balance
+  content.insertAdjacentHTML('beforeend', `<div class="section-title">วันลาคงเหลือ ปี ${currentYear}</div>`);
+  if (!balance || !balance.length) {
+    content.insertAdjacentHTML('beforeend', `
+      <div class="card">
+        <div class="empty-state">ไม่พบข้อมูลวันลา</div>
+      </div>
+    `);
+  } else {
+    const grid = document.createElement('div');
+    grid.className = 'card balance-grid';
+    balance.forEach(b => {
+      const used = b.days_used || 0;
+      const max  = b.max_days  || 0;
+      const pct  = max > 0 ? Math.min(100, Math.round(used / max * 100)) : 0;
+      const cls  = pct >= 100 ? 'full' : pct >= 75 ? 'warn' : '';
+      grid.insertAdjacentHTML('beforeend', `
+        <div class="balance-item">
+          <div class="balance-label">${b.leave_type_name || b.name}</div>
+          <div class="balance-used">${used} <small style="font-size:14px;font-weight:400;color:#9CA3AF;">/ ${max} วัน</small></div>
+          <div class="balance-max">เหลือ ${Math.max(0, max - used)} วัน</div>
+          <div class="balance-bar">
+            <div class="balance-bar-fill ${cls}" style="width:${pct}%"></div>
+          </div>
+        </div>
+      `);
+    });
+    content.appendChild(grid);
+  }
+
+  // 3. OT summary
+  const sum = otData.summary || {};
+  content.insertAdjacentHTML('beforeend', `
+    <div class="section-title">OT ปี ${currentYear}</div>
+    <div class="card">
+      <div class="ot-summary">
+        <div class="ot-stat">
+          <div class="num blue">${sum.total || 0}</div>
+          <div class="lbl">ทั้งหมด</div>
+        </div>
+        <div class="ot-stat">
+          <div class="num green">${sum.approved || 0}</div>
+          <div class="lbl">อนุมัติ</div>
+        </div>
+        <div class="ot-stat">
+          <div class="num yellow">${sum.pending || 0}</div>
+          <div class="lbl">รอ</div>
+        </div>
+        <div class="ot-stat">
+          <div class="num blue">${sum.total_approved_hours || 0} ชม.</div>
+          <div class="lbl">ชม.ที่ได้รับ</div>
+        </div>
+      </div>
+    </div>
+  `);
+
+  // 4. OT history (recent 10)
+  const records = (otData.records || []).slice(0, 10);
+  if (records.length) {
+    content.insertAdjacentHTML('beforeend', `<div class="section-title">รายการ OT ล่าสุด</div>`);
+    const otCard = document.createElement('div');
+    otCard.className = 'card';
+    records.forEach(r => {
+      const { day, mon } = shortThaiDate(r.ot_date);
+      const startT = thaiTime(r.start_time);
+      const endT   = thaiTime(r.end_time);
+      const hrs    = r.total_hours ? `${parseFloat(r.total_hours).toFixed(1)} ชม.` : '';
+      const sBadge = r.status === 'approved' ? 's-approved' : r.status === 'rejected' ? 's-rejected' : 's-pending';
+      const sLabel = r.status === 'approved' ? 'อนุมัติ' : r.status === 'rejected' ? 'ปฏิเสธ' : 'รออนุมัติ';
+      otCard.insertAdjacentHTML('beforeend', `
+        <div class="ot-item">
+          <div class="ot-date-col">
+            <div class="ot-day">${day}</div>
+            <div class="ot-mon">${mon}</div>
+          </div>
+          <div class="ot-info">
+            <div class="ot-time">${startT} – ${endT}</div>
+            <div class="ot-reason">${r.reason || 'ไม่ระบุเหตุผล'}</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="ot-hours">${hrs}</div>
+            <span class="status-badge ${sBadge}">${sLabel}</span>
+          </div>
+        </div>
+      `);
+    });
+    content.appendChild(otCard);
+  }
+
+  // 5. ข้อมูลพนักงาน
+  content.insertAdjacentHTML('beforeend', `
+    <div class="section-title">ข้อมูลส่วนตัว</div>
+    <div class="card">
+      <div class="info-row">
+        <span class="info-icon">👤</span>
+        <span class="info-label">ชื่อ-นามสกุล</span>
+        <span class="info-value">${emp.name || '—'}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-icon">🪪</span>
+        <span class="info-label">รหัสพนักงาน</span>
+        <span class="info-value">${emp.employee_code || '—'}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-icon">🏢</span>
+        <span class="info-label">แผนก</span>
+        <span class="info-value">${emp.department_name || '—'}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-icon">⚙️</span>
+        <span class="info-label">ตำแหน่ง</span>
+        <span class="info-value">${emp.role || '—'}</span>
+      </div>
+    </div>
+    <div style="height:24px;"></div>
+  `);
+}
+
+function getLiffId(type) {
+  // ดึงจาก meta tag ที่ server inject หรือ fallback
+  return type === 'leave' ? '2010328906-y4bbKHYu' : '2010328906-qgLeVPzG';
+}
+
+function showError(html) {
+  document.getElementById('profile-name').textContent = 'เกิดข้อผิดพลาด';
+  const content = document.getElementById('main-content');
+  content.innerHTML = `
+    <div style="text-align:center;padding:40px 16px;">
+      <div style="font-size:40px;margin-bottom:12px;">😕</div>
+      <div style="color:#374151;font-size:15px;font-weight:600;margin-bottom:8px;">ไม่สามารถโหลดข้อมูลได้</div>
+      <div style="color:#9CA3AF;font-size:13px;">${html}</div>
+      <button onclick="location.reload()" style="margin-top:16px;padding:10px 24px;background:#1357B0;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;">ลองใหม่</button>
+    </div>
+  `;
+}
+
+// ─── Start ────────────────────────────────────────────────────────────────
+initLIFF();
+</script>
+</body>
+</html>

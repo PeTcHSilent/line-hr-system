@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ประวัติการลา</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Prompt', 'Segoe UI', sans-serif; background: #F4F6FA; color: #1a1a2e; font-size: 14px; -webkit-font-smoothing: antialiased; }
+
+  /* Header */
+  .header { background: #1357B0; padding: 16px 16px 14px; position: sticky; top: 0; z-index: 10; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .header-title { color: #fff; font-size: 16px; font-weight: 600; }
+  .header-name { color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 1px; }
+  .back-btn { background: rgba(255,255,255,0.15); border: none; color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+
+  /* Filter bar */
+  .filter-bar { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+  .filter-bar::-webkit-scrollbar { display: none; }
+  .filter-chip { white-space: nowrap; padding: 5px 12px; border-radius: 20px; border: 1.5px solid rgba(255,255,255,0.3); background: transparent; color: rgba(255,255,255,0.8); font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .filter-chip.active { background: #fff; color: #1357B0; border-color: #fff; font-weight: 600; }
+
+  /* Summary cards */
+  .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px 14px 0; }
+  .sum-card { background: #fff; border-radius: 10px; padding: 10px 12px; text-align: center; border: 1px solid #e8ecf0; }
+  .sum-card .num { font-size: 22px; font-weight: 700; line-height: 1.2; }
+  .sum-card .lbl { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+  .num-pending  { color: #F47920; }
+  .num-approved { color: #22c55e; }
+  .num-rejected { color: #ef4444; }
+
+  /* Year selector */
+  .year-select-wrap { padding: 12px 14px 0; display: flex; align-items: center; gap: 8px; }
+  .year-select-wrap label { font-size: 12px; color: #6b7280; }
+  select.year-sel { padding: 5px 10px; border: 1px solid #e8ecf0; border-radius: 8px; font-size: 13px; background: #fff; }
+
+  /* List */
+  .list { padding: 12px 14px 80px; display: flex; flex-direction: column; gap: 10px; }
+
+  /* Leave card */
+  .leave-card { background: #fff; border-radius: 12px; border: 1px solid #e8ecf0; overflow: hidden; }
+  .leave-card-header { padding: 12px 14px 10px; border-bottom: 1px solid #f4f6f8; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .leave-type-pill { font-size: 13px; font-weight: 600; color: #1357B0; }
+  .leave-req-num { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+  .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+  .status-pending  { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+  .status-approved { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+  .status-rejected { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+  .status-cancelled{ background: #f9fafb; color: #6b7280; border: 1px solid #e5e7eb; }
+
+  .leave-card-body { padding: 10px 14px; }
+  .leave-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .leave-row:last-child { margin-bottom: 0; }
+  .leave-row .key { font-size: 12px; color: #6b7280; display: flex; align-items: center; gap: 5px; }
+  .leave-row .val { font-size: 13px; font-weight: 500; text-align: right; }
+  .leave-reason { background: #f8fafc; border-radius: 8px; padding: 8px 10px; font-size: 12px; color: #374151; margin-top: 8px; border-left: 3px solid #e8ecf0; }
+  .reject-reason { background: #fef2f2; border-left-color: #fca5a5; color: #7f1d1d; }
+  .cancel-btn { width: 100%; margin-top: 10px; padding: 8px; background: #fff; border: 1px solid #e8ecf0; border-radius: 8px; font-size: 12px; color: #ef4444; cursor: pointer; font-weight: 500; }
+  .cancel-btn:active { background: #fef2f2; }
+
+  /* Empty */
+  .empty { text-align: center; padding: 48px 20px; color: #9ca3af; }
+  .empty svg { margin: 0 auto 12px; display: block; opacity: 0.4; }
+  .empty p { font-size: 14px; }
+
+  /* Loading */
+  .loading { text-align: center; padding: 40px; color: #9ca3af; }
+  .spinner { display: inline-block; width: 28px; height: 28px; border: 3px solid #e8ecf0; border-top-color: #1357B0; border-radius: 50%; animation: spin 0.7s linear infinite; margin-bottom: 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast */
+  #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; z-index: 99; }
+  #toast.show { opacity: 1; }
+  #toast.success { background: #059669; }
+  #toast.error   { background: #dc2626; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div>
+      <div class="header-title">ประวัติการลา</div>
+      <div class="header-name" id="emp-name">กำลังโหลด...</div>
+    </div>
+    <button class="back-btn" onclick="liff.closeWindow()">✕ ปิด</button>
+  </div>
+  <div class="filter-bar">
+    <button class="filter-chip active" data-status="" onclick="setFilter('')">ทั้งหมด</button>
+    <button class="filter-chip" data-status="pending"   onclick="setFilter('pending')">รอ อนุมัติ</button>
+    <button class="filter-chip" data-status="approved"  onclick="setFilter('approved')">อนุมัติแล้ว</button>
+    <button class="filter-chip" data-status="rejected"  onclick="setFilter('rejected')">ไม่อนุมัติ</button>
+    <button class="filter-chip" data-status="cancelled" onclick="setFilter('cancelled')">ยกเลิก</button>
+  </div>
+</div>
+
+<div class="summary">
+  <div class="sum-card"><div class="num num-pending"  id="cnt-pending">—</div><div class="lbl">รอ อนุมัติ</div></div>
+  <div class="sum-card"><div class="num num-approved" id="cnt-approved">—</div><div class="lbl">อนุมัติแล้ว</div></div>
+  <div class="sum-card"><div class="num num-rejected" id="cnt-rejected">—</div><div class="lbl">ไม่อนุมัติ</div></div>
+</div>
+
+<div class="year-select-wrap">
+  <label>ปี:</label>
+  <select class="year-sel" id="year-sel" onchange="reload()">
+    <option value="">ทั้งหมด</option>
+  </select>
+</div>
+
+<div class="list" id="list">
+  <div class="loading"><div class="spinner"></div><br>กำลังโหลด...</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const LIFF_ID = '2010328906-S9em2Twq'; // LIFF สำหรับ /liff/history
+const API = '';
+let lineUserId = null;
+let allHistory = [];
+let activeStatus = '';
+
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  setTimeout(() => el.className = '', 2600);
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function statusLabel(s) {
+  const map = { pending:'รอ อนุมัติ', approved:'อนุมัติแล้ว', rejected:'ไม่อนุมัติ', cancelled:'ยกเลิกแล้ว' };
+  return map[s] || s;
+}
+
+function setFilter(status) {
+  activeStatus = status;
+  document.querySelectorAll('.filter-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.status === status);
+  });
+  renderList();
+}
+
+function renderList() {
+  const list = document.getElementById('list');
+  const filtered = activeStatus ? allHistory.filter(h => h.status === activeStatus) : allHistory;
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty">
+      <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      <p>ไม่พบประวัติการลา</p>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(h => {
+    const canCancel = h.status === 'pending';
+    const reasonBlock = h.reason
+      ? `<div class="leave-reason">เหตุผล: ${h.reason}</div>` : '';
+    const rejectBlock = h.reject_reason
+      ? `<div class="leave-reason reject-reason">เหตุผลไม่อนุมัติ: ${h.reject_reason}</div>` : '';
+    const approvedLine = h.status === 'approved' && h.approved_by_name
+      ? `<div class="leave-row"><span class="key">อนุมัติโดย</span><span class="val">${h.approved_by_name}</span></div>` : '';
+    const cancelBtn = canCancel
+      ? `<button class="cancel-btn" onclick="cancelLeave(${h.id})">ยกเลิกคำขอนี้</button>` : '';
+
+    return `<div class="leave-card" id="card-${h.id}">
+      <div class="leave-card-header">
+        <div>
+          <div class="leave-type-pill">${h.leave_type_name}</div>
+          <div class="leave-req-num">คำขอ #${h.id} · ${formatDate(h.created_at)}</div>
+        </div>
+        <span class="status-badge status-${h.status}">${statusLabel(h.status)}</span>
+      </div>
+      <div class="leave-card-body">
+        <div class="leave-row">
+          <span class="key">📅 วันที่ลา</span>
+          <span class="val">${formatDate(h.start_date)}${h.start_date !== h.end_date ? ' – ' + formatDate(h.end_date) : ''}</span>
+        </div>
+        <div class="leave-row">
+          <span class="key">🗓 จำนวนวัน</span>
+          <span class="val">${h.total_days} วัน</span>
+        </div>
+        ${approvedLine}
+        ${reasonBlock}
+        ${rejectBlock}
+        ${cancelBtn}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function cancelLeave(id) {
+  if (!confirm('ยืนยันยกเลิกคำขอลานี้?')) return;
+  try {
+    const res = await fetch(`${API}/api/leave/${id}/cancel`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ line_user_id: lineUserId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    toast('ยกเลิกคำขอลาเรียบร้อย');
+    await loadHistory();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function loadHistory() {
+  const year = document.getElementById('year-sel').value;
+  const url = `${API}/api/leave/history?line_user_id=${lineUserId}${year ? '&year=' + year : ''}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  allHistory = data.history || [];
+
+  // update summary counts (ปีที่เลือก)
+  document.getElementById('cnt-pending').textContent  = allHistory.filter(h => h.status === 'pending').length;
+  document.getElementById('cnt-approved').textContent = allHistory.filter(h => h.status === 'approved').length;
+  document.getElementById('cnt-rejected').textContent = allHistory.filter(h => h.status === 'rejected').length;
+
+  renderList();
+}
+
+async function reload() { await loadHistory(); }
+
+async function init() {
+  // Populate year selector
+  const yearSel = document.getElementById('year-sel');
+  const currentYear = new Date().getFullYear();
+  for (let y = currentYear; y >= currentYear - 3; y--) {
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = `พ.ศ. ${y + 543} (${y})`;
+    if (y === currentYear) opt.selected = true;
+    yearSel.appendChild(opt);
+  }
+
+  try {
+    let liffId = LIFF_ID;
+    try {
+      const configUrl = window.location.origin + '/api/config';
+      const cfg = await fetch(configUrl).then(r => r.json());
+      if (cfg.liff_id_history) liffId = cfg.liff_id_history;
+    } catch (e) { /* use default */ }
+
+    if (!liffId) throw new Error('LIFF ID ยังไม่ได้ตั้งค่า — กรุณาตั้งค่า LIFF_ID_HISTORY ใน .env แล้ว restart server');
+    await liff.init({ liffId });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    const idToken = liff.getDecodedIDToken();
+    lineUserId = idToken.sub;
+    await loadHistory();
+  } catch (err) {
+    document.getElementById('list').innerHTML =
+      `<div class="empty"><p>เกิดข้อผิดพลาด: ${err.message}</p></div>`;
+  }
+}
+
+init();
+</script>
+</body>
+</html>

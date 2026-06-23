@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>สลิปเงินเดือน — ต่อกัน Insurance Broker</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Sarabun',system-ui,sans-serif; background:#f1f5f9; min-height:100vh; }
+
+/* Header */
+.header {
+  background:linear-gradient(135deg,#1357B0 0%,#0e4490 100%);
+  padding:20px 16px 28px;
+  color:#fff;
+  position:relative;
+}
+.header-logo {
+  display:flex; align-items:center; gap:10px; margin-bottom:14px;
+}
+.logo-mark {
+  width:36px; height:36px;
+  background:#F47920; border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-weight:900; font-size:16px; color:#fff; flex-shrink:0;
+}
+.header-company { font-size:14px; font-weight:700; }
+.header-company span { font-size:11px; opacity:.75; font-weight:400; display:block; }
+.header-title { font-size:11px; opacity:.65; margin-bottom:2px; }
+.header-period { font-size:20px; font-weight:700; }
+.header-emp { font-size:13px; opacity:.85; margin-top:4px; }
+
+/* Month nav */
+.month-nav {
+  display:flex; align-items:center; justify-content:space-between;
+  background:#fff; padding:10px 16px; border-bottom:1px solid #e8ecf0;
+}
+.month-nav button {
+  width:32px; height:32px; border:none; border-radius:8px;
+  background:#f1f5f9; cursor:pointer; font-size:16px; color:#374151;
+}
+.month-nav button:active { background:#dbeafe; color:#1357B0; }
+.month-nav .period-label { font-size:14px; font-weight:600; color:#111827; }
+
+/* Payslip card */
+.card {
+  background:#fff; margin:12px; border-radius:14px;
+  box-shadow:0 1px 3px rgba(0,0,0,.08);
+  overflow:hidden;
+}
+.card-section {
+  padding:0 16px;
+}
+.section-title {
+  font-size:11px; font-weight:700; color:#9ca3af;
+  text-transform:uppercase; letter-spacing:.5px;
+  padding:12px 0 6px;
+  border-top:1px solid #f1f5f9;
+}
+.section-title:first-child { border-top:none; }
+.row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:8px 0; border-bottom:1px solid #f9fafb;
+}
+.row:last-child { border-bottom:none; }
+.row-label { font-size:13px; color:#374151; }
+.row-label small { font-size:11px; color:#9ca3af; display:block; }
+.row-value { font-size:13px; font-weight:600; color:#111827; }
+.row-value.deduct { color:#dc2626; }
+.row-value.total  { color:#1357B0; font-size:15px; }
+
+/* Net income */
+.net-card {
+  margin:0 12px 12px;
+  background:linear-gradient(135deg,#1357B0,#0e4490);
+  border-radius:14px; padding:20px;
+  display:flex; justify-content:space-between; align-items:center;
+  color:#fff;
+}
+.net-label { font-size:13px; opacity:.8; }
+.net-amount { font-size:28px; font-weight:800; }
+.net-sub    { font-size:11px; opacity:.65; margin-top:2px; }
+
+/* Attendance row */
+.att-row {
+  display:flex; gap:8px; padding:0 12px 12px;
+}
+.att-chip {
+  flex:1; border-radius:10px; padding:10px 8px; text-align:center;
+}
+.att-chip .att-num  { font-size:20px; font-weight:800; }
+.att-chip .att-lbl  { font-size:11px; margin-top:2px; }
+
+/* Status badge */
+.status-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:4px 12px; border-radius:20px; font-size:11px; font-weight:700;
+}
+
+/* Loading / Error */
+.loading { text-align:center; padding:60px 20px; color:#9ca3af; }
+.spinner {
+  width:36px; height:36px; border:3px solid #e8ecf0;
+  border-top-color:#1357B0; border-radius:50%;
+  animation:spin .8s linear infinite; margin:0 auto 12px;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.no-data { text-align:center; padding:48px 24px; color:#9ca3af; font-size:14px; }
+.no-data span { font-size:32px; display:block; margin-bottom:8px; }
+
+.footer { text-align:center; padding:16px; font-size:11px; color:#9ca3af; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="loading">
+    <div class="spinner"></div>
+    <div>กำลังโหลด...</div>
+  </div>
+</div>
+
+<script>
+const MONTHS_TH = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+  'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+
+let lineUserId = null;
+let currentYear  = new Date().getFullYear();
+let currentMonth = new Date().getMonth() + 1;
+
+const LIFF_ID = '2010328906-xH1TUNdt';
+
+async function init() {
+  const params    = new URLSearchParams(window.location.search);
+  const liffState = params.get('liff.state') || '(none)';
+  const shortUrl  = window.location.href.substring(0, 80);
+
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    const idToken = liff.getDecodedIDToken();
+    lineUserId = idToken.sub;
+    loadPayslip();
+  } catch(e) {
+    showError(
+      'เริ่มต้น LIFF ไม่สำเร็จ: ' + e.message +
+      '<br><small style="color:#9ca3af;word-break:break-all">' +
+        'LIFF ID: ' + LIFF_ID + '<br>' +
+        'liff.state: ' + liffState + '<br>' +
+        'URL: ' + shortUrl +
+      '</small>'
+    );
+  }
+}
+
+async function loadPayslip() {
+  document.getElementById('app').innerHTML = `<div class="loading"><div class="spinner"></div><div>กำลังโหลดสลิป...</div></div>`;
+  try {
+    const url = '/api/payroll/my-payslip?line_user_id=' + encodeURIComponent(lineUserId) +
+                '&year=' + currentYear + '&month=' + currentMonth;
+    const res  = await fetch(url);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+    renderPayslip(data);
+  } catch(e) {
+    if (e.message.includes('ไม่พบพนักงาน')) {
+      document.getElementById('app').innerHTML = `<div class="no-data"><span>🔍</span>ไม่พบข้อมูลพนักงานในระบบ<br>กรุณาติดต่อ HR</div>`;
+    } else {
+      showError(e.message);
+    }
+  }
+}
+
+function renderPayslip(d) {
+  const fmt  = n => Number(n||0).toLocaleString('th-TH', {minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmt0 = n => Number(n||0).toLocaleString('th-TH');
+
+  const statusMap = {
+    draft:     { bg:'#f3f4f6', c:'#374151', icon:'📝', t:'Draft' },
+    confirmed: { bg:'#dbeafe', c:'#1357B0', icon:'✅', t:'Confirmed' },
+    paid:      { bg:'#dcfce7', c:'#166534', icon:'💸', t:'Paid' },
+  };
+  const st = statusMap[d.status] || statusMap.draft;
+
+  const prevYear  = currentMonth === 1  ? currentYear - 1 : currentYear;
+  const prevMonth = currentMonth === 1  ? 12 : currentMonth - 1;
+  const nextYear  = currentMonth === 12 ? currentYear + 1 : currentYear;
+  const nextMonth = currentMonth === 12 ? 1  : currentMonth + 1;
+  const now = new Date();
+  const isFuture = nextYear > now.getFullYear() || (nextYear === now.getFullYear() && nextMonth > now.getMonth() + 1);
+
+  document.getElementById('app').innerHTML = `
+    <!-- Header -->
+    <div class="header">
+      <div class="header-logo">
+        <div class="logo-mark">ต่อ</div>
+        <div class="header-company">
+          ต่อกัน อินชัวร์รันส์ โบรคเกอร์ จำกัด
+          <span>ต่อกัน Insurance Broker Co., Ltd.</span>
+        </div>
+      </div>
+      <div class="header-title">สลิปเงินเดือน / Pay Slip</div>
+      <div class="header-period">${MONTHS_TH[currentMonth]} ${currentYear + 543}</div>
+      <div class="header-emp">${d.employee_name || ''}${d.employee_code ? ' · ' + d.employee_code : ''}${d.position ? ' · ' + d.position : ''}</div>
+    </div>
+
+    <!-- Month nav -->
+    <div class="month-nav">
+      <button onclick="navigate(${prevYear},${prevMonth})">‹</button>
+      <span class="period-label">${MONTHS_TH[currentMonth]} ${currentYear}</span>
+      <button onclick="navigate(${nextYear},${nextMonth})" ${isFuture?'disabled style="opacity:.3;"':''}>›</button>
+    </div>
+
+    <!-- Status -->
+    <div style="padding:10px 12px 0;display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:12px;color:#6b7280;">สถานะ Payroll</span>
+      <span class="status-badge" style="background:${st.bg};color:${st.c};">${st.icon} ${st.t}</span>
+    </div>
+
+    <!-- Income -->
+    <div class="card">
+      <div class="card-section">
+        <div class="section-title">รายรับ</div>
+        <div class="row">
+          <div class="row-label">เงินเดือน</div>
+          <div class="row-value">฿${fmt(d.salary)}</div>
+        </div>
+        <div class="row">
+          <div class="row-label">
+            ค่าล่วงเวลา (OT)
+            <small>${d.ot_hours || 0} ชั่วโมง</small>
+          </div>
+          <div class="row-value">฿${fmt(d.ot_pay)}</div>
+        </div>
+        <div class="row" style="background:#f8fafc;margin:0 -16px;padding:10px 16px;border-radius:0;">
+          <div class="row-label" style="font-weight:700;">รวมเงินได้</div>
+          <div class="row-value total">฿${fmt(d.gross_income)}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Deductions -->
+    <div class="card">
+      <div class="card-section">
+        <div class="section-title">รายหัก</div>
+        <div class="row">
+          <div class="row-label">
+            ประกันสังคม
+            <small>${d.ss_rate || 5}% (สูงสุด ฿${fmt0(d.ss_max || 750)}/เดือน)</small>
+          </div>
+          <div class="row-value deduct">- ฿${fmt(d.social_security)}</div>
+        </div>
+        ${(d.pf_enabled && parseFloat(d.provident_fund||0) > 0) ? `
+        <div class="row">
+          <div class="row-label">
+            กองทุนสำรองเลี้ยงชีพ
+            <small>${d.pf_rate || 5}%</small>
+          </div>
+          <div class="row-value deduct">- ฿${fmt(d.provident_fund)}</div>
+        </div>` : ''}
+        <div class="row">
+          <div class="row-label">
+            ภาษีหัก ณ ที่จ่าย
+            <small>${d.tax_rate || 5}%</small>
+          </div>
+          <div class="row-value deduct">- ฿${fmt(d.tax_withholding)}</div>
+        </div>
+        <div class="row" style="background:#fff5f5;margin:0 -16px;padding:10px 16px;border-radius:0;">
+          <div class="row-label" style="font-weight:700;">รวมรายหัก</div>
+          <div class="row-value deduct" style="font-size:15px;">- ฿${fmt(d.total_deduction)}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Net income -->
+    <div class="net-card">
+      <div>
+        <div class="net-label">เงินได้สุทธิ / Net Income</div>
+        <div class="net-sub">${MONTHS_TH[currentMonth]} ${currentYear + 543}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="net-amount">฿${fmt(d.net_income)}</div>
+      </div>
+    </div>
+
+    <!-- Attendance warnings -->
+    ${(d.late_days > 0 || d.absent_days > 0) ? `
+    <div class="att-row">
+      ${d.late_days > 0 ? `<div class="att-chip" style="background:#fff7ed;color:#F47920;">
+        <div class="att-num">${d.late_days}</div>
+        <div class="att-lbl">วันมาสาย</div>
+      </div>` : ''}
+      ${d.absent_days > 0 ? `<div class="att-chip" style="background:#fef2f2;color:#dc2626;">
+        <div class="att-num">${d.absent_days}</div>
+        <div class="att-lbl">วันขาดงาน</div>
+      </div>` : ''}
+    </div>` : ''}
+
+    <div class="footer">
+      ต่อกัน Insurance Broker · สลิปนี้สร้างโดยระบบอัตโนมัติ<br>
+      หากมีข้อสงสัยกรุณาติดต่อฝ่าย HR
+    </div>
+  `;
+}
+
+function navigate(year, month) {
+  currentYear  = year;
+  currentMonth = month;
+  loadPayslip();
+}
+
+function showError(msg) {
+  document.getElementById('app').innerHTML = `<div class="no-data"><span>⚠️</span>${msg}</div>`;
+}
+
+init();
+</script>
+</body>
+</html>

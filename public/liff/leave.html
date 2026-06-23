@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>ขอลางาน — ต่อกัน HR</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Sarabun', 'Helvetica Neue', Arial, sans-serif; background: #F3F4F6; min-height: 100vh; }
+
+    .header { background: #1357B0; padding: 16px 20px; color: white; display: flex; align-items: center; gap: 12px; }
+    .header-icon { font-size: 24px; }
+    .header h1 { font-size: 18px; font-weight: 700; }
+    .header p { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+
+    .form-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+    .card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .card-title { font-size: 13px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+
+    .leave-types { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+    .leave-type-btn {
+      border: 2px solid #E5E7EB; border-radius: 10px; padding: 10px 6px;
+      text-align: center; cursor: pointer; background: white; transition: all 0.15s;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .leave-type-btn .icon { font-size: 22px; }
+    .leave-type-btn .label { font-size: 12px; color: #374151; font-weight: 500; }
+    .leave-type-btn .quota { font-size: 10px; color: #9CA3AF; }
+    .leave-type-btn.active { border-color: #1357B0; background: #EFF6FF; }
+    .leave-type-btn.active .label { color: #1357B0; }
+    .leave-type-btn.hidden { display: none; }
+    .leave-type-btn .quota { font-size: 10px; color: #9CA3AF; }
+    .leave-type-btn .quota.used-up { color: #EF4444; font-weight: 600; }
+    .leave-type-btn.no-quota { opacity: 0.5; pointer-events: none; }
+
+    .date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 13px; color: #374151; font-weight: 600; }
+    .field input, .field select, .field textarea {
+      border: 1.5px solid #E5E7EB; border-radius: 8px; padding: 10px 12px;
+      font-size: 14px; font-family: inherit; color: #111827; outline: none;
+      transition: border-color 0.15s; width: 100%;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: #1357B0; }
+    .field textarea { resize: none; min-height: 80px; }
+
+    .days-badge {
+      background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px;
+      padding: 10px 14px; font-size: 14px; color: #1357B0; font-weight: 600;
+      text-align: center; display: none;
+    }
+    .days-badge.show { display: block; }
+
+    .upload-area {
+      border: 2px dashed #D1D5DB; border-radius: 10px; padding: 20px;
+      text-align: center; cursor: pointer; color: #9CA3AF; font-size: 13px; transition: all 0.15s;
+    }
+    .upload-area:hover { border-color: #1357B0; color: #1357B0; }
+    .upload-area .upload-icon { font-size: 28px; margin-bottom: 6px; }
+    .upload-preview {
+      display: none; align-items: center; gap: 8px;
+      background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px;
+      padding: 10px 12px; font-size: 13px; color: #166534;
+    }
+    .upload-preview.show { display: flex; }
+    #fileInput { display: none; }
+
+    .submit-btn {
+      background: #F47920; color: white; border: none; border-radius: 12px;
+      padding: 16px; font-size: 16px; font-weight: 700; font-family: inherit;
+      cursor: pointer; width: 100%; transition: background 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .submit-btn:hover { background: #e06910; }
+    .submit-btn:disabled { background: #D1D5DB; cursor: not-allowed; }
+
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #1F2937; color: white; padding: 12px 20px; border-radius: 10px;
+      font-size: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+      white-space: nowrap; z-index: 999;
+    }
+    .toast.show { opacity: 1; }
+
+    .loading {
+      display: none; position: fixed; inset: 0;
+      background: rgba(255,255,255,0.8); align-items: center; justify-content: center;
+      flex-direction: column; gap: 12px; z-index: 1000;
+    }
+    .loading.show { display: flex; }
+    .spinner {
+      width: 40px; height: 40px; border: 4px solid #E5E7EB;
+      border-top-color: #1357B0; border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">📋</div>
+  <div>
+    <h1>ขอลางาน</h1>
+    <p id="empNameHeader">ต่อกัน Insurance Broker</p>
+  </div>
+</div>
+
+<div class="form-body">
+
+  <!-- ประเภทการลา -->
+  <div class="card">
+    <div class="card-title">ประเภทการลา *</div>
+    <div class="leave-types" id="leaveTypeGrid">
+      <div class="leave-type-btn" data-type="1" data-gender="" onclick="selectType(this)">
+        <span class="icon">🤒</span>
+        <span class="label">ลาป่วย</span>
+        <span class="quota" id="quota-1">30 วัน/ปี</span>
+      </div>
+      <div class="leave-type-btn" data-type="2" data-gender="" onclick="selectType(this)">
+        <span class="icon">📝</span>
+        <span class="label">ลากิจ</span>
+        <span class="quota" id="quota-2">10 วัน/ปี</span>
+      </div>
+      <div class="leave-type-btn" data-type="3" data-gender="" onclick="selectType(this)">
+        <span class="icon">🏖️</span>
+        <span class="label">ลาพักผ่อน</span>
+        <span class="quota" id="quota-3">20 วัน/ปี</span>
+      </div>
+      <div class="leave-type-btn" data-type="4" data-gender="W" onclick="selectType(this)">
+        <span class="icon">🤱</span>
+        <span class="label">ลาคลอด</span>
+        <span class="quota" id="quota-4">120 วัน</span>
+      </div>
+      <div class="leave-type-btn" data-type="5" data-gender="M" onclick="selectType(this)">
+        <span class="icon">🙏</span>
+        <span class="label">ลาบวช</span>
+        <span class="quota" id="quota-5">30 วัน</span>
+      </div>
+      </div>
+  </div>
+
+  <!-- วันที่ -->
+  <div class="card">
+    <div class="card-title">ระยะเวลาการลา *</div>
+
+    <!-- toggle ครึ่งวัน -->
+    <label style="display:flex;align-items:center;gap:10px;margin-bottom:12px;cursor:pointer;">
+      <div style="position:relative;width:44px;height:24px;flex-shrink:0;">
+        <input type="checkbox" id="halfDayToggle" onchange="toggleHalfDay()" style="opacity:0;width:0;height:0;position:absolute;">
+        <span id="halfDayTrack" style="position:absolute;inset:0;border-radius:24px;background:#d1d5db;transition:.2s;"></span>
+        <span id="halfDayThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3);"></span>
+      </div>
+      <span style="font-size:14px;font-weight:600;color:#374151;">ลาครึ่งวัน</span>
+    </label>
+
+    <!-- เลือกช่วงเช้า/บ่าย (แสดงเฉพาะเมื่อเลือกครึ่งวัน) -->
+    <div id="halfDayPeriodRow" style="display:none;margin-bottom:12px;">
+      <label style="font-size:13px;color:#6b7280;margin-bottom:6px;display:block;">เลือกช่วงเวลา</label>
+      <div style="display:flex;gap:8px;">
+        <button type="button" id="btnMorning" onclick="selectPeriod('morning')"
+          style="flex:1;padding:10px;border-radius:10px;border:2px solid #d1d5db;background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;">
+          🌅 เช้า
+        </button>
+        <button type="button" id="btnAfternoon" onclick="selectPeriod('afternoon')"
+          style="flex:1;padding:10px;border-radius:10px;border:2px solid #d1d5db;background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;">
+          🌇 บ่าย
+        </button>
+      </div>
+    </div>
+
+    <div class="date-row" id="dateRangeRow">
+      <div class="field">
+        <label>วันที่เริ่มลา</label>
+        <input type="date" id="startDate" onchange="calcDays()">
+      </div>
+      <div class="field" id="endDateField">
+        <label>วันที่กลับมา</label>
+        <input type="date" id="endDate" onchange="calcDays()">
+      </div>
+    </div>
+    <div id="daysBadge" class="days-badge" style="margin-top:12px;"></div>
+  </div>
+
+  <!-- เหตุผล -->
+  <div class="card">
+    <div class="field">
+      <label>เหตุผลการลา</label>
+      <textarea id="reason" placeholder="ระบุเหตุผล (ถ้ามี)"></textarea>
+    </div>
+  </div>
+
+  <!-- ไฟล์แนบ -->
+  <div class="card">
+    <div class="card-title">เอกสารประกอบ (ถ้ามี)</div>
+    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+      <div class="upload-icon">📎</div>
+      <div>แตะเพื่อแนบใบรับรองแพทย์หรือเอกสาร</div>
+      <div style="font-size:11px;margin-top:4px;">PNG, JPG, PDF (ไม่เกิน 5MB)</div>
+    </div>
+    <div class="upload-preview" id="uploadPreview">
+      <span>📄</span>
+      <span id="fileName"></span>
+      <span onclick="clearFile()" style="margin-left:auto;cursor:pointer;color:#DC2626;">✕</span>
+    </div>
+    <input type="file" id="fileInput" accept="image/*,.pdf" onchange="handleFile(this)">
+  </div>
+
+  <button class="submit-btn" id="submitBtn" onclick="submitLeave()">
+    <span>📨</span> ส่งคำขอลางาน
+  </button>
+
+</div>
+
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <div style="color:#374151;font-size:14px;">กำลังส่งคำขอ...</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let selectedTypeId = null;
+let liffUserId = null;
+let employeeSex = null;
+const API_BASE = window.location.origin;
+const LIFF_ID = '2010328906-y4bbKHYu';
+
+// Init LIFF
+async function initLiff() {
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) {
+      liff.login({ redirectUri: window.location.href });
+      return;
+    }
+    const idToken = liff.getDecodedIDToken();
+    liffUserId = idToken.sub;
+
+    // ดึงข้อมูลพนักงาน + วันลาคงเหลือ
+    try {
+      const [empRes, balRes] = await Promise.all([
+        fetch(`${API_BASE}/api/employee/me?line_user_id=${liffUserId}`),
+        fetch(`${API_BASE}/api/employee/leave-balance?line_user_id=${liffUserId}`)
+      ]);
+      if (empRes.ok) {
+        const emp = await empRes.json();
+        employeeSex = emp.sex;
+        document.getElementById('empNameHeader').textContent = `${emp.name} (${emp.employee_code})`;
+        applyGenderFilter(emp.sex);
+      }
+      if (balRes.ok) {
+        const balance = await balRes.json();
+        applyLeaveBalance(balance);
+      }
+    } catch (e) {
+      console.warn('Cannot fetch employee info:', e);
+    }
+
+  } catch (e) {
+    console.error('LIFF init error:', e);
+    showToast('⚠️ ไม่สามารถเชื่อมต่อ LINE ได้');
+  }
+}
+
+// อัปเดตวันลาคงเหลือบนปุ่ม
+function applyLeaveBalance(balance) {
+  balance.forEach(item => {
+    const el = document.getElementById(`quota-${item.id}`);
+    if (!el) return;
+    const remaining = item.max_days - parseInt(item.used_days);
+    const btn = el.closest('.leave-type-btn');
+    if (remaining <= 0) {
+      el.textContent = 'หมดสิทธิ์';
+      el.classList.add('used-up');
+      btn.classList.add('no-quota');
+    } else {
+      el.textContent = `เหลือ ${remaining}/${item.max_days} วัน`;
+      if (remaining <= 3) el.classList.add('used-up');
+    }
+  });
+}
+
+// ซ่อนปุ่มลาที่ไม่ตรงเพศ
+function applyGenderFilter(sex) {
+  document.querySelectorAll('.leave-type-btn[data-gender]').forEach(btn => {
+    const g = btn.dataset.gender;
+    if (g && g !== sex) {
+      btn.classList.add('hidden');
+    }
+  });
+}
+
+function selectType(el) {
+  if (el.classList.contains('hidden')) return;
+  document.querySelectorAll('.leave-type-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  selectedTypeId = parseInt(el.dataset.type);
+}
+
+// ---- half-day helpers ----
+let selectedPeriod = null;  // 'morning' | 'afternoon'
+
+function toggleHalfDay() {
+  const isHalf = document.getElementById('halfDayToggle').checked;
+  const track  = document.getElementById('halfDayTrack');
+  const thumb  = document.getElementById('halfDayThumb');
+  const periodRow = document.getElementById('halfDayPeriodRow');
+  const endField  = document.getElementById('endDateField');
+
+  track.style.background = isHalf ? '#F47920' : '#d1d5db';
+  thumb.style.transform  = isHalf ? 'translateX(20px)' : 'translateX(0)';
+  periodRow.style.display = isHalf ? 'block' : 'none';
+  endField.style.display  = isHalf ? 'none'  : '';
+
+  if (!isHalf) {
+    selectedPeriod = null;
+    selectPeriod(null);
+  }
+  // sync endDate = startDate เมื่อ half-day
+  if (isHalf) {
+    const s = document.getElementById('startDate').value;
+    if (s) document.getElementById('endDate').value = s;
+  }
+  calcDays();
+}
+
+function selectPeriod(period) {
+  selectedPeriod = period;
+  const btnM = document.getElementById('btnMorning');
+  const btnA = document.getElementById('btnAfternoon');
+  if (!btnM || !btnA) return;
+  const activeStyle = 'border-color:#F47920;background:#fff7ed;color:#F47920;';
+  const baseStyle   = 'border-color:#d1d5db;background:#fff;color:#374151;';
+  btnM.style.cssText += period === 'morning'   ? activeStyle : baseStyle;
+  btnA.style.cssText += period === 'afternoon' ? activeStyle : baseStyle;
+}
+
+function calcDays() {
+  const isHalf = document.getElementById('halfDayToggle').checked;
+  const badge  = document.getElementById('daysBadge');
+
+  if (isHalf) {
+    const s = document.getElementById('startDate').value;
+    if (!s) { badge.classList.remove('show'); return; }
+    // sync endDate = startDate
+    document.getElementById('endDate').value = s;
+    const day = new Date(s).getDay();
+    if (day === 0) { badge.textContent = '⚠️ วันอาทิตย์ไม่นับเป็นวันทำงาน'; badge.classList.add('show'); return; }
+    const periodTH = selectedPeriod === 'morning' ? 'เช้า' : selectedPeriod === 'afternoon' ? 'บ่าย' : '(เลือกช่วงเวลา)';
+    badge.textContent = `📅 ลาครึ่งวัน ${periodTH} = 0.5 วัน`;
+    badge.classList.add('show');
+    return;
+  }
+
+  const start = document.getElementById('startDate').value;
+  const end   = document.getElementById('endDate').value;
+  if (!start || !end) { badge.classList.remove('show'); return; }
+
+  let count = 0;
+  const s = new Date(start), e = new Date(end);
+  if (e < s) { badge.textContent = '⚠️ วันสิ้นสุดต้องมากกว่าวันเริ่ม'; badge.classList.add('show'); return; }
+
+  const cur = new Date(s);
+  while (cur <= e) {
+    const d = cur.getDay();
+    if (d !== 0) count++; // นับจันทร์-เสาร์ (backend countWorkdays เหมือนกัน)
+    cur.setDate(cur.getDate() + 1);
+  }
+  badge.textContent = `📅 รวม ${count} วันทำการ (จันทร์-เสาร์)`;
+  badge.classList.add('show');
+}
+
+function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast('⚠️ ไฟล์ใหญ่เกิน 5MB'); input.value = ''; return; }
+  document.getElementById('fileName').textContent = file.name;
+  document.getElementById('uploadPreview').classList.add('show');
+  document.querySelector('.upload-area').style.display = 'none';
+}
+
+function clearFile() {
+  document.getElementById('fileInput').value = '';
+  document.getElementById('uploadPreview').classList.remove('show');
+  document.querySelector('.upload-area').style.display = 'block';
+}
+
+async function submitLeave() {
+  const isHalf    = document.getElementById('halfDayToggle').checked;
+  const startDate = document.getElementById('startDate').value;
+  const endDate   = isHalf ? startDate : document.getElementById('endDate').value;
+  const reason    = document.getElementById('reason').value.trim();
+
+  if (!selectedTypeId) { showToast('⚠️ กรุณาเลือกประเภทการลา'); return; }
+  if (!startDate)      { showToast('⚠️ กรุณาเลือกวันที่');       return; }
+  if (!isHalf && endDate < startDate) { showToast('⚠️ วันสิ้นสุดต้องมากกว่าวันเริ่ม'); return; }
+  if (isHalf && !selectedPeriod)      { showToast('⚠️ กรุณาเลือกช่วงเวลา: เช้า หรือ บ่าย'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  document.getElementById('loading').classList.add('show');
+
+  try {
+    const payload = {
+      line_user_id:    liffUserId,
+      leave_type_id:   selectedTypeId,
+      start_date:      startDate,
+      end_date:        endDate,
+      reason,
+      is_half_day:     isHalf,
+      half_day_period: isHalf ? selectedPeriod : null,
+    };
+
+    const res = await fetch(`${API_BASE}/api/leave`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    document.getElementById('loading').classList.remove('show');
+
+    if (res.ok) {
+      showSuccessScreen(data);
+    } else {
+      btn.disabled = false;
+      showToast('❌ ' + (data.error || 'เกิดข้อผิดพลาด'));
+    }
+  } catch (err) {
+    document.getElementById('loading').classList.remove('show');
+    btn.disabled = false;
+    showToast('❌ ' + err.message);
+  }
+}
+
+function showSuccessScreen(data) {
+  document.querySelector('.form-body').innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;padding:32px;">
+      <div style="font-size:64px;">✅</div>
+      <div style="font-size:20px;font-weight:700;color:#1357B0;">ส่งคำขอสำเร็จ!</div>
+      <div style="font-size:14px;color:#6B7280;text-align:center;line-height:1.6;">
+        คำขอลางานของคุณถูกส่งถึงหัวหน้าแล้ว<br>รอการอนุมัติผ่าน LINE นะครับ
+      </div>
+      <div style="background:#EFF6FF;border-radius:12px;padding:16px 24px;text-align:center;">
+        <div style="font-size:13px;color:#6B7280;">หมายเลขคำขอ</div>
+        <div style="font-size:24px;font-weight:700;color:#1357B0;">#${data.id || '-'}</div>
+      </div>
+      <button onclick="liff.closeWindow()" style="background:#1357B0;color:white;border:none;border-radius:12px;padding:14px 32px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">
+        ปิดหน้าต่าง
+      </button>
+    </div>`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Default dates
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('startDate').value = today;
+document.getElementById('endDate').value = today;
+calcDays();
+
+initLiff();
+</script>
+</body>
+</html>
