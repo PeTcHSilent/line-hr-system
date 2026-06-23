@@ -2096,7 +2096,29 @@ async function loadAttendanceReport() {
   try {
     const res = await apiFetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    arData = await res.json();
+    const raw = await res.json();
+    // แปลง 1 record/วัน → หลาย event (clock_in + clock_out แยกแถว)
+    arData = [];
+    raw.forEach(r => {
+      if (r.check_in) {
+        arData.push({
+          ...r,
+          event_type:    'clock_in',
+          event_time:    r.check_in,
+          within_radius: r.check_in_within_radius,
+          distance:      r.check_in_distance,
+        });
+      }
+      if (r.check_out) {
+        arData.push({
+          ...r,
+          event_type:    'clock_out',
+          event_time:    r.check_out,
+          within_radius: r.check_out_within_radius,
+          distance:      r.check_out_distance,
+        });
+      }
+    });
     filterArTable();
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="11" class="no-data" style="color:#ef4444;">❌ ${e.message}</td></tr>`;
