@@ -53,7 +53,7 @@ router.get('/', async (req, res) => {
 // POST /api/employee — เพิ่มพนักงานใหม่
 router.post('/', async (req, res) => {
   try {
-    const { employee_code, name, sex, phone_no, email, department_id, role, manager_id } = req.body;
+    const { employee_code, name, sex, phone_no, email, department_id, role, manager_id, branch_id } = req.body;
 
     if (!employee_code || !name) return res.status(400).json({ error: 'employee_code และ name จำเป็น' });
     if (sex && !['M', 'W'].includes(sex)) return res.status(400).json({ error: 'sex ต้องเป็น M หรือ W' });
@@ -68,6 +68,7 @@ router.post('/', async (req, res) => {
       departmentId: department_id,
       role,
       managerId: manager_id,
+      branchId: branch_id || null,
     });
     res.status(201).json(emp);
   } catch (err) {
@@ -88,14 +89,15 @@ router.get('/leave-balance', async (req, res) => {
   res.json(balance);
 });
 
-// GET /api/employee/search?keyword=xxx&department_id=1&role=employee
+// GET /api/employee/search?keyword=xxx&department_id=1&role=employee&branch_id=1
 router.get('/search', async (req, res) => {
   try {
-    const { keyword, department_id, role } = req.query;
+    const { keyword, department_id, role, branch_id } = req.query;
     const employees = await employeeService.searchEmployees({
       keyword,
       departmentId: department_id ? parseInt(department_id) : undefined,
       role,
+      branchId: branch_id ? parseInt(branch_id) : undefined,
     });
     res.json(employees);
   } catch (err) {
@@ -142,7 +144,7 @@ router.put('/:id', async (req, res) => {
     const {
       name, sex, phone_no, email, department_id, role, manager_id, salary, deduct_absent,
       bank_name, bank_branch, bank_account_no, bank_account_name,
-      probation_start_date, probation_end_date, probation_status,
+      probation_start_date, probation_end_date, probation_status, branch_id,
     } = req.body;
     if (sex && !['M', 'W'].includes(sex)) {
       return res.status(400).json({ error: 'sex ต้องเป็น M หรือ W' });
@@ -159,6 +161,7 @@ router.put('/:id', async (req, res) => {
       probation_start_date: probation_start_date || undefined,
       probation_end_date: probation_end_date || undefined,
       probation_status: probation_status || undefined,
+      branch_id: branch_id !== undefined ? (branch_id || null) : undefined,
     });
     res.json(emp);
   } catch (err) {

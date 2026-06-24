@@ -100,6 +100,7 @@ app.use('/api/admin-users', require('./routes/adminUserRoutes'));
 app.use('/api/shift',          require('./routes/shiftRoutes'));
 app.use('/api/leave-quota',    require('./routes/leaveQuotaRoutes'));
 app.use('/api/probation-eval', require('./routes/probationEvalRoutes'));
+app.use('/api/branch',         require('./routes/branchRoutes'));
 
 // ---- LIFF Payslip ----
 app.get('/liff/payslip', (req, res) => {

@@ -106,12 +106,13 @@ router.get('/all', requireAuth, async (req, res) => {
 // รายงานการลงเวลา — Admin ใช้
 router.get('/report', requireAuth, async (req, res) => {
   try {
-    const { start_date, end_date, department_id, employee_id } = req.query;
+    const { start_date, end_date, department_id, employee_id, branch_id } = req.query;
     const data = await attendanceService.getAttendanceReport({
       startDate:    start_date    || null,
       endDate:      end_date      || null,
       departmentId: department_id ? parseInt(department_id) : null,
       employeeId:   employee_id   ? parseInt(employee_id)   : null,
+      branchId:     branch_id     ? parseInt(branch_id)     : null,
     });
     res.json(data);
   } catch (err) {

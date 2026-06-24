@@ -140,10 +140,12 @@ async function getLeaveBalance(employeeId, sex) {
 async function getById(id) {
   const result = await db.query(
     `SELECT e.*, d.name AS department_name,
-            m.name AS manager_name
+            m.name AS manager_name,
+            b.name AS branch_name
      FROM employees e
      LEFT JOIN departments d ON e.department_id = d.id
      LEFT JOIN employees m ON e.manager_id = m.id
+     LEFT JOIN branches b ON e.branch_id = b.id
      WHERE e.id = $1`,
     [id]
   );
@@ -156,7 +158,7 @@ async function getById(id) {
 async function updateEmployee(id, fields) {
   const allowed = ['name', 'sex', 'phone_no', 'email', 'department_id', 'role', 'manager_id', 'salary', 'deduct_absent',
     'bank_name', 'bank_branch', 'bank_account_no', 'bank_account_name',
-    'probation_start_date', 'probation_end_date', 'probation_status'];
+    'probation_start_date', 'probation_end_date', 'probation_status', 'branch_id'];
   const setClauses = [];
   const values = [];
   let idx = 1;
@@ -196,9 +198,9 @@ async function deactivateEmployee(id) {
 }
 
 /**
- * ค้นหาพนักงานด้วย keyword (ชื่อ / รหัส) + filter แผนก
+ * ค้นหาพนักงานด้วย keyword (ชื่อ / รหัส) + filter แผนก / สาขา
  */
-async function searchEmployees({ keyword, departmentId, role } = {}) {
+async function searchEmployees({ keyword, departmentId, role, branchId } = {}) {
   const conditions = ['e.is_active = TRUE'];
   const values = [];
   let idx = 1;
@@ -216,15 +218,22 @@ async function searchEmployees({ keyword, departmentId, role } = {}) {
     conditions.push(`e.role = $${idx++}`);
     values.push(role);
   }
+  if (branchId) {
+    conditions.push(`e.branch_id = $${idx++}`);
+    values.push(branchId);
+  }
 
   const result = await db.query(
     `SELECT e.id, e.employee_code, e.name, e.sex, e.phone_no, e.email,
             e.role, e.department_id, e.manager_id, e.line_user_id,
-            e.created_at, d.name AS department_name,
-            m.name AS manager_name
+            e.branch_id, e.created_at,
+            d.name AS department_name,
+            m.name AS manager_name,
+            b.name AS branch_name
      FROM employees e
      LEFT JOIN departments d ON e.department_id = d.id
      LEFT JOIN employees m ON e.manager_id = m.id
+     LEFT JOIN branches b ON e.branch_id = b.id
      WHERE ${conditions.join(' AND ')}
      ORDER BY e.employee_code`,
     values
@@ -235,13 +244,13 @@ async function searchEmployees({ keyword, departmentId, role } = {}) {
 /**
  * เพิ่มพนักงานใหม่
  */
-async function createEmployee({ employeeCode, name, sex, phoneNo, email, departmentId, role, managerId }) {
+async function createEmployee({ employeeCode, name, sex, phoneNo, email, departmentId, role, managerId, branchId }) {
   const result = await db.query(
     `INSERT INTO employees
-       (employee_code, name, sex, phone_no, email, department_id, role, manager_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       (employee_code, name, sex, phone_no, email, department_id, role, manager_id, branch_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
-    [employeeCode, name, sex, phoneNo, email, departmentId, role || 'employee', managerId || null]
+    [employeeCode, name, sex, phoneNo, email, departmentId, role || 'employee', managerId || null, branchId || null]
   );
   return result.rows[0];
 }
@@ -251,9 +260,10 @@ async function createEmployee({ employeeCode, name, sex, phoneNo, email, departm
  */
 async function getAllEmployees() {
   const result = await db.query(
-    `SELECT e.*, d.name AS department_name
+    `SELECT e.*, d.name AS department_name, b.name AS branch_name
      FROM employees e
      LEFT JOIN departments d ON e.department_id = d.id
+     LEFT JOIN branches b ON e.branch_id = b.id
      WHERE e.is_active = TRUE
      ORDER BY e.employee_code`
   );
