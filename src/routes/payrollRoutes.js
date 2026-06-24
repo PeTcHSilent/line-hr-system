@@ -170,9 +170,11 @@ router.get('/monthly', requireAuth, async (req, res) => {
   try {
     const year  = parseInt(req.query.year)  || new Date().getFullYear();
     const month = parseInt(req.query.month) || new Date().getMonth() + 1;
-    const deptId = req.query.department_id ? parseInt(req.query.department_id) : null;
+    const deptId    = req.query.department_id ? parseInt(req.query.department_id) : null;
+    const branchId  = req.query.branch_id     ? parseInt(req.query.branch_id)     : null;
     let data = await payrollService.getPayroll(year, month);
-    if (deptId) data = data.filter(r => r.department_id === deptId);
+    if (deptId)   data = data.filter(r => r.department_id === deptId);
+    if (branchId) data = data.filter(r => r.branch_id     === branchId);
     res.json(data);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

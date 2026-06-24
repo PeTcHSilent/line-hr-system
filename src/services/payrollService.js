@@ -247,10 +247,13 @@ async function getPayroll(year, month) {
   const result = await db.query(
     'SELECT pr.*,' +
     '  e.name AS employee_name, e.employee_code, e.salary AS current_salary,' +
-    '  d.name AS department_name' +
+    '  e.branch_id,' +
+    '  d.name AS department_name,' +
+    '  b.name AS branch_name' +
     ' FROM payroll_records pr' +
     ' JOIN employees e ON e.id = pr.employee_id' +
     ' LEFT JOIN departments d ON d.id = e.department_id' +
+    ' LEFT JOIN branches b ON b.id = e.branch_id' +
     ' WHERE pr.year = $1 AND pr.month = $2' +
     ' ORDER BY d.name, e.name',
     [year, month]

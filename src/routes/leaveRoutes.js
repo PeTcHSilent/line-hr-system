@@ -203,13 +203,14 @@ router.get('/history', async (req, res) => {
 // ประวัติการลาทั้งหมด (Admin ใช้)
 router.get('/all', async (req, res) => {
   try {
-    const { year, month, department_id, status, employee_id } = req.query;
+    const { year, month, department_id, status, employee_id, branch_id } = req.query;
     const data = await leaveService.getAllLeaveHistory({
       year:         year         ? parseInt(year)         : null,
       month:        month        ? parseInt(month)        : null,
       departmentId: department_id? parseInt(department_id): null,
       status:       status       || null,
       employeeId:   employee_id  ? parseInt(employee_id)  : null,
+      branchId:     branch_id    ? parseInt(branch_id)    : null,
     });
     res.json(data);
   } catch (err) {

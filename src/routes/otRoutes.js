@@ -35,13 +35,14 @@ async function notifyApprovers(ot, employee) {
 // GET /api/ot
 router.get('/', async (req, res) => {
   try {
-    const { year, month, status, department_id, employee_id } = req.query;
+    const { year, month, status, department_id, employee_id, branch_id } = req.query;
     const data = await otService.getAllOT({
       year:         year         ? parseInt(year)         : null,
       month:        month        ? parseInt(month)        : null,
       status:       status       || null,
       departmentId: department_id? parseInt(department_id): null,
       employeeId:   employee_id  ? parseInt(employee_id)  : null,
+      branchId:     branch_id    ? parseInt(branch_id)    : null,
     });
     res.json(data);
   } catch (err) { res.status(500).json({ error: err.message }); }

@@ -171,32 +171,36 @@ async function getLeaveHistory(employeeId, year = null, status = null) {
 
 /**
  * ดึงประวัติการลาทั้งหมด (สำหรับ Admin)
- * รองรับ filter: year, month, departmentId, status, employeeId
+ * รองรับ filter: year, month, departmentId, status, employeeId, branchId
  */
-async function getAllLeaveHistory({ year, month, departmentId, status, employeeId } = {}) {
+async function getAllLeaveHistory({ year, month, departmentId, status, employeeId, branchId } = {}) {
   const conditions = [];
   const values = [];
   let idx = 1;
 
-  if (year) { conditions.push(`EXTRACT(YEAR FROM lr.start_date) = $${idx++}`); values.push(year); }
-  if (month) { conditions.push(`EXTRACT(MONTH FROM lr.start_date) = $${idx++}`); values.push(month); }
-  if (status) { conditions.push(`lr.status = $${idx++}`); values.push(status); }
-  if (employeeId) { conditions.push(`lr.employee_id = $${idx++}`); values.push(employeeId); }
-  if (departmentId) { conditions.push(`e.department_id = $${idx++}`); values.push(departmentId); }
+  if (year)         { conditions.push(`EXTRACT(YEAR FROM lr.start_date) = $${idx++}`);  values.push(year); }
+  if (month)        { conditions.push(`EXTRACT(MONTH FROM lr.start_date) = $${idx++}`); values.push(month); }
+  if (status)       { conditions.push(`lr.status = $${idx++}`);                          values.push(status); }
+  if (employeeId)   { conditions.push(`lr.employee_id = $${idx++}`);                    values.push(employeeId); }
+  if (departmentId) { conditions.push(`e.department_id = $${idx++}`);                   values.push(departmentId); }
+  if (branchId)     { conditions.push(`e.branch_id = $${idx++}`);                       values.push(branchId); }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const result = await db.query(
     `SELECT lr.id, lr.status, lr.start_date, lr.end_date, lr.total_days,
+            lr.is_half_day, lr.half_day_period,
             lr.reason, lr.reject_reason, lr.approved_at, lr.created_at,
             lt.name AS leave_type_name,
             e.name AS employee_name, e.employee_code,
             d.name AS department_name,
+            b.name AS branch_name,
             approver.name AS approved_by_name
      FROM leave_requests lr
      JOIN leave_types lt ON lr.leave_type_id = lt.id
      JOIN employees e ON lr.employee_id = e.id
      LEFT JOIN departments d ON e.department_id = d.id
+     LEFT JOIN branches b ON e.branch_id = b.id
      LEFT JOIN employees approver ON lr.approved_by = approver.id
      ${where}
      ORDER BY lr.created_at DESC

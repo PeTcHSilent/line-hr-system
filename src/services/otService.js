@@ -3,7 +3,7 @@ const db = require('../db');
 /**
  * ดึง OT requests ทั้งหมด (Admin)
  */
-async function getAllOT({ year, month, departmentId, status, employeeId } = {}) {
+async function getAllOT({ year, month, departmentId, status, employeeId, branchId } = {}) {
   const conditions = ['1=1'];
   const values = [];
   let idx = 1;
@@ -13,6 +13,7 @@ async function getAllOT({ year, month, departmentId, status, employeeId } = {}) 
   if (status)       { conditions.push('o.status = $' + idx++); values.push(status); }
   if (employeeId)   { conditions.push('o.employee_id = $' + idx++); values.push(employeeId); }
   if (departmentId) { conditions.push('e.department_id = $' + idx++); values.push(departmentId); }
+  if (branchId)     { conditions.push('e.branch_id = $' + idx++); values.push(branchId); }
 
   const result = await db.query(
     'SELECT o.*,' +
