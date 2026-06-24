@@ -125,97 +125,101 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         <div class="sidebar-brand">ต่อกัน อินชัวรันส์<br>โบรคเกอร์ จำกัด</div>
       </div>
       <div class="nav-section">ภาพรวม</div>
-      <a class="nav-item active" onclick="showPage('dashboard')" href="#">
+      <a class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         Dashboard
       </a>
       <div class="nav-section">พนักงาน</div>
-      <a class="nav-item" onclick="showPage('employees')" href="#">
+      <a class="nav-item" data-page="employees" onclick="showPage('employees')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Employee Management
       </a>
-      <a class="nav-item" onclick="showPage('departments')" href="#">
+      <a class="nav-item" data-page="departments" onclick="showPage('departments')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
         Department Management
       </a>
-      <a class="nav-item" onclick="showPage('branches')" href="#">
+      <a class="nav-item" data-page="branches" onclick="showPage('branches')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><line x1="12" y1="22" x2="12" y2="12"/><path d="M9 12h6"/></svg>
         Branch Management
       </a>
       <div class="nav-section">การทำงาน</div>
-      <a class="nav-item" onclick="showPage('attendance')" href="#">
+      <a class="nav-item" data-page="attendance" onclick="showPage('attendance')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Attendance
       </a>
-      <a class="nav-item" onclick="showPage('attendance-report')" href="#">
+      <a class="nav-item" data-page="attendance-report" onclick="showPage('attendance-report')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
         รายงานการลงเวลา
       </a>
-      <a class="nav-item" onclick="showPage('leave-records')" href="#">
+      <a class="nav-item" data-page="leave-records" onclick="showPage('leave-records')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         Leave Records
       </a>
-      <a class="nav-item" onclick="showPage('leaves')" href="#">
+      <a class="nav-item" data-page="leaves" onclick="showPage('leaves')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         Leave Types
       </a>
-      <a class="nav-item" onclick="showPage('holidays')" href="#">
+      <a class="nav-item" data-page="holidays" onclick="showPage('holidays')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         Holiday Management
       </a>
-      <a class="nav-item" onclick="showPage('ot')" href="#">
+      <a class="nav-item" data-page="ot" onclick="showPage('ot')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         OT Management
       </a>
       <div class="nav-section">รายงาน</div>
-      <a class="nav-item" onclick="showPage('report')" href="#">
+      <a class="nav-item" data-page="report" onclick="showPage('report')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         Summary Report
       </a>
-      <a class="nav-item" onclick="showPage('calendar')" href="#">
+      <a class="nav-item" data-page="calendar" onclick="showPage('calendar')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         Calendar
       </a>
       <div class="nav-section">การเงิน & HR</div>
-      <a class="nav-item" onclick="showPage('payroll')" href="#">
+      <a class="nav-item" data-page="payroll" onclick="showPage('payroll')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         Payroll & Payslip
       </a>
-      <a class="nav-item" onclick="showPage('warnings')" href="#">
+      <a class="nav-item" data-page="warnings" onclick="showPage('warnings')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         สาย / ขาดงาน
       </a>
-      <a class="nav-item" onclick="showPage('expense')" href="#">
+      <a class="nav-item" data-page="expense" onclick="showPage('expense')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
         เบิกค่าใช้จ่าย
       </a>
-      <a class="nav-item" onclick="showPage('probation')" href="#">
+      <a class="nav-item" data-page="probation" onclick="showPage('probation')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/></svg>
         ทดลองงาน
       </a>
-      <a class="nav-item" onclick="showPage('broadcast')" href="#">
+      <a class="nav-item" data-page="broadcast" onclick="showPage('broadcast')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.88 9.75 19.79 19.79 0 0 1 1.84 1.12 2 2 0 0 1 3.82 0h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 7.91A16 16 0 0 0 16 15.91l.97-.97a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
         Broadcast
       </a>
-            <div class="nav-section">การบริหาร</div>
-      <a class="nav-item" onclick="showPage('shift')" href="#">
+      <div class="nav-section">การบริหาร</div>
+      <a class="nav-item" data-page="shift" onclick="showPage('shift')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Shift Management
       </a>
-      <a class="nav-item" onclick="showPage('leave-quota')" href="#">
+      <a class="nav-item" data-page="leave-quota" onclick="showPage('leave-quota')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
         Leave Quota Seniority
       </a>
-      <a class="nav-item" onclick="showPage('org-chart')" href="#">
+      <a class="nav-item" data-page="org-chart" onclick="showPage('org-chart')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><rect x="1" y="16" width="6" height="4" rx="1"/><rect x="9" y="16" width="6" height="4" rx="1"/><rect x="17" y="16" width="6" height="4" rx="1"/><path d="M4 16v-4h16v4M12 6v6"/></svg>
         Org Chart
       </a>
-      <a class="nav-item" onclick="showPage('admin-users')" href="#">
+      <a class="nav-item" data-page="admin-users" onclick="showPage('admin-users')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         Admin LINE Users
       </a>
+      <a class="nav-item nav-master-only" data-page="role-management" onclick="showPage('role-management')" href="#">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M2 21v-2a7 7 0 0 1 14 0v2"/><path d="M18 8l2 2 4-4"/></svg>
+        จัดการสิทธิ์
+      </a>
       <div class="nav-section">ระบบ</div>
-      <a class="nav-item" onclick="showPage('settings')" href="#">
+      <a class="nav-item" data-page="settings" onclick="showPage('settings')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         ตั้งค่าบริษัท
       </a>
@@ -1209,8 +1213,115 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         </div>
       </div>
     </div>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- Role Management Page                                      -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <div id="page-role-management" class="page">
+
+      <!-- ── Role List ────────────────────────────── -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">🔑 Custom Roles</div>
+          <button class="btn btn-primary btn-sm" onclick="openRoleModal()">➕ สร้าง Role ใหม่</button>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>ชื่อ Role</th><th>สิทธิ์เมนู</th><th>จำนวน Account</th><th>จัดการ</th></tr></thead>
+            <tbody id="roles-tbody"><tr><td colspan="4" class="no-data">กำลังโหลด...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Permission Matrix ─────────────────────── -->
+      <div class="card" id="perm-matrix-card" style="margin-bottom:16px;display:none;">
+        <div class="card-header">
+          <div class="card-title">📋 ตั้งค่าสิทธิ์เมนูสำหรับ: <span id="perm-role-name" style="color:#2563eb;"></span></div>
+          <button class="btn btn-primary btn-sm" onclick="savePermissions()">💾 บันทึกสิทธิ์</button>
+        </div>
+        <input type="hidden" id="perm-role-id">
+        <div style="padding:12px 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;" id="perm-checkboxes"></div>
+      </div>
+
+      <!-- ── Sub-Admin Accounts ─────────────────────── -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">👤 Sub-Admin Accounts</div>
+          <button class="btn btn-primary btn-sm" onclick="openSubAdminModal()">➕ เพิ่ม Account</button>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin:0 0 12px;">
+          Sub-admins login ด้วย username/password ที่ตั้งไว้ แล้วเห็นเฉพาะเมนูที่ Role กำหนด
+        </p>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Username</th><th>ชื่อแสดง</th><th>Role</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+            <tbody id="subadmins-tbody"><tr><td colspan="5" class="no-data">กำลังโหลด...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /page-role-management -->
+
   </div>
 </main>
+  </div>
+
+  <!-- ══ Role Modal ══ -->
+  <div class="modal" id="role-modal">
+    <div class="modal-box" style="max-width:420px;">
+      <div class="modal-title" id="role-modal-title">สร้าง Role ใหม่</div>
+      <input type="hidden" id="rm-id">
+      <div class="form-group">
+        <label class="form-label">ชื่อ Role *</label>
+        <input type="text" id="rm-name" placeholder="เช่น HR Staff, Branch Viewer">
+      </div>
+      <div class="form-group">
+        <label class="form-label">สี Badge</label>
+        <input type="color" id="rm-color" value="#2563eb" style="width:60px;height:32px;cursor:pointer;border:none;background:none;">
+      </div>
+      <div class="form-group">
+        <label class="form-label">คำอธิบาย</label>
+        <input type="text" id="rm-desc" placeholder="รายละเอียดเพิ่มเติม (ไม่จำเป็น)">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('role-modal')">ยกเลิก</button>
+        <button class="btn btn-primary btn-sm" onclick="saveRole()">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Sub-Admin Modal ══ -->
+  <div class="modal" id="subadmin-modal">
+    <div class="modal-box" style="max-width:440px;">
+      <div class="modal-title" id="subadmin-modal-title">เพิ่ม Sub-Admin</div>
+      <input type="hidden" id="sa-id">
+      <div class="form-group">
+        <label class="form-label">Username *</label>
+        <input type="text" id="sa-username" placeholder="ตัวอักษรพิมพ์เล็ก ไม่มีช่องว่าง">
+      </div>
+      <div class="form-group" id="sa-password-group">
+        <label class="form-label">Password * <span style="font-size:11px;color:#94a3b8;">(อย่างน้อย 6 ตัว)</span></label>
+        <input type="password" id="sa-password" placeholder="••••••">
+      </div>
+      <div class="form-group">
+        <label class="form-label">ชื่อแสดง</label>
+        <input type="text" id="sa-display-name" placeholder="เช่น สมชาย HR">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Role</label>
+        <select id="sa-role-id"><option value="">— ไม่กำหนด (ไม่เห็นเมนูใด) —</option></select>
+      </div>
+      <div class="form-group" id="sa-active-group" style="display:none;">
+        <label class="form-label">สถานะ</label>
+        <select id="sa-active">
+          <option value="true">เปิดใช้งาน</option>
+          <option value="false">ปิดใช้งาน</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('subadmin-modal')">ยกเลิก</button>
+        <button class="btn btn-primary btn-sm" onclick="saveSubAdmin()">บันทึก</button>
+      </div>
+    </div>
   </div>
 
   <!-- Employee Modal -->
@@ -1412,6 +1523,53 @@ apiFetch('/api/auth/verify', { method: 'POST', headers: { Authorization: `Bearer
   .then(r => { if (!r.ok) { localStorage.removeItem('adminToken'); window.location.href = '/admin/login'; } })
   .catch(() => {});
 
+// ─── Decode JWT payload (no verify — just UI) ────────────────
+function decodeJwt(token) {
+  try { return JSON.parse(atob(token.split('.')[1])); } catch { return {}; }
+}
+const _jwtPayload = decodeJwt(_token);
+const _isMaster   = _jwtPayload.is_master !== false; // master admin หรือ token เก่าที่ไม่มี field นี้
+
+// ─── Apply Permission Restrictions ───────────────────────────
+(function applyPermissions() {
+  if (_isMaster) return; // master admin เห็นทุกอย่าง
+
+  const allowed = Array.isArray(_jwtPayload.permitted_menus) ? _jwtPayload.permitted_menus : [];
+
+  // ซ่อน nav items ที่ไม่มีสิทธิ์
+  document.querySelectorAll('.nav-item[data-page]').forEach(el => {
+    const pg = el.getAttribute('data-page');
+    if (!allowed.includes(pg)) el.style.display = 'none';
+  });
+
+  // ซ่อน master-only items (เช่น จัดการสิทธิ์)
+  document.querySelectorAll('.nav-master-only').forEach(el => el.style.display = 'none');
+
+  // ถ้า dashboard ไม่ได้รับสิทธิ์ → redirect ไปเมนูแรกที่มีสิทธิ์
+  if (!allowed.includes('dashboard') && allowed.length > 0) {
+    // คลิก nav item แรกที่มีสิทธิ์อัตโนมัติ
+    setTimeout(() => {
+      const first = document.querySelector(`.nav-item[data-page="${allowed[0]}"]`);
+      if (first) first.click();
+    }, 100);
+  } else if (allowed.length === 0) {
+    document.getElementById('page-title').textContent = 'ไม่มีสิทธิ์เข้าถึง';
+    document.getElementById('page-dashboard').innerHTML =
+      '<div style="text-align:center;padding:60px;color:#64748b;"><h2>⛔ ไม่มีสิทธิ์เข้าถึงเมนูใด</h2><p>กรุณาติดต่อ Admin เพื่อขอสิทธิ์</p></div>';
+  }
+
+  // แสดงชื่อ role บน topbar (ถ้ามี)
+  if (_jwtPayload.role_name) {
+    const titleEl = document.getElementById('page-title');
+    // เพิ่ม badge หลัง topbar-title
+    const badge = document.createElement('span');
+    badge.style.cssText = `margin-left:8px;padding:2px 8px;border-radius:12px;font-size:11px;background:${_jwtPayload.role_color||'#6c757d'};color:#fff;`;
+    badge.textContent = _jwtPayload.role_name;
+    const topbarTitle = document.querySelector('.topbar-title');
+    if (topbarTitle) topbarTitle.appendChild(badge);
+  }
+})();
+
 // helper สำหรับ API call ที่ต้องการ auth
 function authHeaders() {
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` };
@@ -1459,6 +1617,7 @@ function showPage(name) {
     'attendance-report':'รายงานการลงเวลา',
     shift:'Shift Management', 'leave-quota':'Leave Quota per Seniority',
     'org-chart':'Org Chart — โครงสร้างองค์กร', 'admin-users':'Admin LINE Users',
+    'role-management':'จัดการ Role & สิทธิ์',
   };
   document.getElementById('page-title').textContent = titles[name] || name;
   if (name === 'employees')   loadEmployees();
@@ -1484,12 +1643,254 @@ function showPage(name) {
   if (name === 'org-chart')    initOrgChart();
   if (name === 'admin-users')  initAdminUsers();
   if (name === 'branches')     loadBranches();
+  if (name === 'role-management') initRoleManagement();
 }
 
 function updateClock() {
   document.getElementById('current-time').textContent = new Date().toLocaleString('th-TH', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'short' });
 }
 setInterval(updateClock, 1000); updateClock();
+
+// ════════════════════════════════════════════════════════════════
+// ROLE MANAGEMENT
+// ════════════════════════════════════════════════════════════════
+const MENU_DEFS = [
+  { key:'dashboard',         label:'📊 Dashboard' },
+  { key:'employees',         label:'👥 พนักงาน' },
+  { key:'departments',       label:'🏢 แผนก' },
+  { key:'branches',          label:'🏠 สาขา' },
+  { key:'attendance',        label:'⏰ บันทึกเวลา' },
+  { key:'attendance-report', label:'📋 รายงานลงเวลา' },
+  { key:'leave-records',     label:'📄 ใบลา' },
+  { key:'leaves',            label:'🗂️ ประเภทการลา' },
+  { key:'leave-quota',       label:'📅 โควต้าวันลา' },
+  { key:'holidays',          label:'🎉 วันหยุด' },
+  { key:'ot',                label:'⏱️ OT' },
+  { key:'report',            label:'📈 Summary Report' },
+  { key:'calendar',          label:'📆 ปฏิทิน' },
+  { key:'payroll',           label:'💰 Payroll' },
+  { key:'warnings',          label:'⚠️ สาย/ขาดงาน' },
+  { key:'expense',           label:'🧾 เบิกค่าใช้จ่าย' },
+  { key:'probation',         label:'📝 ทดลองงาน' },
+  { key:'broadcast',         label:'📢 Broadcast' },
+  { key:'shift',             label:'🔄 Shift' },
+  { key:'org-chart',         label:'🌐 Org Chart' },
+  { key:'admin-users',       label:'🛡️ Admin LINE' },
+  { key:'settings',          label:'⚙️ ตั้งค่า' },
+];
+
+let _roles = [], _subAdmins = [], _roleInited = false;
+
+async function initRoleManagement() {
+  if (!_isMaster) {
+    document.getElementById('page-role-management').innerHTML =
+      '<div style="padding:40px;text-align:center;color:#64748b;">⛔ เฉพาะ Master Admin เท่านั้น</div>';
+    return;
+  }
+  await Promise.all([loadRoles(), loadSubAdmins()]);
+}
+
+// ── Load & Render Roles ──────────────────────────────────────
+async function loadRoles() {
+  const res = await apiFetch('/api/custom-roles');
+  _roles = await res.json();
+  renderRolesTable();
+  populateSaRoleSelect();
+}
+
+function renderRolesTable() {
+  const tbody = document.getElementById('roles-tbody');
+  if (!_roles.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="no-data">ยังไม่มี Role — กด "สร้าง Role ใหม่" เพื่อเริ่ม</td></tr>';
+    return;
+  }
+  tbody.innerHTML = _roles.map(r => {
+    const perms = (r.permissions || []).length;
+    const count = _subAdmins.filter(s => s.role_id === r.id).length;
+    return `<tr>
+      <td><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${r.color};margin-right:6px;"></span><strong>${r.name}</strong>${r.description ? `<br><span style="font-size:11px;color:#94a3b8;">${r.description}</span>` : ''}</td>
+      <td style="text-align:center;"><button class="btn btn-ghost btn-sm" onclick="openPermMatrix(${r.id})" style="font-size:11px;">${perms} เมนู — แก้ไข</button></td>
+      <td style="text-align:center;">${count} คน</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="openRoleModal(${r.id})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteRole(${r.id},'${r.name}')">ลบ</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Role Modal (Create/Edit) ──────────────────────────────────
+function openRoleModal(id) {
+  const r = id ? _roles.find(x => x.id === id) : null;
+  document.getElementById('role-modal-title').textContent = r ? 'แก้ไข Role' : 'สร้าง Role ใหม่';
+  document.getElementById('rm-id').value    = r ? r.id   : '';
+  document.getElementById('rm-name').value  = r ? r.name : '';
+  document.getElementById('rm-color').value = r ? r.color : '#2563eb';
+  document.getElementById('rm-desc').value  = r ? (r.description || '') : '';
+  openModal('role-modal');
+}
+
+async function saveRole() {
+  const id    = document.getElementById('rm-id').value;
+  const name  = document.getElementById('rm-name').value.trim();
+  const color = document.getElementById('rm-color').value;
+  const desc  = document.getElementById('rm-desc').value.trim();
+  if (!name) { toast('กรุณาระบุชื่อ Role', 'error'); return; }
+  try {
+    const url    = id ? `/api/custom-roles/${id}` : '/api/custom-roles';
+    const method = id ? 'PUT' : 'POST';
+    const res    = await apiFetch(url, { method, body: JSON.stringify({ name, color, description: desc || null }) });
+    const data   = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    closeModal('role-modal');
+    toast(id ? 'อัปเดต Role สำเร็จ' : 'สร้าง Role สำเร็จ');
+    await loadRoles();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function deleteRole(id, name) {
+  if (!confirm(`ลบ Role "${name}"?\nSub-Admins ที่ใช้ Role นี้จะถูก reset Role เป็นว่าง`)) return;
+  try {
+    const res = await apiFetch(`/api/custom-roles/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    toast('ลบ Role สำเร็จ');
+    document.getElementById('perm-matrix-card').style.display = 'none';
+    await loadRoles();
+    await loadSubAdmins();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ── Permission Matrix ─────────────────────────────────────────
+function openPermMatrix(roleId) {
+  const r = _roles.find(x => x.id === roleId);
+  if (!r) return;
+  document.getElementById('perm-role-id').value   = roleId;
+  document.getElementById('perm-role-name').textContent = r.name;
+  const allowed = new Set(r.permissions || []);
+  document.getElementById('perm-checkboxes').innerHTML = MENU_DEFS.map(m => `
+    <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:6px;background:#f8fafc;cursor:pointer;border:1px solid #e2e8f0;">
+      <input type="checkbox" value="${m.key}" ${allowed.has(m.key) ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;">
+      <span style="font-size:13px;">${m.label}</span>
+    </label>
+  `).join('');
+  document.getElementById('perm-matrix-card').style.display = 'block';
+  document.getElementById('perm-matrix-card').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+async function savePermissions() {
+  const roleId = document.getElementById('perm-role-id').value;
+  const menus  = [...document.querySelectorAll('#perm-checkboxes input[type=checkbox]:checked')].map(c => c.value);
+  try {
+    const res  = await apiFetch(`/api/custom-roles/${roleId}/permissions`, { method:'PUT', body: JSON.stringify({ menus }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    toast('บันทึกสิทธิ์สำเร็จ');
+    await loadRoles();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ── Sub-Admin Accounts ────────────────────────────────────────
+async function loadSubAdmins() {
+  const res = await apiFetch('/api/custom-roles/sub-admins/list');
+  _subAdmins = await res.json();
+  renderSubAdminsTable();
+  renderRolesTable(); // refresh count
+}
+
+function renderSubAdminsTable() {
+  const tbody = document.getElementById('subadmins-tbody');
+  if (!_subAdmins.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="no-data">ยังไม่มี Sub-Admin Account</td></tr>';
+    return;
+  }
+  tbody.innerHTML = _subAdmins.map(sa => `<tr>
+    <td><code style="font-size:12px;">${sa.username}</code></td>
+    <td>${sa.display_name || '—'}</td>
+    <td>${sa.role_id ? `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:${sa.role_color};color:#fff;">${sa.role_name}</span>` : '<span style="color:#94a3b8;font-size:12px;">ไม่ได้กำหนด</span>'}</td>
+    <td><span style="font-size:12px;color:${sa.is_active ? '#16a34a' : '#dc2626'};">${sa.is_active ? '● เปิดใช้งาน' : '● ปิดใช้งาน'}</span></td>
+    <td style="display:flex;gap:4px;flex-wrap:wrap;">
+      <button class="btn btn-ghost btn-sm" onclick="openSubAdminModal(${sa.id})">✏️ แก้ไข</button>
+      <button class="btn btn-ghost btn-sm" onclick="changeSubAdminPw(${sa.id})" style="font-size:11px;">🔑 รหัส</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteSubAdmin(${sa.id},'${sa.username}')">ลบ</button>
+    </td>
+  </tr>`).join('');
+}
+
+function populateSaRoleSelect() {
+  const sel = document.getElementById('sa-role-id');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— ไม่กำหนด (ไม่เห็นเมนูใด) —</option>';
+  _roles.forEach(r => {
+    sel.innerHTML += `<option value="${r.id}">${r.name}</option>`;
+  });
+  sel.value = cur;
+}
+
+function openSubAdminModal(id) {
+  const sa = id ? _subAdmins.find(x => x.id === id) : null;
+  document.getElementById('subadmin-modal-title').textContent = sa ? 'แก้ไข Sub-Admin' : 'เพิ่ม Sub-Admin';
+  document.getElementById('sa-id').value            = sa ? sa.id : '';
+  document.getElementById('sa-username').value      = sa ? sa.username : '';
+  document.getElementById('sa-username').disabled   = !!sa;
+  document.getElementById('sa-display-name').value  = sa ? (sa.display_name || '') : '';
+  document.getElementById('sa-role-id').value       = sa ? (sa.role_id || '') : '';
+  document.getElementById('sa-password').value      = '';
+  document.getElementById('sa-password-group').style.display = sa ? 'none' : '';
+  document.getElementById('sa-active-group').style.display   = sa ? '' : 'none';
+  if (sa) document.getElementById('sa-active').value = sa.is_active ? 'true' : 'false';
+  openModal('subadmin-modal');
+}
+
+async function saveSubAdmin() {
+  const id = document.getElementById('sa-id').value;
+  const body = {
+    username:       document.getElementById('sa-username').value.trim(),
+    password:       document.getElementById('sa-password').value,
+    display_name:   document.getElementById('sa-display-name').value.trim() || null,
+    custom_role_id: document.getElementById('sa-role-id').value || null,
+    is_active:      document.getElementById('sa-active').value !== 'false',
+  };
+  if (!id && !body.username) { toast('กรุณาระบุ username', 'error'); return; }
+  try {
+    let res;
+    if (id) {
+      res = await apiFetch(`/api/custom-roles/sub-admins/${id}`, { method:'PUT', body: JSON.stringify({
+        display_name: body.display_name, custom_role_id: body.custom_role_id, is_active: body.is_active,
+      }) });
+    } else {
+      res = await apiFetch('/api/custom-roles/sub-admins', { method:'POST', body: JSON.stringify(body) });
+    }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    closeModal('subadmin-modal');
+    toast(id ? 'อัปเดต Sub-Admin สำเร็จ' : 'สร้าง Sub-Admin สำเร็จ');
+    await loadSubAdmins();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function deleteSubAdmin(id, username) {
+  if (!confirm(`ลบ account "${username}"?`)) return;
+  try {
+    const res = await apiFetch(`/api/custom-roles/sub-admins/${id}`, { method:'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    toast('ลบ Account สำเร็จ');
+    await loadSubAdmins();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function changeSubAdminPw(id) {
+  const pw = prompt('ตั้งรหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร):');
+  if (!pw) return;
+  if (pw.length < 6) { toast('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', 'error'); return; }
+  try {
+    const res  = await apiFetch(`/api/custom-roles/sub-admins/${id}/password`, { method:'PATCH', body: JSON.stringify({ password: pw }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    toast('เปลี่ยนรหัสผ่านสำเร็จ');
+  } catch (err) { toast(err.message, 'error'); }
+}
 
 // ---- Modal ----
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }

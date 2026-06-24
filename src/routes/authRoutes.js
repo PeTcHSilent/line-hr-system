@@ -15,31 +15,54 @@ router.post('/login', async (req, res) => {
     if (!username || !password)
       return res.status(400).json({ error: 'กรุณากรอก username และ password' });
 
-    // เช็ค username
-    if (username !== ADMIN_USER)
-      return res.status(401).json({ error: 'username หรือ password ไม่ถูกต้อง' });
+    // ── ตรวจ Master Admin ─────────────────────────────────────
+    if (username === ADMIN_USER) {
+      let currentPass = ADMIN_PASS;
+      try {
+        const stored = await db.query("SELECT value FROM company_settings WHERE key = 'admin_password'");
+        if (stored.rows[0]?.value) currentPass = stored.rows[0].value;
+      } catch {}
 
-    // ดึง password จาก DB settings ก่อน (ถ้าเคยเปลี่ยนผ่าน UI)
-    let currentPass = ADMIN_PASS;
-    try {
-      const stored = await db.query("SELECT value FROM company_settings WHERE key = 'admin_password'");
-      if (stored.rows[0]?.value) currentPass = stored.rows[0].value;
-    } catch {}
+      const isValid = currentPass.startsWith('$2')
+        ? await bcrypt.compare(password, currentPass)
+        : password === currentPass;
 
-    // เช็ค password (รองรับ bcrypt hash หรือ plaintext)
-    const isValid = currentPass.startsWith('$2')
-      ? await bcrypt.compare(password, currentPass)
-      : password === currentPass;
+      if (!isValid)
+        return res.status(401).json({ error: 'username หรือ password ไม่ถูกต้อง' });
 
-    if (!isValid)
+      const token = jwt.sign(
+        { username, role: 'admin', is_master: true },
+        JWT_SECRET,
+        { expiresIn: '8h' }
+      );
+      return res.json({ success: true, token, expiresIn: 28800, is_master: true });
+    }
+
+    // ── ตรวจ Sub-Admin ────────────────────────────────────────
+    const customRoleSvc = require('../services/customRoleService');
+    const subAdmin = await customRoleSvc.findSubAdminByCredentials(username, password);
+    if (!subAdmin)
       return res.status(401).json({ error: 'username หรือ password ไม่ถูกต้อง' });
 
     const token = jwt.sign(
-      { username, role: 'admin' },
+      {
+        username:        subAdmin.username,
+        role:            'sub_admin',
+        is_master:       false,
+        sub_admin_id:    subAdmin.id,
+        display_name:    subAdmin.display_name || subAdmin.username,
+        role_name:       subAdmin.role_name    || null,
+        role_color:      subAdmin.role_color   || '#6c757d',
+        permitted_menus: subAdmin.permitted_menus || [],
+      },
       JWT_SECRET,
       { expiresIn: '8h' }
     );
-    res.json({ success: true, token, expiresIn: 28800 });
+    return res.json({
+      success: true, token, expiresIn: 28800,
+      is_master: false,
+      permitted_menus: subAdmin.permitted_menus || [],
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
