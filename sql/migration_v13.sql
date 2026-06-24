@@ -10,6 +10,11 @@ CREATE TABLE IF NOT EXISTS admin_line_users (
   linked_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
+-- เพิ่ม column ที่อาจหายไปถ้า table ถูกสร้างก่อนหน้าโดยไม่มี column เหล่านี้
+ALTER TABLE admin_line_users
+  ADD COLUMN IF NOT EXISTS display_name VARCHAR(200) NOT NULL DEFAULT 'Admin',
+  ADD COLUMN IF NOT EXISTS linked_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW();
+
 -- ย้ายข้อมูลเดิมจาก company_settings → admin_line_users (ถ้ามี)
 INSERT INTO admin_line_users (line_user_id, display_name, linked_at)
 SELECT
