@@ -107,6 +107,7 @@
     <div>
       <div class="header-title">Clock In / Out</div>
       <div class="header-name" id="emp-name">กำลังโหลด...</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;" id="emp-branch"></div>
     </div>
     <button class="back-btn" onclick="liff.closeWindow()">✕ ปิด</button>
   </div>
@@ -140,7 +141,7 @@
     </div>
 
     <div class="dist-num dist-idle" id="dist-num">—</div>
-    <div class="dist-unit">เมตรจากออฟฟิศ</div>
+    <div class="dist-unit" id="dist-unit">เมตรจากออฟฟิศ</div>
 
     <div class="gps-status-text" id="gps-status">กำลังระบุตำแหน่ง...</div>
     <div class="gps-coords-text" id="gps-coords"></div>
@@ -183,6 +184,7 @@ let lineUserId  = null;
 let gpsCoords   = null;
 let todayStatus = null;
 let officeConfig = { lat: 13.7563, lng: 100.5018, radius: 300 };
+let officeName = 'ออฟฟิศ';
 
 // ---- Clock ----
 function updateClock() {
@@ -277,7 +279,7 @@ function onSuccess(pos) {
   document.getElementById('dist-num').textContent = dist;
   document.getElementById('dist-num').className   = `dist-num ${distClass}`;
   document.getElementById('gps-status').textContent =
-    safe ? `✅ อยู่ในรัศมี (รัศมี ${officeConfig.radius} ม.)` : `⚠️ นอกรัศมีออฟฟิศ (รัศมี ${officeConfig.radius} ม.)`;
+    safe ? `✅ อยู่ในรัศมี (รัศมี ${officeConfig.radius} ม.)` : `⚠️ นอกรัศมี${officeName} (รัศมี ${officeConfig.radius} ม.)`;
   document.getElementById('gps-status').style.color = safe ? '#22c55e' : '#ef4444';
   document.getElementById('gps-coords').textContent =
     `${gpsCoords.lat.toFixed(5)}, ${gpsCoords.lng.toFixed(5)}`;
@@ -338,6 +340,20 @@ async function doAction(action, lat, lng) {
 async function loadTodayStatus() {
   const res = await fetch(`${API}/api/attendance/today?line_user_id=${lineUserId}`);
   todayStatus = await res.json();
+  // Set employee name in header
+  const nameEl = document.getElementById('emp-name');
+  if (nameEl && todayStatus.employee_name) nameEl.textContent = todayStatus.employee_name;
+  // Update per-branch GPS config and display branch name
+  if (todayStatus.office) {
+    if (todayStatus.office.lat) {
+      officeConfig = { lat: todayStatus.office.lat, lng: todayStatus.office.lng, radius: todayStatus.office.radius };
+    }
+    officeName = todayStatus.office.branch || 'ออฟฟิศ';
+    const branchEl = document.getElementById('emp-branch');
+    if (branchEl) branchEl.textContent = '📍 ' + officeName;
+    const unitEl = document.getElementById('dist-unit');
+    if (unitEl) unitEl.textContent = 'เมตรจาก' + officeName;
+  }
   renderStatus(todayStatus);
 }
 

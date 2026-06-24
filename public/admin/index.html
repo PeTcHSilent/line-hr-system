@@ -266,6 +266,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
           <tbody id="dash-emp-tbody"><tr><td colspan="5" class="no-data">กำลังโหลด...</td></tr></tbody></table>
         </div>
       </div>
+    <!-- Branch KPI -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">🏢 สรุปตามสาขา — วันนี้</div>
+        </div>
+        <div class="tbl-wrap" style="padding:0 0 8px;">
+          <table><thead><tr><th>สาขา</th><th style="text-align:center;">พนักงาน</th><th style="text-align:center;">เช็คอินวันนี้</th><th>อัตราเช็คอิน</th></tr></thead>
+          <tbody id="dash-branch-tbody"><tr><td colspan="4" class="no-data">กำลังโหลด...</td></tr></tbody></table>
+        </div>
+      </div>
     <!-- Charts Row -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
         <div class="card" style="margin-bottom:0;">
@@ -385,12 +395,14 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
             <input type="date" id="att-date" style="width:150px;" onchange="loadAttendance()"></div>
           <div class="filter-group"><div class="filter-label">แผนก</div>
             <select id="att-dept" style="width:160px;" onchange="loadAttendance()"><option value="">ทุกแผนก</option></select></div>
+          <div class="filter-group"><div class="filter-label">สาขา</div>
+            <select id="att-branch" style="width:140px;" onchange="loadAttendance()"><option value="">ทุกสาขา</option></select></div>
           <div class="filter-group"><div class="filter-label">ค้นหา</div>
             <input type="text" id="att-search" placeholder="ชื่อ / รหัส" style="width:160px;" oninput="filterAttendance()"></div>
         </div>
         <div class="tbl-wrap">
-          <table><thead><tr><th>ชื่อพนักงาน</th><th>แผนก</th><th>วันที่</th><th>เช็คอิน</th><th>เช็คเอาท์</th><th>ชั่วโมง</th><th>In GPS</th><th>Out GPS</th></tr></thead>
-          <tbody id="att-tbody"><tr><td colspan="8" class="no-data">กำลังโหลด...</td></tr></tbody></table>
+          <table><thead><tr><th>ชื่อพนักงาน</th><th>แผนก</th><th>สาขา</th><th>วันที่</th><th>เช็คอิน</th><th>เช็คเอาท์</th><th>ชั่วโมง</th><th>In GPS</th><th>Out GPS</th></tr></thead>
+          <tbody id="att-tbody"><tr><td colspan="9" class="no-data">กำลังโหลด...</td></tr></tbody></table>
         </div>
       </div>
     </div>
@@ -1342,12 +1354,20 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         <label class="form-label">วันสูงสุดต่อปี</label>
         <input type="number" id="lt-max-days" value="30" min="0">
       </div>
+      <div class="form-group">
+        <label class="form-label">เพศที่ใช้ได้</label>
+        <select id="lt-gender">
+          <option value="">ทุกเพศ</option>
+          <option value="male">ชาย</option>
+          <option value="female">หญิง</option>
+        </select>
+      </div>
       <div class="form-group" style="flex-direction:row;align-items:center;gap:10px;">
         <input type="checkbox" id="lt-paid" style="width:auto;">
         <label class="form-label" style="margin:0;">มีค่าจ้าง</label>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal('lt-modal')">ยกเลิก</button>
+        <button class="btn btn-secondary" onclick="closeModal('leavetype-modal')">ยกเลิก</button>
         <button class="btn btn-primary" onclick="saveLeaveType()">บันทึก</button>
       </div>
     </div>
@@ -1597,6 +1617,56 @@ async function loadDashboard() {
       if (el) el.textContent = lateToday.length;
     }
   } catch(e) { console.warn('dashboard late:', e.message); }
+
+  try {
+    // Branch KPI summary
+    const branchTbody = document.getElementById('dash-branch-tbody');
+    if (branchTbody) {
+      // Fetch employees for branch count
+      const empRes2 = await apiFetch(`${API}/api/employee`);
+      const emps2 = empRes2.ok ? await empRes2.json() : [];
+      const empList = Array.isArray(emps2) ? emps2 : (emps2.employees || emps2.data || []);
+      const branchEmp = {};
+      empList.forEach(e => {
+        const bn = e.branch_name || 'ไม่ระบุสาขา';
+        branchEmp[bn] = (branchEmp[bn] || 0) + 1;
+      });
+
+      // Fetch today's check-ins for branch count
+      const todayStr = new Date().toISOString().split('T')[0];
+      const attRes2 = await apiFetch(`${API}/api/attendance/all?date=${todayStr}`);
+      const att2 = attRes2.ok ? await attRes2.json() : [];
+      const branchCI = {};
+      (Array.isArray(att2) ? att2 : []).forEach(r => {
+        if (r.check_in) {
+          const bn = r.branch_name || 'ไม่ระบุสาขา';
+          branchCI[bn] = (branchCI[bn] || 0) + 1;
+        }
+      });
+
+      const rows = Object.entries(branchEmp).sort(([a],[b]) => a.localeCompare(b, 'th'));
+      if (!rows.length) {
+        branchTbody.innerHTML = '<tr><td colspan="4" class="no-data">ไม่พบข้อมูลสาขา</td></tr>';
+      } else {
+        branchTbody.innerHTML = rows.map(([bn, total]) => {
+          const ci = branchCI[bn] || 0;
+          const pct = total ? Math.round(ci / total * 100) : 0;
+          const barColor = pct >= 80 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444';
+          return `<tr>
+            <td style="font-size:12px;font-weight:600;">${bn}</td>
+            <td style="text-align:center;font-weight:600;">${total}</td>
+            <td style="text-align:center;color:#22c55e;font-weight:600;">${ci}</td>
+            <td><div style="display:flex;align-items:center;gap:6px;">
+              <div style="flex:1;background:#e5e7eb;border-radius:4px;height:8px;">
+                <div style="width:${pct}%;background:${barColor};border-radius:4px;height:8px;transition:width 0.5s;"></div>
+              </div>
+              <span style="font-size:11px;color:#6b7280;min-width:34px;">${pct}%</span>
+            </div></td>
+          </tr>`;
+        }).join('');
+      }
+    }
+  } catch(e) { console.warn('dashboard branch:', e.message); }
 }
 
 // ---- EMPLOYEES ----
@@ -1748,7 +1818,7 @@ function filterTable() {
 function openAddModal() {
   editingId = null;
   document.getElementById('modal-title').textContent = 'เพิ่มพนักงานใหม่';
-  ['f-code','f-name','f-phone','f-email','f-salary'].forEach(id => document.getElementById(id).value = '');
+  ['f-code','f-name','f-phone','f-email','f-salary','f-start-date'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-deduct-absent').checked = true; // default: หักเงินรายวัน
   document.getElementById('f-sex').value = '';
   document.getElementById('f-role').value = 'employee';
@@ -1802,6 +1872,7 @@ async function openEditModal(id) {
   populateManagerSelect();
   document.getElementById('f-manager').value = emp.manager_id || '';
   document.getElementById('f-salary').value = emp.salary || '';
+  document.getElementById('f-start-date').value = emp.hire_date ? emp.hire_date.slice(0,10) : '';
   // checkbox หักเงินขาดงาน (default TRUE ถ้าไม่มีค่า)
   document.getElementById('f-deduct-absent').checked = emp.deduct_absent !== false;
 
@@ -1879,6 +1950,7 @@ async function saveEmployee() {
     role: document.getElementById('f-role').value,
     manager_id: document.getElementById('f-manager').value ? parseInt(document.getElementById('f-manager').value) : null,
     salary: document.getElementById('f-salary').value ? parseFloat(document.getElementById('f-salary').value) : null,
+    hire_date: document.getElementById('f-start-date').value || null,
     deduct_absent: document.getElementById('f-deduct-absent').checked,
   };
 
@@ -2327,7 +2399,7 @@ async function exportArExcel() {
   if (!arFiltered.length) { toast('ไม่มีข้อมูลสำหรับ export', 'error'); return; }
 
   // Build CSV with BOM for Excel Thai
-  const header = ['รหัสพนักงาน','ชื่อพนักงาน','แผนก','ตำแหน่ง','ประเภทการลงเวลา','วันที่','เวลา','ระยะห่าง (ม.)','สถานะ GPS','หมายเหตุ'];
+  const header = ['รหัสพนักงาน','ชื่อพนักงาน','สาขา','แผนก','ตำแหน่ง','ประเภทการลงเวลา','วันที่','เวลา','ระยะห่าง (ม.)','สถานะ GPS','หมายเหตุ'];
   const rows = arFiltered.map(r => {
     const timeStr = r.event_time
       ? new Date(r.event_time).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',hour12:false})
@@ -2336,6 +2408,7 @@ async function exportArExcel() {
     return [
       r.employee_code || '',
       r.employee_name || '',
+      r.branch_name || '',
       r.department_name || '',
       r.position || '',
       r.event_type === 'clock_in' ? 'Clock In' : 'Clock Out',
@@ -2361,7 +2434,7 @@ async function exportArExcel() {
 let allAttendance = [];
 let attInited = false;
 
-function initAttendance() {
+async function initAttendance() {
   if (!attInited) {
     // Set today's date as default
     const today = new Date().toISOString().slice(0, 10);
@@ -2375,15 +2448,18 @@ function initAttendance() {
     });
     attInited = true;
   }
+  if (!allBranches.length) { await loadBranches(); populateBranchDropdowns(); }
   loadAttendance();
 }
 
 async function loadAttendance() {
-  const date = document.getElementById('att-date').value;
-  const dept = document.getElementById('att-dept').value;
+  const date   = document.getElementById('att-date').value;
+  const dept   = document.getElementById('att-dept').value;
+  const branch = document.getElementById('att-branch')?.value || '';
   const params = new URLSearchParams();
-  if (date) params.append('date', date);
-  if (dept) params.append('department_id', dept);
+  if (date)   params.append('date', date);
+  if (dept)   params.append('department_id', dept);
+  if (branch) params.append('branch_id', branch);
 
   const res = await apiFetch(`${API}/api/attendance/all?${params}`);
   allAttendance = await res.json();
@@ -2408,7 +2484,7 @@ function filterAttendance() {
   ).length;
 
   const tbody = document.getElementById('att-tbody');
-  if (!data.length) { tbody.innerHTML = '<tr><td colspan="8" class="no-data">ไม่พบข้อมูล</td></tr>'; return; }
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="9" class="no-data">ไม่พบข้อมูล</td></tr>'; return; }
 
   const fmtTime = s => s ? new Date(s).toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' }) : '—';
   const fmtDate = s => s ? new Date(s).toLocaleDateString('th-TH', { day:'numeric', month:'short', year:'numeric' }) : '—';
@@ -2428,6 +2504,7 @@ function filterAttendance() {
         <div><div class="emp-name">${r.employee_name}</div><div class="emp-code">${r.employee_code||''}</div></div>
       </div></td>
       <td style="font-size:12px;">${r.department_name||'—'}</td>
+      <td style="font-size:12px;">${r.branch_name||'—'}</td>
       <td style="font-size:12px;">${fmtDate(r.work_date)}</td>
       <td style="font-weight:600;color:#22c55e;">${fmtTime(r.check_in)}</td>
       <td style="font-weight:600;color:#F47920;">${fmtTime(r.check_out)}</td>
@@ -2829,10 +2906,11 @@ function exportOTReport() {
   }
   const year  = document.getElementById('otr-year')?.value  || '';
   const month = document.getElementById('otr-month')?.value || '';
-  const header = ['รหัส','ชื่อ','แผนก','จำนวนครั้ง','รวมชั่วโมง','ค่า OT (฿)'];
+  const header = ['รหัส','ชื่อ','สาขา','แผนก','จำนวนครั้ง','รวมชั่วโมง','ค่า OT (฿)'];
   const rows = _otReportData.map(r => [
     r.employee_code  || '',
     (r.employee_name || '').replace(/,/g, ' '),
+    (r.branch_name   || '').replace(/,/g, ' '),
     (r.department_name || '').replace(/,/g, ' '),
     r.ot_count    || 0,
     r.total_hours || 0,
@@ -5492,7 +5570,7 @@ function renderBranchTable(data) {
 
 // อัปเดต dropdown สาขาทั่ว UI
 function populateBranchDropdowns() {
-  const selectors = ['#f-branch', '#emp-branch-filter', '#ar-branch', '#lr-branch', '#ot-branch', '#pwl-branch'];
+  const selectors = ['#f-branch', '#emp-branch-filter', '#ar-branch', '#lr-branch', '#ot-branch', '#pwl-branch', '#att-branch'];
   selectors.forEach(sel => {
     const el = document.querySelector(sel);
     if (!el) return;

@@ -53,7 +53,7 @@ router.get('/', async (req, res) => {
 // POST /api/employee — เพิ่มพนักงานใหม่
 router.post('/', async (req, res) => {
   try {
-    const { employee_code, name, sex, phone_no, email, department_id, role, manager_id, branch_id } = req.body;
+    const { employee_code, name, sex, phone_no, email, department_id, role, manager_id, branch_id, hire_date } = req.body;
 
     if (!employee_code || !name) return res.status(400).json({ error: 'employee_code และ name จำเป็น' });
     if (sex && !['M', 'W'].includes(sex)) return res.status(400).json({ error: 'sex ต้องเป็น M หรือ W' });
@@ -69,6 +69,7 @@ router.post('/', async (req, res) => {
       role,
       managerId: manager_id,
       branchId: branch_id || null,
+      hireDate: hire_date || null,
     });
     res.status(201).json(emp);
   } catch (err) {

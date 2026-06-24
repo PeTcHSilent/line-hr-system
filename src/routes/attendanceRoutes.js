@@ -88,13 +88,14 @@ router.get('/history', async (req, res) => {
 // ประวัติทั้งหมด — Admin ใช้
 router.get('/all', requireAuth, async (req, res) => {
   try {
-    const { date, month, year, department_id, employee_id } = req.query;
+    const { date, month, year, department_id, employee_id, branch_id } = req.query;
     const data = await attendanceService.getAllAttendance({
       date:         date         || null,
       month:        month        ? parseInt(month)        : null,
       year:         year         ? parseInt(year)         : null,
       departmentId: department_id? parseInt(department_id): null,
       employeeId:   employee_id  ? parseInt(employee_id)  : null,
+      branchId:     branch_id    ? parseInt(branch_id)    : null,
     });
     res.json(data);
   } catch (err) {

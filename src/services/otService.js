@@ -139,6 +139,7 @@ async function getOTReportPerEmployee({ year, month, employeeId } = {}) {
        e.name            AS employee_name,
        e.employee_code,
        d.name            AS department_name,
+       b.name            AS branch_name,
        COUNT(o.id)::int  AS ot_count,
        ROUND(COALESCE(SUM(o.total_hours), 0)::numeric, 2)        AS total_hours,
        ROUND(COALESCE(SUM(
@@ -149,8 +150,9 @@ async function getOTReportPerEmployee({ year, month, employeeId } = {}) {
      FROM ot_records o
      JOIN employees e ON e.id = o.employee_id
      LEFT JOIN departments d ON d.id = e.department_id
+     LEFT JOIN branches b ON b.id = e.branch_id
      WHERE ${conditions.join(' AND ')}
-     GROUP BY e.id, e.name, e.employee_code, d.name
+     GROUP BY e.id, e.name, e.employee_code, d.name, b.name
      ORDER BY d.name, e.name`,
     values
   );

@@ -158,7 +158,7 @@ async function getById(id) {
 async function updateEmployee(id, fields) {
   const allowed = ['name', 'sex', 'phone_no', 'email', 'department_id', 'role', 'manager_id', 'salary', 'deduct_absent',
     'bank_name', 'bank_branch', 'bank_account_no', 'bank_account_name',
-    'probation_start_date', 'probation_end_date', 'probation_status', 'branch_id'];
+    'probation_start_date', 'probation_end_date', 'probation_status', 'branch_id', 'hire_date'];
   const setClauses = [];
   const values = [];
   let idx = 1;
@@ -244,13 +244,13 @@ async function searchEmployees({ keyword, departmentId, role, branchId } = {}) {
 /**
  * เพิ่มพนักงานใหม่
  */
-async function createEmployee({ employeeCode, name, sex, phoneNo, email, departmentId, role, managerId, branchId }) {
+async function createEmployee({ employeeCode, name, sex, phoneNo, email, departmentId, role, managerId, branchId, hireDate }) {
   const result = await db.query(
     `INSERT INTO employees
-       (employee_code, name, sex, phone_no, email, department_id, role, manager_id, branch_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       (employee_code, name, sex, phone_no, email, department_id, role, manager_id, branch_id, hire_date)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING *`,
-    [employeeCode, name, sex, phoneNo, email, departmentId, role || 'employee', managerId || null, branchId || null]
+    [employeeCode, name, sex, phoneNo, email, departmentId, role || 'employee', managerId || null, branchId || null, hireDate || null]
   );
   return result.rows[0];
 }

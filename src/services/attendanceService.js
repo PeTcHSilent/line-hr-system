@@ -183,7 +183,7 @@ async function getAttendanceHistory(employeeId, days = 14) {
  * ดึงข้อมูล Attendance ทั้งหมด (สำหรับ Admin)
  * รองรับ filter: date, departmentId, employeeId
  */
-async function getAllAttendance({ date, departmentId, employeeId, month, year } = {}) {
+async function getAllAttendance({ date, departmentId, employeeId, month, year, branchId } = {}) {
   const conditions = [];
   const values = [];
   let idx = 1;
@@ -193,6 +193,7 @@ async function getAllAttendance({ date, departmentId, employeeId, month, year } 
   if (year)         { conditions.push(`EXTRACT(YEAR FROM a.work_date) = $${idx++}`);  values.push(year); }
   if (employeeId)   { conditions.push(`a.employee_id = $${idx++}`);                  values.push(employeeId); }
   if (departmentId) { conditions.push(`e.department_id = $${idx++}`);                values.push(departmentId); }
+  if (branchId)     { conditions.push(`e.branch_id = $${idx++}`);                    values.push(branchId); }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
@@ -203,10 +204,12 @@ async function getAllAttendance({ date, departmentId, employeeId, month, year } 
             a.note,
             ROUND(EXTRACT(EPOCH FROM (a.check_out - a.check_in))/3600, 2) AS hours_worked,
             e.name AS employee_name, e.employee_code,
-            d.name AS department_name
+            d.name AS department_name,
+            b.name AS branch_name
      FROM attendance a
      JOIN employees e ON a.employee_id = e.id
      LEFT JOIN departments d ON e.department_id = d.id
+     LEFT JOIN branches b ON e.branch_id = b.id
      ${where}
      ORDER BY a.work_date DESC, a.check_in DESC
      LIMIT 500`,
@@ -246,10 +249,12 @@ async function getAttendanceReport({ startDate, endDate, departmentId, employeeI
         ROUND(EXTRACT(EPOCH FROM (COALESCE(a.check_out, NOW()) - a.check_in))/3600, 2) AS hours_worked,
         e.name        AS employee_name,
         e.employee_code,
-        d.name        AS department_name
+        d.name        AS department_name,
+        b.name        AS branch_name
      FROM attendance a
      JOIN employees e ON a.employee_id = e.id
      LEFT JOIN departments d ON e.department_id = d.id
+     LEFT JOIN branches b ON e.branch_id = b.id
      ${where}
      ORDER BY a.work_date DESC, a.check_in DESC
      LIMIT 2000`,

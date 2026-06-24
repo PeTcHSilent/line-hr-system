@@ -23,7 +23,13 @@ app.post('/webhook', line.middleware(lineConfig), (req, res) => {
 });
 
 // ---- Static Files (LIFF) ----
-app.use(express.static(require('path').join(__dirname, '../public')));
+app.use(express.static(require('path').join(__dirname, '../public'), {
+  etag: false,
+  lastModified: false,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-store');
+  }
+}));
 
 // ---- LIFF Leave Form ----
 app.get('/liff/leave', (req, res) => {
@@ -62,6 +68,7 @@ app.get('/admin/login', (req, res) => {
 
 // ---- Admin Dashboard ----
 app.get('/admin', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   res.sendFile(require('path').join(__dirname, '../public/admin/index.html'));
 });
 
