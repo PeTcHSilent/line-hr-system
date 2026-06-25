@@ -3394,15 +3394,17 @@ function exportOTDailyCSV() {
   if (!_otrDailyData || !_otrDailyData.length) {
     toast('ไม่มีข้อมูลสำหรับ export', 'error'); return;
   }
+  const OT_TYPE_TH = { weekday: 'วันธรรมดา', holiday: 'วันหยุด', weekend: 'วันหยุดสัปดาห์' };
+  const OT_RATE_NUM = { weekday: '1.5', holiday: '3.0', weekend: '1.5' };
   const header = ['วันที่','ประเภท','อัตรา','เวลาเริ่ม','เวลาสิ้นสุด','ชั่วโมง','ค่า OT (฿)','เหตุผล'];
   const rows = _otrDailyData.map(r => [
-    r.ot_date || '',
-    r.ot_type || '',
-    r.rate_multiplier || '',
+    r.ot_date ? r.ot_date.toString().slice(0,10) : '',
+    OT_TYPE_TH[r.ot_type] || r.ot_type || 'วันธรรมดา',
+    OT_RATE_NUM[r.ot_type] || '1.5',
     r.start_time || '',
-    r.end_time || '',
-    r.hours_worked || '',
-    r.ot_pay || '',
+    r.end_time   || '',
+    r.total_hours  != null ? parseFloat(r.total_hours).toFixed(1)  : '',
+    r.ot_pay_day   != null ? parseFloat(r.ot_pay_day).toFixed(2)   : '',
     (r.reason || '').replace(/,/g, ' ')
   ]);
   const csv = [header, ...rows].map(r => r.join(',')).join('\n');
