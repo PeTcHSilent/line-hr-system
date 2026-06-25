@@ -42,10 +42,10 @@ async function getWorkSchedule() {
 }
 
 /**
- * ตรวจสอบว่า date เป็น 'holiday' หรือ 'weekday'
- *  1. ถ้าอยู่ใน holidays table → holiday (×3)
- *  2. ถ้าไม่ใช่วันทำงาน (work_days setting) → holiday (×3)
- *  3. อื่นๆ → weekday (×1.5)
+ * ตรวจสอบว่า date เป็น 'holiday', 'weekend', หรือ 'weekday'
+ *  1. ถ้าอยู่ใน holidays table → holiday
+ *  2. ถ้าไม่ใช่วันทำงาน (work_days setting) → weekend
+ *  3. อื่นๆ → weekday
  */
 async function getOTType(dateStr) {
   // 1. ตรวจ holidays table
@@ -58,9 +58,19 @@ async function getOTType(dateStr) {
   const schedule = await getWorkSchedule();
   const [y, m, d] = dateStr.split('-').map(Number);
   const dayOfWeek = new Date(y, m - 1, d).getDay(); // 0=อาทิตย์, 6=เสาร์
-  if (!schedule.work_days.includes(dayOfWeek)) return 'holiday';
+  if (!schedule.work_days.includes(dayOfWeek)) return 'weekend';
 
   return 'weekday';
 }
 
-module.exports = { getAll, get, set, getWorkSchedule, getOTType };
+/**
+ * ดึงอัตราตัวคูณ OT จาก settings (ค่าเริ่มต้น: weekday=1.5, weekend=1.5, holiday=3.0)
+ */
+async function getOTRates() {
+  const weekday = parseFloat(await get('ot_rate_weekday') || '1.5');
+  const weekend = parseFloat(await get('ot_rate_weekend') || '1.5');
+  const holiday = parseFloat(await get('ot_rate_holiday') || '3.0');
+  return { weekday, weekend, holiday };
+}
+
+module.exports = { getAll, get, set, getWorkSchedule, getOTType, getOTRates };

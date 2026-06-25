@@ -58,7 +58,8 @@ async function getPayrollSettings() {
   const ssMax      = parseFloat(await settingsService.get('social_security_max')  || '750');
   const pfEnabled  = (await settingsService.get('provident_fund_enabled'))        === 'true';
   const pfRate     = parseFloat(await settingsService.get('provident_fund_rate')  || '5')  / 100;
-  return { taxRate, ssRate, ssMax, pfEnabled, pfRate };
+  const otRates    = await settingsService.getOTRates();
+  return { taxRate, ssRate, ssMax, pfEnabled, pfRate, otRates };
 }
 
 /**
@@ -76,28 +77,40 @@ async function calculatePayslip(employeeId, year, month) {
   const salary       = parseFloat(emp.salary || 0);
   const deductAbsent = emp.deduct_absent !== false; // TRUE = หักเงินรายวันเมื่อขาดงาน
 
-  // OT pay ของเดือนนี้ (เฉพาะที่ approved)
+  // อัตราตัวคูณ OT จาก settings
+  const otRatesCfg = await settingsService.getOTRates();
+  const rateWD = otRatesCfg.weekday;
+  const rateWE = otRatesCfg.weekend;
+  const rateHL = otRatesCfg.holiday;
+
+  // OT pay ของเดือนนี้ (เฉพาะที่ approved) — ใช้อัตราจาก settings
   const otResult = await db.query(
     'SELECT' +
     '  COALESCE(SUM(' +
     '    (e.salary / 30.0 / 8.0) *' +
-    "    CASE COALESCE(o.ot_type,'weekday') WHEN 'holiday' THEN 3.0 ELSE 1.5 END *" +
+    "    CASE COALESCE(o.ot_type,'weekday')" +
+    '      WHEN \'holiday\' THEN $4' +
+    '      WHEN \'weekend\' THEN $5' +
+    '      ELSE $6' +
+    '    END *' +
     '    o.total_hours' +
     '  ), 0) AS ot_pay,' +
     '  COALESCE(SUM(o.total_hours), 0) AS ot_hours,' +
     "  COALESCE(SUM(o.total_hours) FILTER (WHERE COALESCE(o.ot_type,'weekday')='weekday'), 0) AS weekday_ot_hours," +
+    "  COALESCE(SUM(o.total_hours) FILTER (WHERE o.ot_type='weekend'), 0) AS weekend_ot_hours," +
     "  COALESCE(SUM(o.total_hours) FILTER (WHERE o.ot_type='holiday'), 0) AS holiday_ot_hours" +
     ' FROM ot_records o' +
     ' JOIN employees e ON e.id = o.employee_id' +
     " WHERE o.employee_id = $1 AND o.status = 'approved'" +
     ' AND EXTRACT(YEAR  FROM o.ot_date) = $2' +
     ' AND EXTRACT(MONTH FROM o.ot_date) = $3',
-    [employeeId, year, month]
+    [employeeId, year, month, rateHL, rateWE, rateWD]
   );
-  const otPay          = parseFloat(otResult.rows[0].ot_pay          || 0);
-  const otHours        = parseFloat(otResult.rows[0].ot_hours        || 0);
-  const weekdayOtHours = parseFloat(otResult.rows[0].weekday_ot_hours || 0);
-  const holidayOtHours = parseFloat(otResult.rows[0].holiday_ot_hours || 0);
+  const otPay           = parseFloat(otResult.rows[0].ot_pay           || 0);
+  const otHours         = parseFloat(otResult.rows[0].ot_hours         || 0);
+  const weekdayOtHours  = parseFloat(otResult.rows[0].weekday_ot_hours  || 0);
+  const weekendOtHours  = parseFloat(otResult.rows[0].weekend_ot_hours  || 0);
+  const holidayOtHours  = parseFloat(otResult.rows[0].holiday_ot_hours  || 0);
 
   // จำนวนสาย / ขาด จาก attendance_warnings
   const warnResult = await db.query(
@@ -154,6 +167,7 @@ async function calculatePayslip(employeeId, year, month) {
     ot_pay:          round(otPay),
     ot_hours:              round(otHours),
     weekday_ot_hours:      round(weekdayOtHours),
+    weekend_ot_hours:      round(weekendOtHours),
     holiday_ot_hours:      round(holidayOtHours),
     bonus:                 round(bonus),
     special_allowance:     round(specialAllowance),
@@ -175,6 +189,9 @@ async function calculatePayslip(employeeId, year, month) {
     pf_enabled: cfg.pfEnabled,
     tax_rate:   cfg.taxRate * 100,
     ss_max:     cfg.ssMax,
+    ot_rate_weekday: otRatesCfg.weekday,
+    ot_rate_weekend: otRatesCfg.weekend,
+    ot_rate_holiday: otRatesCfg.holiday,
   };
 }
 
@@ -197,19 +214,19 @@ async function generatePayroll(year, month, force = false) {
         'INSERT INTO payroll_records' +
         ' (employee_id, year, month, salary, ot_pay, ot_hours, bonus, gross_income,' +
         '  social_security, provident_fund, tax_withholding, late_deduction, absent_deduction, total_deduction, net_income,' +
-        '  late_days, absent_days, weekday_ot_hours, holiday_ot_hours, status, updated_at)' +
-        ' VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW())' +
+        '  late_days, absent_days, weekday_ot_hours, weekend_ot_hours, holiday_ot_hours, status, updated_at)' +
+        ' VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW())' +
         ' ON CONFLICT (employee_id, year, month) DO UPDATE SET' +
         '  salary=$4, ot_pay=$5, ot_hours=$6, bonus=$7, gross_income=$8,' +
         '  social_security=$9, provident_fund=$10, tax_withholding=$11,' +
         '  late_deduction=$12, absent_deduction=$13, total_deduction=$14, net_income=$15,' +
-        '  late_days=$16, absent_days=$17, weekday_ot_hours=$18, holiday_ot_hours=$19, status=\'draft\', updated_at=NOW()',
+        '  late_days=$16, absent_days=$17, weekday_ot_hours=$18, weekend_ot_hours=$19, holiday_ot_hours=$20, status=\'draft\', updated_at=NOW()',
         [
           p.employee_id, year, month,
           p.salary, p.ot_pay, p.ot_hours, p.bonus, p.gross_income,
           p.social_security, p.provident_fund, p.tax_withholding,
           p.late_deduction, p.absent_deduction, p.total_deduction, p.net_income,
-          p.late_days, p.absent_days, p.weekday_ot_hours, p.holiday_ot_hours, 'draft',
+          p.late_days, p.absent_days, p.weekday_ot_hours, p.weekend_ot_hours, p.holiday_ot_hours, 'draft',
         ]
       );
     } else {
@@ -218,20 +235,20 @@ async function generatePayroll(year, month, force = false) {
       'INSERT INTO payroll_records' +
       ' (employee_id, year, month, salary, ot_pay, ot_hours, bonus, gross_income,' +
       '  social_security, provident_fund, tax_withholding, late_deduction, absent_deduction, total_deduction, net_income,' +
-      '  late_days, absent_days, weekday_ot_hours, holiday_ot_hours, status, updated_at)' +
-      ' VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW())' +
+      '  late_days, absent_days, weekday_ot_hours, weekend_ot_hours, holiday_ot_hours, status, updated_at)' +
+      ' VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW())' +
       ' ON CONFLICT (employee_id, year, month) DO UPDATE SET' +
       '  salary=$4, ot_pay=$5, ot_hours=$6, bonus=$7, gross_income=$8,' +
       '  social_security=$9, provident_fund=$10, tax_withholding=$11,' +
       '  late_deduction=$12, absent_deduction=$13, total_deduction=$14, net_income=$15,' +
-      '  late_days=$16, absent_days=$17, weekday_ot_hours=$18, holiday_ot_hours=$19, updated_at=NOW()' +
+      '  late_days=$16, absent_days=$17, weekday_ot_hours=$18, weekend_ot_hours=$19, holiday_ot_hours=$20, updated_at=NOW()' +
       ' WHERE payroll_records.status = \'draft\'',
       [
         p.employee_id, year, month,
         p.salary, p.ot_pay, p.ot_hours, p.bonus, p.gross_income,
         p.social_security, p.provident_fund, p.tax_withholding,
         p.late_deduction, p.absent_deduction, p.total_deduction, p.net_income,
-        p.late_days, p.absent_days, p.weekday_ot_hours, p.holiday_ot_hours, 'draft',
+        p.late_days, p.absent_days, p.weekday_ot_hours, p.weekend_ot_hours, p.holiday_ot_hours, 'draft',
       ]
     );
     } // end else
@@ -294,15 +311,18 @@ async function getPayslip(employeeId, year, month) {
     const r = saved.rows[0];
     const cfg = await getPayrollSettings();
     return Object.assign(r, {
-      ss_rate:    cfg.ssRate  * 100,
-      ss_max:     cfg.ssMax,
-      pf_rate:    cfg.pfRate  * 100,
-      pf_enabled: cfg.pfEnabled,
-      tax_rate:   cfg.taxRate * 100,
-      ytd_gross:  parseFloat(ytd.ytd_gross  || 0),
-      ytd_ss:     parseFloat(ytd.ytd_ss     || 0),
-      ytd_tax:    parseFloat(ytd.ytd_tax    || 0),
-      ytd_pf:     parseFloat(ytd.ytd_pf     || 0),
+      ss_rate:         cfg.ssRate  * 100,
+      ss_max:          cfg.ssMax,
+      pf_rate:         cfg.pfRate  * 100,
+      pf_enabled:      cfg.pfEnabled,
+      tax_rate:        cfg.taxRate * 100,
+      ot_rate_weekday: cfg.otRates.weekday,
+      ot_rate_weekend: cfg.otRates.weekend,
+      ot_rate_holiday: cfg.otRates.holiday,
+      ytd_gross:       parseFloat(ytd.ytd_gross  || 0),
+      ytd_ss:          parseFloat(ytd.ytd_ss     || 0),
+      ytd_tax:         parseFloat(ytd.ytd_tax    || 0),
+      ytd_pf:          parseFloat(ytd.ytd_pf     || 0),
     });
   }
   const slip = await calculatePayslip(employeeId, year, month);
@@ -1206,7 +1226,7 @@ async function bulkUpdatePayrollStatus(year, month, status) {
   if (!VALID.includes(status)) throw new Error(`status ต้องเป็น: ${VALID.join(', ')}`);
   const { rowCount } = await db.query(
     `UPDATE payroll_records SET status=$3, updated_at=NOW()
-     WHERE year=$1 AND month=$2 AND status != $3`,
+     ERE year=$1 AND month=$2 AND status != $3`,
     [year, month, status]
   );
   return rowCount;

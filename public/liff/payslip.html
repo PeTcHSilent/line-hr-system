@@ -214,10 +214,10 @@ function renderPayslip(d) {
           <div class="row-label">
             ค่าล่วงเวลา (OT)
             <small>
-              ${parseFloat(d.weekday_ot_hours||0) > 0 ? `วันธรรมดา ${parseFloat(d.weekday_ot_hours).toFixed(2)} ชม. ×1.5` : ''}
-              ${parseFloat(d.weekday_ot_hours||0) > 0 && parseFloat(d.holiday_ot_hours||0) > 0 ? ' &nbsp;|&nbsp; ' : ''}
-              ${parseFloat(d.holiday_ot_hours||0) > 0 ? `วันหยุด ${parseFloat(d.holiday_ot_hours).toFixed(2)} ชม. ×3.0` : ''}
-              ${parseFloat(d.weekday_ot_hours||0) === 0 && parseFloat(d.holiday_ot_hours||0) === 0 ? `${parseFloat(d.ot_hours||0).toFixed(2)} ชม.` : ''}
+              ${parseFloat(d.weekday_ot_hours||0) > 0 ? `วันธรรมดา ${parseFloat(d.weekday_ot_hours).toFixed(2)} ชม. ×${d.ot_rate_weekday||'1.5'}` : ''}
+              ${parseFloat(d.weekend_ot_hours||0) > 0 ? ` | วันหยุดสัปดาห์ ${parseFloat(d.weekend_ot_hours).toFixed(2)} ชม. ×${d.ot_rate_weekend||'1.5'}` : ''}
+              ${parseFloat(d.holiday_ot_hours||0) > 0 ? ` | วันหยุด ${parseFloat(d.holiday_ot_hours).toFixed(2)} ชม. ×${d.ot_rate_holiday||'3.0'}` : ''}
+              ${parseFloat(d.ot_hours||0) > 0 && parseFloat(d.weekday_ot_hours||0) === 0 && parseFloat(d.weekend_ot_hours||0) === 0 && parseFloat(d.holiday_ot_hours||0) === 0 ? `${parseFloat(d.ot_hours||0).toFixed(2)} ชม.` : ''}
             </small>
           </div>
           <div class="row-value">฿${fmt(d.ot_pay)}</div>

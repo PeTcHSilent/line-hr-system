@@ -755,8 +755,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
             <label class="form-label">วันที่จ่ายเงินเดือน (วันที่)</label>
             <input type="number" id="s-pay-day" min="1" max="31">
           </div>
-          <div class="form-group">
-            <label class="form-label">อัตรา OT (x เท่า)</label>
+          <div class="form-group" style="display:none;">
+            <label class="form-label">อัตรา OT รวม (legacy)</label>
             <input type="number" id="s-ot-rate" min="1" max="3" step="0.5">
           </div>
           <div class="form-group">
@@ -766,6 +766,30 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
           <div class="form-group">
             <label class="form-label">กองทุนสำรองเลี้ยงชีพ (%)</label>
             <input type="number" id="s-pf-rate" min="0" max="15">
+          </div>
+        </div>
+        <!-- OT Rate Settings -->
+        <div style="padding:0 20px 20px;">
+          <div class="section-title" style="margin-bottom:12px;">⏱️ อัตราตัวคูณ OT (ค่า OT = เงินเดือน ÷ 30 ÷ 8 × ตัวคูณ × ชั่วโมง)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+            <div class="form-group">
+              <label class="form-label">วันธรรมดา (×)</label>
+              <input type="number" id="s-ot-rate-weekday" min="1" max="5" step="0.25"
+                style="border:2px solid #bfdbfe;">
+              <div style="font-size:11px;color:#6b7280;margin-top:4px;">ค่าเริ่มต้น: 1.5</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">วันหยุดสุดสัปดาห์ (×)</label>
+              <input type="number" id="s-ot-rate-weekend" min="1" max="5" step="0.25"
+                style="border:2px solid #bbf7d0;">
+              <div style="font-size:11px;color:#6b7280;margin-top:4px;">ค่าเริ่มต้น: 1.5</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">วันหยุดนักขัตฤกษ์ (×)</label>
+              <input type="number" id="s-ot-rate-holiday" min="1" max="5" step="0.25"
+                style="border:2px solid #fecaca;">
+              <div style="font-size:11px;color:#6b7280;margin-top:4px;">ค่าเริ่มต้น: 3.0</div>
+            </div>
           </div>
         </div>
       </div>
@@ -4009,13 +4033,16 @@ async function loadSettings() {
     const map = {};
     (Array.isArray(data) ? data : []).forEach(s => { map[s.key] = s.value; });
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-    set('s-work-start',  map.work_start_time   || '08:30');
-    set('s-work-end',    map.work_end_time     || '17:30');
-    set('s-late-warn',   map.late_warn_minutes || '15');
-    set('s-pay-day',     map.pay_day           || '25');
-    set('s-ot-rate',     map.ot_rate           || '1.5');
-    set('s-ss-rate',     map.ss_rate           || '5');
-    set('s-pf-rate',     map.pf_rate           || '5');
+    set('s-work-start',      map.work_start_time   || '08:30');
+    set('s-work-end',        map.work_end_time     || '17:30');
+    set('s-late-warn',       map.late_warn_minutes || '15');
+    set('s-pay-day',         map.pay_day           || '25');
+    set('s-ot-rate',         map.ot_rate           || '1.5');
+    set('s-ot-rate-weekday', map.ot_rate_weekday   || '1.5');
+    set('s-ot-rate-weekend', map.ot_rate_weekend   || '1.5');
+    set('s-ot-rate-holiday', map.ot_rate_holiday   || '3.0');
+    set('s-ss-rate',         map.ss_rate           || '5');
+    set('s-pf-rate',         map.pf_rate           || '5');
     // Company info
     set('s-company-name',          map.company_name);
     set('s-company-phone',         map.company_phone);
@@ -4041,6 +4068,9 @@ async function saveSettings() {
     late_warn_minutes:      get('s-late-warn'),
     pay_day:                get('s-pay-day'),
     ot_rate:                get('s-ot-rate'),
+    ot_rate_weekday:        get('s-ot-rate-weekday'),
+    ot_rate_weekend:        get('s-ot-rate-weekend'),
+    ot_rate_holiday:        get('s-ot-rate-holiday'),
     ss_rate:                get('s-ss-rate'),
     pf_rate:                get('s-pf-rate'),
     company_name:           get('s-company-name').trim(),
