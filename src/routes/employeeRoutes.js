@@ -145,7 +145,7 @@ router.put('/:id', async (req, res) => {
     const {
       name, sex, phone_no, email, department_id, role, manager_id, salary, deduct_absent,
       bank_name, bank_branch, bank_account_no, bank_account_name,
-      probation_start_date, probation_end_date, probation_status, branch_id,
+      probation_start_date, probation_end_date, probation_status, branch_id, hire_date,
     } = req.body;
     if (sex && !['M', 'W'].includes(sex)) {
       return res.status(400).json({ error: 'sex ต้องเป็น M หรือ W' });
@@ -163,6 +163,7 @@ router.put('/:id', async (req, res) => {
       probation_end_date: probation_end_date || undefined,
       probation_status: probation_status || undefined,
       branch_id: branch_id !== undefined ? (branch_id || null) : undefined,
+      hire_date: hire_date !== undefined ? (hire_date || null) : undefined,
     });
     res.json(emp);
   } catch (err) {
