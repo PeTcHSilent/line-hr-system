@@ -906,7 +906,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
           <table><thead><tr>
             <th>รหัส</th><th>ชื่อพนักงาน</th><th>แผนก</th><th>เงินเดือน</th>
             <th>OT/ชม.</th><th>ชม.OT</th><th>ค่า OT</th>
-            <th>หักสาย (฿)</th><th>ประกันสังคม</th><th>กองทุนสำรอง</th><th>ภาษี</th>
+            <th>หักสาย (฿)</th><th>หักขาดงาน</th><th>ประกันสังคม</th><th>กองทุนสำรอง</th><th>ภาษี</th>
             <th>โบนัส</th><th>เบี้ยพิเศษ</th><th>เงินสุทธิ</th><th>สถานะ</th><th>หมายเหตุ</th><th></th>
           </tr></thead>
           <tbody id="pwl-tbody"><tr><td colspan="16" class="no-data">เลือกเดือนแล้วกด "สร้าง Payroll"</td></tr></tbody></table>
@@ -4146,7 +4146,7 @@ async function loadPayroll() {
   const branch = document.getElementById('pwl-branch')?.value || '';
   const tbody  = document.getElementById('pwl-tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="13" class="no-data">⏳ กำลังโหลด...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="14" class="no-data">⏳ กำลังโหลด...</td></tr>';
   try {
     let url = `${API}/api/payroll/monthly?year=${year}&month=${month}`;
     if (dept)   url += `&department_id=${dept}`;
@@ -4157,7 +4157,7 @@ async function loadPayroll() {
     payrollData = Array.isArray(json) ? json : (json.rows || json.data || []);
     renderPayroll();
   } catch(err) {
-    tbody.innerHTML = `<tr><td colspan="13" class="no-data" style="color:#ef4444;">${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="14" class="no-data" style="color:#ef4444;">${err.message}</td></tr>`;
   }
 }
 
@@ -4182,6 +4182,12 @@ function renderPayroll() {
     <td style="text-align:right;font-family:monospace;">${parseFloat(r.weekday_ot_hours||0)+parseFloat(r.holiday_ot_hours||0)>0?(parseFloat(r.weekday_ot_hours||0)+parseFloat(r.holiday_ot_hours||0)).toFixed(1):'—'}</td>
     <td style="text-align:right;font-family:monospace;color:#1d4ed8;">${parseFloat(r.ot_pay||0)>0?fmt(r.ot_pay):'—'}</td>
     <td style="text-align:right;font-family:monospace;color:${parseFloat(r.late_deduction||0)>0?'#ef4444':'#9ca3af'};">${parseFloat(r.late_deduction||0)>0?'-'+fmt(r.late_deduction):'—'}</td>
+    <td style="text-align:center;">
+      <button onclick="toggleDeductAbsent(${r.employee_id},${r.deduct_absent!==false})" title="${r.deduct_absent!==false?'คลิกเพื่อปิดการหักขาดงาน':'คลิกเพื่อเปิดการหักขาดงาน'}"
+        style="border:none;background:none;cursor:pointer;font-size:12px;padding:2px 6px;border-radius:4px;${r.deduct_absent!==false?'background:#dcfce7;color:#166534;':'background:#f3f4f6;color:#9ca3af;'}">
+        ${r.deduct_absent!==false?(r.absent_days>0?`-${fmt(r.absent_deduction)}`:'✓ เปิด'):'ปิด'}
+      </button>
+    </td>
     <td style="text-align:right;font-family:monospace;">-${fmt(r.social_security)}</td>
     <td style="text-align:right;font-family:monospace;">-${fmt(r.provident_fund)}</td>
     <td style="text-align:right;font-family:monospace;">-${fmt(r.tax_withholding)}</td>
@@ -4264,7 +4270,7 @@ function printPayslip(recordId) {
   <div class="section">
     <div class="section-title">รายได้</div>
     <div class="row"><span class="row-label">เงินเดือน</span><span class="row-value green">${fmt(r.salary)}</span></div>
-    ${otHours > 0 ? `<div class="row"><span class="row-label">OT (${otHours.toFixed(1)} ชม. × ${fmt(otRate*((r.ot_rate_weekday||(window._otRates||{}).weekday)||1.0))}/ชม.)</span><span class="row-value blue">${fmt(r.ot_pay)}</span></div>` : ''}
+    ${otHours > 0 ? `<div class="row"><span class="row-label">ค่าล่วงเวลา (OT)</span><span class="row-value blue">${fmt(r.ot_pay)}</span></div>` : ''}
     ${parseFloat(r.bonus||0) > 0 ? `<div class="row"><span class="row-label">โบนัส</span><span class="row-value purple">${fmt(r.bonus)}</span></div>` : ''}
     ${parseFloat(r.special_allowance||0) > 0 ? `<div class="row"><span class="row-label">เงินพิเศษ${r.special_allowance_note ? ' ('+r.special_allowance_note+')' : ''}</span><span class="row-value purple">${fmt(r.special_allowance)}</span></div>` : ''}
   </div>
@@ -4272,6 +4278,7 @@ function printPayslip(recordId) {
   <div class="section">
     <div class="section-title">รายการหัก</div>
     ${parseFloat(r.late_deduction||0) > 0 ? `<div class="row"><span class="row-label">หักมาสาย</span><span class="row-value red">-${fmt(r.late_deduction)}</span></div>` : ''}
+    ${parseFloat(r.absent_deduction||0) > 0 ? `<div class="row"><span class="row-label">หักขาดงาน (${r.absent_days||0} วัน)</span><span class="row-value red">-${fmt(r.absent_deduction)}</span></div>` : ''}
     <div class="row"><span class="row-label">ประกันสังคม</span><span class="row-value red">-${fmt(r.social_security)}</span></div>
     ${parseFloat(r.provident_fund||0) > 0 ? `<div class="row"><span class="row-label">กองทุนสำรองเลี้ยงชีพ</span><span class="row-value red">-${fmt(r.provident_fund)}</span></div>` : ''}
     ${parseFloat(r.tax_withholding||0) > 0 ? `<div class="row"><span class="row-label">ภาษีหัก ณ ที่จ่าย</span><span class="row-value red">-${fmt(r.tax_withholding)}</span></div>` : ''}
@@ -4312,6 +4319,28 @@ async function generatePayroll(force = false) {
     const d = await res.json();
     if (!res.ok) throw new Error(d.error || 'สร้างไม่สำเร็จ');
     toast(`✅ ${force ? 'Recalculate' : 'สร้าง Payroll'} สำเร็จ ${d.count||''} รายการ`);
+    loadPayroll();
+  } catch(err) { toast('❌ ' + err.message, 'error'); }
+}
+
+async function toggleDeductAbsent(employeeId, currentVal) {
+  const newVal = !currentVal;
+  const label = newVal ? 'เปิดการหักขาดงาน' : 'ปิดการหักขาดงาน';
+  if (!confirm(`${label} สำหรับพนักงานนี้?\n(จะคำนวณ Payroll ใหม่สำหรับเดือนนี้)`)) return;
+  try {
+    const empRes = await apiFetch(`${API}/api/employee/${employeeId}`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ deduct_absent: newVal })
+    });
+    if (!empRes.ok) { const e = await empRes.json(); throw new Error(e.error||'อัปเดตไม่สำเร็จ'); }
+    const year  = parseInt(document.getElementById('pwl-year')?.value)  || new Date().getFullYear();
+    const month = parseInt(document.getElementById('pwl-month')?.value) || new Date().getMonth()+1;
+    const genRes = await apiFetch(`${API}/api/payroll/generate`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ year, month, force: true })
+    });
+    if (!genRes.ok) { const e = await genRes.json(); throw new Error(e.error||'คำนวณใหม่ไม่สำเร็จ'); }
+    toast(`✅ ${label} และคำนวณ Payroll ใหม่แล้ว`);
     loadPayroll();
   } catch(err) { toast('❌ ' + err.message, 'error'); }
 }

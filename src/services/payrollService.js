@@ -266,7 +266,8 @@ async function getPayroll(year, month) {
     '  e.name AS employee_name, e.employee_code, e.salary AS current_salary,' +
     '  e.branch_id,' +
     '  d.name AS department_name,' +
-    '  b.name AS branch_name' +
+    '  b.name AS branch_name,' +
+    '  e.deduct_absent' +
     ' FROM payroll_records pr' +
     ' JOIN employees e ON e.id = pr.employee_id' +
     ' LEFT JOIN departments d ON d.id = e.department_id' +
