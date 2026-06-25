@@ -176,6 +176,22 @@ router.patch('/:id/reject', requireAuth, async (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
+// PATCH /api/ot/:id  — Admin แก้ไขรายละเอียด OT record
+router.patch('/:id', requireAuth, async (req, res) => {
+  try {
+    const { ot_date, start_time, end_time, total_hours, ot_type, reason } = req.body;
+    const updated = await otService.updateOTRecord(parseInt(req.params.id), {
+      otDate:     ot_date,
+      startTime:  start_time,
+      endTime:    end_time,
+      totalHours: total_hours != null ? parseFloat(total_hours) : undefined,
+      otType:     ot_type,
+      reason,
+    });
+    res.json({ success: true, ot: updated, message: 'แก้ไข OT สำเร็จ' });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
 // DELETE /api/ot/:id
 router.delete('/:id', async (req, res) => {
   try {

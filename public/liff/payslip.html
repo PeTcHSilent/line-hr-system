@@ -16,17 +16,6 @@ body { font-family:'Sarabun',system-ui,sans-serif; background:#f1f5f9; min-heigh
   color:#fff;
   position:relative;
 }
-.header-logo {
-  display:flex; align-items:center; gap:10px; margin-bottom:14px;
-}
-.logo-mark {
-  width:36px; height:36px;
-  background:#F47920; border-radius:8px;
-  display:flex; align-items:center; justify-content:center;
-  font-weight:900; font-size:16px; color:#fff; flex-shrink:0;
-}
-.header-company { font-size:14px; font-weight:700; }
-.header-company span { font-size:11px; opacity:.75; font-weight:400; display:block; }
 .header-title { font-size:11px; opacity:.65; margin-bottom:2px; }
 .header-period { font-size:20px; font-weight:700; }
 .header-emp { font-size:13px; opacity:.85; margin-top:4px; }
@@ -194,13 +183,6 @@ function renderPayslip(d) {
   document.getElementById('app').innerHTML = `
     <!-- Header -->
     <div class="header">
-      <div class="header-logo">
-        <div class="logo-mark">ต่อ</div>
-        <div class="header-company">
-          ต่อกัน อินชัวร์รันส์ โบรคเกอร์ จำกัด
-          <span>ต่อกัน Insurance Broker Co., Ltd.</span>
-        </div>
-      </div>
       <div class="header-title">สลิปเงินเดือน / Pay Slip</div>
       <div class="header-period">${MONTHS_TH[currentMonth]} ${currentYear + 543}</div>
       <div class="header-emp">${d.employee_name || ''}${d.employee_code ? ' · ' + d.employee_code : ''}${d.position ? ' · ' + d.position : ''}</div>
@@ -227,13 +209,32 @@ function renderPayslip(d) {
           <div class="row-label">เงินเดือน</div>
           <div class="row-value">฿${fmt(d.salary)}</div>
         </div>
+        ${parseFloat(d.ot_pay||0) > 0 ? `
         <div class="row">
           <div class="row-label">
             ค่าล่วงเวลา (OT)
-            <small>${d.ot_hours || 0} ชั่วโมง</small>
+            <small>
+              ${parseFloat(d.weekday_ot_hours||0) > 0 ? `วันธรรมดา ${parseFloat(d.weekday_ot_hours).toFixed(2)} ชม. ×1.5` : ''}
+              ${parseFloat(d.weekday_ot_hours||0) > 0 && parseFloat(d.holiday_ot_hours||0) > 0 ? ' &nbsp;|&nbsp; ' : ''}
+              ${parseFloat(d.holiday_ot_hours||0) > 0 ? `วันหยุด ${parseFloat(d.holiday_ot_hours).toFixed(2)} ชม. ×3.0` : ''}
+              ${parseFloat(d.weekday_ot_hours||0) === 0 && parseFloat(d.holiday_ot_hours||0) === 0 ? `${parseFloat(d.ot_hours||0).toFixed(2)} ชม.` : ''}
+            </small>
           </div>
           <div class="row-value">฿${fmt(d.ot_pay)}</div>
-        </div>
+        </div>` : ''}
+        ${parseFloat(d.bonus||0) > 0 ? `
+        <div class="row">
+          <div class="row-label">โบนัส</div>
+          <div class="row-value">฿${fmt(d.bonus)}</div>
+        </div>` : ''}
+        ${parseFloat(d.special_allowance||0) > 0 ? `
+        <div class="row">
+          <div class="row-label">
+            เงินพิเศษ
+            ${d.special_allowance_note ? `<small>${d.special_allowance_note}</small>` : ''}
+          </div>
+          <div class="row-value">฿${fmt(d.special_allowance)}</div>
+        </div>` : ''}
         <div class="row" style="background:#f8fafc;margin:0 -16px;padding:10px 16px;border-radius:0;">
           <div class="row-label" style="font-weight:700;">รวมเงินได้</div>
           <div class="row-value total">฿${fmt(d.gross_income)}</div>
@@ -245,6 +246,22 @@ function renderPayslip(d) {
     <div class="card">
       <div class="card-section">
         <div class="section-title">รายหัก</div>
+        ${parseFloat(d.late_deduction||0) > 0 ? `
+        <div class="row">
+          <div class="row-label">
+            หักมาสาย
+            ${d.late_days > 0 ? `<small>${d.late_days} วัน</small>` : ''}
+          </div>
+          <div class="row-value deduct">- ฿${fmt(d.late_deduction)}</div>
+        </div>` : ''}
+        ${parseFloat(d.absent_deduction||0) > 0 ? `
+        <div class="row">
+          <div class="row-label">
+            หักขาดงาน
+            ${d.absent_days > 0 ? `<small>${d.absent_days} วัน</small>` : ''}
+          </div>
+          <div class="row-value deduct">- ฿${fmt(d.absent_deduction)}</div>
+        </div>` : ''}
         <div class="row">
           <div class="row-label">
             ประกันสังคม
@@ -296,6 +313,31 @@ function renderPayslip(d) {
         <div class="att-num">${d.absent_days}</div>
         <div class="att-lbl">วันขาดงาน</div>
       </div>` : ''}
+    </div>` : ''}
+
+    <!-- YTD Cumulative -->
+    ${(parseFloat(d.ytd_gross||0) > 0) ? `
+    <div class="card" style="margin:12px;">
+      <div class="card-section">
+        <div class="section-title" style="color:#6b7280;">ยอดสะสม ม.ค.–${MONTHS_TH[currentMonth]} ${currentYear + 543}</div>
+        <div class="row">
+          <div class="row-label">เงินได้สะสม (YTD)</div>
+          <div class="row-value">฿${fmt(d.ytd_gross)}</div>
+        </div>
+        <div class="row">
+          <div class="row-label">ประกันสังคมสะสม</div>
+          <div class="row-value deduct">- ฿${fmt(d.ytd_ss)}</div>
+        </div>
+        <div class="row">
+          <div class="row-label">ภาษีสะสม</div>
+          <div class="row-value deduct">- ฿${fmt(d.ytd_tax)}</div>
+        </div>
+        ${parseFloat(d.ytd_pf||0) > 0 ? `
+        <div class="row">
+          <div class="row-label">กองทุนสำรองฯ สะสม</div>
+          <div class="row-value deduct">- ฿${fmt(d.ytd_pf)}</div>
+        </div>` : ''}
+      </div>
     </div>` : ''}
 
     <div class="footer">

@@ -276,6 +276,20 @@ async function getPayslip(employeeId, year, month) {
     ' WHERE pr.employee_id = $1 AND pr.year = $2 AND pr.month = $3',
     [employeeId, year, month]
   );
+
+  // YTD สะสม (ม.ค. – เดือนปัจจุบัน)
+  const ytdResult = await db.query(
+    `SELECT
+       COALESCE(SUM(gross_income),     0) AS ytd_gross,
+       COALESCE(SUM(social_security),  0) AS ytd_ss,
+       COALESCE(SUM(tax_withholding),  0) AS ytd_tax,
+       COALESCE(SUM(provident_fund),   0) AS ytd_pf
+     FROM payroll_records
+     WHERE employee_id = $1 AND year = $2 AND month <= $3`,
+    [employeeId, year, month]
+  );
+  const ytd = ytdResult.rows[0];
+
   if (saved.rows[0]) {
     const r = saved.rows[0];
     const cfg = await getPayrollSettings();
@@ -285,9 +299,19 @@ async function getPayslip(employeeId, year, month) {
       pf_rate:    cfg.pfRate  * 100,
       pf_enabled: cfg.pfEnabled,
       tax_rate:   cfg.taxRate * 100,
+      ytd_gross:  parseFloat(ytd.ytd_gross  || 0),
+      ytd_ss:     parseFloat(ytd.ytd_ss     || 0),
+      ytd_tax:    parseFloat(ytd.ytd_tax    || 0),
+      ytd_pf:     parseFloat(ytd.ytd_pf     || 0),
     });
   }
-  return calculatePayslip(employeeId, year, month);
+  const slip = await calculatePayslip(employeeId, year, month);
+  return Object.assign(slip, {
+    ytd_gross: parseFloat(ytd.ytd_gross || 0),
+    ytd_ss:    parseFloat(ytd.ytd_ss    || 0),
+    ytd_tax:   parseFloat(ytd.ytd_tax   || 0),
+    ytd_pf:    parseFloat(ytd.ytd_pf    || 0),
+  });
 }
 
 /**

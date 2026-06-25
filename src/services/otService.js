@@ -225,7 +225,46 @@ async function getOTDailyRecords({ year, month, employeeId } = {}) {
   return result.rows;
 }
 
+/**
+ * Admin แก้ไข OT record (วันที่, เวลา, ชั่วโมง, ประเภท, เหตุผล)
+ */
+async function updateOTRecord(id, { otDate, startTime, endTime, totalHours, otType, reason }) {
+  const existing = await db.query('SELECT * FROM ot_records WHERE id = $1', [id]);
+  if (!existing.rows[0]) throw new Error('ไม่พบ OT record');
+
+  let computedHours = totalHours != null ? parseFloat(totalHours) : null;
+  if (computedHours == null && startTime && endTime) {
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    computedHours = parseFloat(((eh * 60 + em - sh * 60 - sm) / 60).toFixed(2));
+    if (computedHours <= 0) throw new Error('เวลาสิ้นสุดต้องหลังเวลาเริ่มต้น');
+  }
+
+  const r          = existing.rows[0];
+  const newDate    = otDate      !== undefined ? otDate    : r.ot_date;
+  const newStart   = startTime   !== undefined ? startTime : r.start_time;
+  const newEnd     = endTime     !== undefined ? endTime   : r.end_time;
+  const newHours   = computedHours != null     ? computedHours : parseFloat(r.total_hours);
+  const newReason  = reason      !== undefined ? reason    : r.reason;
+
+  let newType = otType !== undefined ? otType : r.ot_type;
+  if (otDate && !otType) {
+    try {
+      const settingsService = require('./settingsService');
+      newType = await settingsService.getOTType(otDate);
+    } catch { /* fallback */ }
+  }
+
+  const result = await db.query(
+    `UPDATE ot_records
+     SET ot_date=$1, start_time=$2, end_time=$3, total_hours=$4, ot_type=$5, reason=$6, updated_at=NOW()
+     WHERE id=$7 RETURNING *`,
+    [newDate, newStart, newEnd, newHours, newType, newReason, id]
+  );
+  return result.rows[0];
+}
+
 module.exports = {
   getAllOT, createOT, updateOTStatus, deleteOT, getOTSummary,
-  getOTReportPerEmployee, getOTMonthlyBreakdown, getOTDailyRecords,
+  getOTReportPerEmployee, getOTMonthlyBreakdown, getOTDailyRecords, updateOTRecord,
 };

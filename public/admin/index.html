@@ -3479,6 +3479,7 @@ async function loadOTDailyTab() {
       const rateLabel = OT_RATE[r.ot_type] || '\u00d71.5';
       const isHoliday = r.ot_type === 'holiday';
       const dateStr   = new Date(r.ot_date).toLocaleDateString('th-TH', dateOpts);
+      const dataAttr  = encodeURIComponent(JSON.stringify(r));
       return `<tr style="${isHoliday ? 'background:#fff7ed;' : ''}">
         <td style="white-space:nowrap;font-weight:500;">${dateStr}</td>
         <td style="text-align:center;font-size:12px;">
@@ -3490,6 +3491,12 @@ async function loadOTDailyTab() {
         <td style="text-align:right;font-weight:700;color:#374151;">${fmt1(r.total_hours)} ชม.</td>
         <td style="text-align:right;font-weight:700;color:#1357B0;">฿${fmt(r.ot_pay_day)}</td>
         <td style="font-size:12px;color:#6b7280;" title="${r.reason || ''}">${r.reason || '—'}</td>
+        <td style="text-align:center;white-space:nowrap;">
+          <button onclick='openOTEditModal(${r.id}, decodeURIComponent("${dataAttr}"))'
+            style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;color:#374151;">
+            ✏️ แก้ไข
+          </button>
+        </td>
       </tr>`;
     }).join('');
 
@@ -3497,11 +3504,11 @@ async function loadOTDailyTab() {
       <td colspan="3" style="text-align:right;padding:8px 12px;">รวม ${data.length} รายการ</td>
       <td style="text-align:right;">${fmt1(totHours)} ชม.</td>
       <td style="text-align:right;color:#1357B0;">฿${fmt(totPay)}</td>
-      <td></td>
+      <td></td><td></td>
     </tr>`;
 
     container.innerHTML = `<div class="tbl-wrap"><table>
-      <thead><tr><th>วันที่</th><th>ประเภท</th><th>เวลา</th><th>ชั่วโมง</th><th>ค่า OT (฿)</th><th>เหตุผล</th></tr></thead>
+      <thead><tr><th>วันที่</th><th>ประเภท</th><th>เวลา</th><th>ชั่วโมง</th><th>ค่า OT (฿)</th><th>เหตุผล</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
       <tfoot>${tfoot}</tfoot>
     </table></div>`;
@@ -6052,6 +6059,93 @@ async function confirmDeleteBranch(id, name) {
   } catch(err) { toast(err.message, 'error'); }
 }
 
+/* ===== OT Edit Modal ===== */
+function openOTEditModal(otId, dataStr) {
+  let r;
+  try { r = JSON.parse(dataStr); } catch { r = {}; }
+
+  // Fill form fields
+  document.getElementById('ot-edit-id').value         = otId;
+  document.getElementById('ot-edit-date').value        = r.ot_date ? r.ot_date.toString().slice(0,10) : '';
+  document.getElementById('ot-edit-start').value       = r.start_time || '';
+  document.getElementById('ot-edit-end').value         = r.end_time   || '';
+  document.getElementById('ot-edit-hours').value       = r.total_hours != null ? parseFloat(r.total_hours).toFixed(2) : '';
+  document.getElementById('ot-edit-type').value        = r.ot_type || 'weekday';
+  document.getElementById('ot-edit-reason').value      = r.reason  || '';
+  document.getElementById('ot-edit-hours-note').textContent = 'ถ้าระบุชั่วโมงตรงนี้จะใช้ค่านี้ ไม่คำนวณจากเวลา';
+
+  document.getElementById('ot-edit-modal').classList.add('open');
+}
+
+async function saveOTEdit() {
+  const id      = document.getElementById('ot-edit-id').value;
+  const otDate  = document.getElementById('ot-edit-date').value;
+  const start   = document.getElementById('ot-edit-start').value;
+  const end     = document.getElementById('ot-edit-end').value;
+  const hours   = document.getElementById('ot-edit-hours').value;
+  const otType  = document.getElementById('ot-edit-type').value;
+  const reason  = document.getElementById('ot-edit-reason').value;
+
+  if (!id) return;
+  try {
+    const body = { ot_date: otDate, start_time: start, end_time: end, ot_type: otType, reason };
+    if (hours !== '') body.total_hours = parseFloat(hours);
+
+    const res  = await apiFetch(`${API}/api/ot/${id}`, { method: 'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+
+    toast('แก้ไข OT เรียบร้อยแล้ว');
+    closeModal('ot-edit-modal');
+    loadOTDailyTab(); // รีโหลด table
+  } catch(err) { toast(err.message, 'error'); }
+}
 </script>
+
+<!-- OT Edit Modal -->
+<div class="modal" id="ot-edit-modal">
+  <div class="modal-box" style="min-width:360px;max-width:480px;">
+    <div class="modal-title">✏️ แก้ไขข้อมูล OT</div>
+    <input type="hidden" id="ot-edit-id">
+    <div style="display:grid;gap:14px;">
+      <div>
+        <label class="form-label">วันที่ทำ OT</label>
+        <input type="date" id="ot-edit-date" class="form-input">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <label class="form-label">เวลาเริ่ม</label>
+          <input type="time" id="ot-edit-start" class="form-input">
+        </div>
+        <div>
+          <label class="form-label">เวลาสิ้นสุด</label>
+          <input type="time" id="ot-edit-end" class="form-input">
+        </div>
+      </div>
+      <div>
+        <label class="form-label">ชั่วโมง OT (ระบุเพื่อ override)</label>
+        <input type="number" id="ot-edit-hours" class="form-input" step="0.25" min="0" placeholder="เว้นว่างเพื่อคำนวณจากเวลา">
+        <div id="ot-edit-hours-note" style="font-size:11px;color:#9ca3af;margin-top:4px;"></div>
+      </div>
+      <div>
+        <label class="form-label">ประเภท OT</label>
+        <select id="ot-edit-type" class="form-input">
+          <option value="weekday">วันธรรมดา (×1.5)</option>
+          <option value="weekend">วันหยุดสัปดาห์ (×1.5)</option>
+          <option value="holiday">วันหยุดนักขัตฤกษ์ (×3.0)</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">เหตุผล</label>
+        <input type="text" id="ot-edit-reason" class="form-input" placeholder="เหตุผลการทำ OT">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('ot-edit-modal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveOTEdit()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
