@@ -112,8 +112,8 @@ async function getOTReportPerEmployee({ year, month, employeeId } = {}) {
        ROUND(COALESCE(SUM(
          (e.salary / 30.0 / 8.0) *
          CASE COALESCE(o.ot_type,'weekday')
-           WHEN 'holiday' THEN $1
-           WHEN 'weekend' THEN $2
+           WHEN 'holiday' THEN $1::numeric
+           WHEN 'weekend' THEN $2::numeric
            ELSE $3
          END * o.total_hours
        ), 0)::numeric, 2) AS ot_pay
@@ -142,8 +142,8 @@ async function getOTMonthlyBreakdown({ year, employeeId } = {}) {
        ROUND(COALESCE(SUM(
          (e.salary / 30.0 / 8.0) *
          CASE COALESCE(o.ot_type,'weekday')
-           WHEN 'holiday' THEN $3
-           WHEN 'weekend' THEN $4
+           WHEN 'holiday' THEN $3::numeric
+           WHEN 'weekend' THEN $4::numeric
            ELSE $5
          END * o.total_hours
        ), 0)::numeric, 2) AS ot_pay
@@ -174,8 +174,8 @@ async function getOTDailyRecords({ year, month, employeeId } = {}) {
        ROUND((
          (e.salary / 30.0 / 8.0) *
          CASE COALESCE(o.ot_type,'weekday')
-           WHEN 'holiday' THEN $2
-           WHEN 'weekend' THEN $3
+           WHEN 'holiday' THEN $2::numeric
+           WHEN 'weekend' THEN $3::numeric
            ELSE $4
          END * o.total_hours
        )::numeric, 2) AS ot_pay_day

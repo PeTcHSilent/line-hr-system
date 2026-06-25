@@ -89,9 +89,9 @@ async function calculatePayslip(employeeId, year, month) {
     '  COALESCE(SUM(' +
     '    (e.salary / 30.0 / 8.0) *' +
     "    CASE COALESCE(o.ot_type,'weekday')" +
-    '      WHEN \'holiday\' THEN $4' +
-    '      WHEN \'weekend\' THEN $5' +
-    '      ELSE $6' +
+    '      WHEN \'holiday\' THEN $4::numeric' +
+    '      WHEN \'weekend\' THEN $5::numeric' +
+    '      ELSE $6::numeric' +
     '    END *' +
     '    o.total_hours' +
     '  ), 0) AS ot_pay,' +
