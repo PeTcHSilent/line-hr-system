@@ -67,9 +67,9 @@ async function getOTType(dateStr) {
  * ดึงอัตราตัวคูณ OT จาก settings (ค่าเริ่มต้น: weekday=1.5, weekend=1.5, holiday=3.0)
  */
 async function getOTRates() {
-  const weekday = parseFloat(await get('ot_rate_weekday') || '1.5');
-  const weekend = parseFloat(await get('ot_rate_weekend') || '1.5');
-  const holiday = parseFloat(await get('ot_rate_holiday') || '3.0');
+  const weekday = parseFloat(await get('ot_rate_weekday') || '1.0');
+  const weekend = parseFloat(await get('ot_rate_weekend') || '1.0');
+  const holiday = parseFloat(await get('ot_rate_holiday') || '1.0');
   return { weekday, weekend, holiday };
 }
 

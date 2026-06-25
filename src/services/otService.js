@@ -114,7 +114,7 @@ async function getOTReportPerEmployee({ year, month, employeeId } = {}) {
          CASE COALESCE(o.ot_type,'weekday')
            WHEN 'holiday' THEN $1::numeric
            WHEN 'weekend' THEN $2::numeric
-           ELSE $3
+           ELSE $3::numeric
          END * o.total_hours
        ), 0)::numeric, 2) AS ot_pay
      FROM ot_records o
@@ -144,7 +144,7 @@ async function getOTMonthlyBreakdown({ year, employeeId } = {}) {
          CASE COALESCE(o.ot_type,'weekday')
            WHEN 'holiday' THEN $3::numeric
            WHEN 'weekend' THEN $4::numeric
-           ELSE $5
+           ELSE $5::numeric
          END * o.total_hours
        ), 0)::numeric, 2) AS ot_pay
      FROM ot_records o
@@ -176,7 +176,7 @@ async function getOTDailyRecords({ year, month, employeeId } = {}) {
          CASE COALESCE(o.ot_type,'weekday')
            WHEN 'holiday' THEN $2::numeric
            WHEN 'weekend' THEN $3::numeric
-           ELSE $4
+           ELSE $4::numeric
          END * o.total_hours
        )::numeric, 2) AS ot_pay_day
      FROM ot_records o

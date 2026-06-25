@@ -776,19 +776,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
               <label class="form-label">วันธรรมดา (×)</label>
               <input type="number" id="s-ot-rate-weekday" min="1" max="5" step="0.25"
                 style="border:2px solid #bfdbfe;">
-              <div style="font-size:11px;color:#6b7280;margin-top:4px;">ค่าเริ่มต้น: 1.5</div>
             </div>
             <div class="form-group">
               <label class="form-label">วันหยุดสุดสัปดาห์ (×)</label>
               <input type="number" id="s-ot-rate-weekend" min="1" max="5" step="0.25"
                 style="border:2px solid #bbf7d0;">
-              <div style="font-size:11px;color:#6b7280;margin-top:4px;">ค่าเริ่มต้น: 1.5</div>
             </div>
             <div class="form-group">
               <label class="form-label">วันหยุดนักขัตฤกษ์ (×)</label>
               <input type="number" id="s-ot-rate-holiday" min="1" max="5" step="0.25"
                 style="border:2px solid #fecaca;">
-              <div style="font-size:11px;color:#6b7280;margin-top:4px;">ค่าเริ่มต้น: 3.0</div>
             </div>
           </div>
         </div>
@@ -3419,12 +3416,12 @@ function exportOTDailyCSV() {
     toast('ไม่มีข้อมูลสำหรับ export', 'error'); return;
   }
   const OT_TYPE_TH = { weekday: 'วันธรรมดา', holiday: 'วันหยุด', weekend: 'วันหยุดสัปดาห์' };
-  const OT_RATE_NUM = { weekday: '1.5', holiday: '3.0', weekend: '1.5' };
+  const OT_RATE_NUM = { weekday: String((window._otRates||{}).weekday||'1.5'), holiday: String((window._otRates||{}).holiday||'3.0'), weekend: String((window._otRates||{}).weekend||'1.5') };
   const header = ['วันที่','ประเภท','อัตรา','เวลาเริ่ม','เวลาสิ้นสุด','ชั่วโมง','ค่า OT (฿)','เหตุผล'];
   const rows = _otrDailyData.map(r => [
     r.ot_date ? r.ot_date.toString().slice(0,10) : '',
     OT_TYPE_TH[r.ot_type] || r.ot_type || 'วันธรรมดา',
-    OT_RATE_NUM[r.ot_type] || '1.5',
+    OT_RATE_NUM[r.ot_type] || '1.0',
     r.start_time || '',
     r.end_time   || '',
     r.total_hours  != null ? parseFloat(r.total_hours).toFixed(1)  : '',
@@ -3491,7 +3488,7 @@ async function loadOTDailyTab() {
     const fmt  = n => Number(n||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
     const fmt1 = n => Number(n||0).toLocaleString('th-TH',{minimumFractionDigits:1,maximumFractionDigits:1});
     const OT_TYPE = { weekday: 'วันธรรมดา', holiday: '🔴 วันหยุด', weekend: 'วันหยุดสัปดาห์' };
-    const OT_RATE = { weekday: '\u00d71.5', holiday: '\u00d73.0', weekend: '\u00d71.5' };
+    const OT_RATE = { weekday: '\u00d7'+((window._otRates||{}).weekday||'1.5'), holiday: '\u00d7'+((window._otRates||{}).holiday||'3.0'), weekend: '\u00d7'+((window._otRates||{}).weekend||'1.5') };
 
     const dateOpts = { year:'numeric', month:'short', day:'numeric', weekday:'short' };
     let totHours = 0, totPay = 0;
@@ -3500,7 +3497,7 @@ async function loadOTDailyTab() {
       totHours += parseFloat(r.total_hours || 0);
       totPay   += parseFloat(r.ot_pay_day  || 0);
       const typeLabel = OT_TYPE[r.ot_type] || r.ot_type || 'วันธรรมดา';
-      const rateLabel = OT_RATE[r.ot_type] || '\u00d71.5';
+      const rateLabel = OT_RATE[r.ot_type] || '\u00d7'+((window._otRates||{}).weekday||'1.5');
       const isHoliday = r.ot_type === 'holiday';
       const dateStr   = new Date(r.ot_date).toLocaleDateString('th-TH', dateOpts);
       const dataAttr  = encodeURIComponent(JSON.stringify(r));
@@ -3804,6 +3801,9 @@ async function loadBroadcastHistory() {
 
   // Load initial dashboard data
   loadDashboard();
+
+  // Pre-load settings so OT rate labels are ready before user opens Settings tab
+  try { await loadSettings(); } catch(e) { /* ignore */ }
 })();
 
 async function loadAttendance() {
@@ -4037,10 +4037,22 @@ async function loadSettings() {
     set('s-work-end',        map.work_end_time     || '17:30');
     set('s-late-warn',       map.late_warn_minutes || '15');
     set('s-pay-day',         map.pay_day           || '25');
-    set('s-ot-rate',         map.ot_rate           || '1.5');
-    set('s-ot-rate-weekday', map.ot_rate_weekday   || '1.5');
-    set('s-ot-rate-weekend', map.ot_rate_weekend   || '1.5');
-    set('s-ot-rate-holiday', map.ot_rate_holiday   || '3.0');
+    set('s-ot-rate',         map.ot_rate           || '1.0');
+    set('s-ot-rate-weekday', map.ot_rate_weekday   || '1.0');
+    set('s-ot-rate-weekend', map.ot_rate_weekend   || '1.0');
+    set('s-ot-rate-holiday', map.ot_rate_holiday   || '1.0');
+    // sync global OT rates + dropdown labels
+    window._otRates = {
+      weekday: parseFloat(map.ot_rate_weekday || '1.0'),
+      weekend: parseFloat(map.ot_rate_weekend || '1.0'),
+      holiday: parseFloat(map.ot_rate_holiday || '1.0'),
+    };
+    const selType = document.getElementById('ot-edit-type');
+    if (selType) {
+      selType.options[0].text = 'วันธรรมดา';
+      selType.options[1].text = 'วันหยุดสัปดาห์';
+      selType.options[2].text = 'วันหยุดนักขัตฤกษ์';
+    }
     set('s-ss-rate',         map.ss_rate           || '5');
     set('s-pf-rate',         map.pf_rate           || '5');
     // Company info
@@ -6104,6 +6116,18 @@ function openOTEditModal(otId, dataStr) {
   document.getElementById('ot-edit-reason').value      = r.reason  || '';
   document.getElementById('ot-edit-hours-note').textContent = 'ถ้าระบุชั่วโมงตรงนี้จะใช้ค่านี้ ไม่คำนวณจากเวลา';
 
+  // Update option labels from settings inputs (populated by loadSettings on init)
+  {
+    const wdRate = parseFloat(document.getElementById('s-ot-rate-weekday')?.value) || (window._otRates||{}).weekday || 1.0;
+    const weRate = parseFloat(document.getElementById('s-ot-rate-weekend')?.value)  || (window._otRates||{}).weekend || 1.0;
+    const hdRate = parseFloat(document.getElementById('s-ot-rate-holiday')?.value)  || (window._otRates||{}).holiday || 1.0;
+    const sel = document.getElementById('ot-edit-type');
+    if (sel) {
+      sel.options[0].text = 'วันธรรมดา';
+      sel.options[1].text = 'วันหยุดสัปดาห์';
+      sel.options[2].text = 'วันหยุดนักขัตฤกษ์';
+    }
+  }
   document.getElementById('ot-edit-modal').classList.add('open');
 }
 
@@ -6160,9 +6184,9 @@ async function saveOTEdit() {
       <div>
         <label class="form-label">ประเภท OT</label>
         <select id="ot-edit-type" class="form-input">
-          <option value="weekday">วันธรรมดา (×1.5)</option>
-          <option value="weekend">วันหยุดสัปดาห์ (×1.5)</option>
-          <option value="holiday">วันหยุดนักขัตฤกษ์ (×3.0)</option>
+          <option value="weekday">วันธรรมดา</option>
+          <option value="weekend">วันหยุดสัปดาห์</option>
+          <option value="holiday">วันหยุดนักขัตฤกษ์</option>
         </select>
       </div>
       <div>

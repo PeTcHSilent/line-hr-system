@@ -9,7 +9,7 @@ ALTER TABLE payroll_records
 --    (ค่าเริ่มต้น: วันธรรมดา ×1.5, วันหยุดสัปดาห์ ×1.5, วันหยุดนักขัตฤกษ์ ×3.0)
 INSERT INTO company_settings (key, value, description, updated_at)
 VALUES
-  ('ot_rate_weekday', '1.5',  'ตัวคูณ OT วันธรรมดา',           NOW()),
-  ('ot_rate_weekend', '1.5',  'ตัวคูณ OT วันหยุดสัปดาห์',       NOW()),
-  ('ot_rate_holiday', '3.0',  'ตัวคูณ OT วันหยุดนักขัตฤกษ์',    NOW())
+  ('ot_rate_weekday', '1.0',  'ตัวคูณ OT วันธรรมดา',           NOW()),
+  ('ot_rate_weekend', '1.0',  'ตัวคูณ OT วันหยุดสัปดาห์',       NOW()),
+  ('ot_rate_holiday', '1.0',  'ตัวคูณ OT วันหยุดนักขัตฤกษ์',    NOW())
 ON CONFLICT (key) DO NOTHING;
