@@ -1226,7 +1226,7 @@ async function bulkUpdatePayrollStatus(year, month, status) {
   if (!VALID.includes(status)) throw new Error(`status ต้องเป็น: ${VALID.join(', ')}`);
   const { rowCount } = await db.query(
     `UPDATE payroll_records SET status=$3, updated_at=NOW()
-     ERE year=$1 AND month=$2 AND status != $3`,
+     WHERE year=$1 AND month=$2 AND status != $3`,
     [year, month, status]
   );
   return rowCount;

@@ -4178,7 +4178,7 @@ function renderPayroll() {
     <td>${r.employee_name||'—'}</td>
     <td style="font-size:12px;">${r.department_name||'—'}</td>
     <td style="text-align:right;font-family:monospace;">${fmt(r.salary)}</td>
-    <td style="text-align:right;font-family:monospace;font-size:11px;color:#7c3aed;">${(()=>{const rate=parseFloat(r.salary||0)/30/8;return rate>0?fmt(Math.round(rate*100)/100)+'×'+((r.ot_rate_weekday||(window._otRates||{}).weekday)||1.0):'—';})()}</td>
+    <td style="text-align:right;font-family:monospace;font-size:11px;color:#7c3aed;">${(()=>{const rate=parseFloat(r.salary||0)/30/8;const mul=parseFloat((r.ot_rate_weekday||(window._otRates||{}).weekday)||1.0);return rate>0?fmt(Math.round(rate*100)/100)+'×'+mul.toFixed(1):'—';})()}</td>
     <td style="text-align:right;font-family:monospace;">${parseFloat(r.weekday_ot_hours||0)+parseFloat(r.holiday_ot_hours||0)>0?(parseFloat(r.weekday_ot_hours||0)+parseFloat(r.holiday_ot_hours||0)).toFixed(1):'—'}</td>
     <td style="text-align:right;font-family:monospace;color:#1d4ed8;">${parseFloat(r.ot_pay||0)>0?fmt(r.ot_pay):'—'}</td>
     <td style="text-align:right;font-family:monospace;color:${parseFloat(r.late_deduction||0)>0?'#ef4444':'#9ca3af'};">${parseFloat(r.late_deduction||0)>0?'-'+fmt(r.late_deduction):'—'}</td>
