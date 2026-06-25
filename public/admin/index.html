@@ -4178,7 +4178,7 @@ function renderPayroll() {
     <td>${r.employee_name||'—'}</td>
     <td style="font-size:12px;">${r.department_name||'—'}</td>
     <td style="text-align:right;font-family:monospace;">${fmt(r.salary)}</td>
-    <td style="text-align:right;font-family:monospace;font-size:11px;color:#7c3aed;">${(()=>{const rate=parseFloat(r.salary||0)/30/8;return rate>0?fmt(Math.round(rate*100)/100)+'×1.5':'—';})()}</td>
+    <td style="text-align:right;font-family:monospace;font-size:11px;color:#7c3aed;">${(()=>{const rate=parseFloat(r.salary||0)/30/8;return rate>0?fmt(Math.round(rate*100)/100)+'×'+((r.ot_rate_weekday||(window._otRates||{}).weekday)||1.0):'—';})()}</td>
     <td style="text-align:right;font-family:monospace;">${parseFloat(r.weekday_ot_hours||0)+parseFloat(r.holiday_ot_hours||0)>0?(parseFloat(r.weekday_ot_hours||0)+parseFloat(r.holiday_ot_hours||0)).toFixed(1):'—'}</td>
     <td style="text-align:right;font-family:monospace;color:#1d4ed8;">${parseFloat(r.ot_pay||0)>0?fmt(r.ot_pay):'—'}</td>
     <td style="text-align:right;font-family:monospace;color:${parseFloat(r.late_deduction||0)>0?'#ef4444':'#9ca3af'};">${parseFloat(r.late_deduction||0)>0?'-'+fmt(r.late_deduction):'—'}</td>
@@ -4264,7 +4264,7 @@ function printPayslip(recordId) {
   <div class="section">
     <div class="section-title">รายได้</div>
     <div class="row"><span class="row-label">เงินเดือน</span><span class="row-value green">${fmt(r.salary)}</span></div>
-    ${otHours > 0 ? `<div class="row"><span class="row-label">OT (${otHours.toFixed(1)} ชม. × ${fmt(otRate*1.5)}/ชม.)</span><span class="row-value blue">${fmt(r.ot_pay)}</span></div>` : ''}
+    ${otHours > 0 ? `<div class="row"><span class="row-label">OT (${otHours.toFixed(1)} ชม. × ${fmt(otRate*((r.ot_rate_weekday||(window._otRates||{}).weekday)||1.0))}/ชม.)</span><span class="row-value blue">${fmt(r.ot_pay)}</span></div>` : ''}
     ${parseFloat(r.bonus||0) > 0 ? `<div class="row"><span class="row-label">โบนัส</span><span class="row-value purple">${fmt(r.bonus)}</span></div>` : ''}
     ${parseFloat(r.special_allowance||0) > 0 ? `<div class="row"><span class="row-label">เงินพิเศษ${r.special_allowance_note ? ' ('+r.special_allowance_note+')' : ''}</span><span class="row-value purple">${fmt(r.special_allowance)}</span></div>` : ''}
   </div>
@@ -4435,7 +4435,7 @@ function exportPayrollCSV() {
   const header = [
     'ลำดับ','รหัสพนักงาน','ชื่อ-สกุล','แผนก',          // 1-4
     'เงินเดือน',                                          // 5
-    'OT อัตรา/ชม.(×1.5)','ชม.OT วันปกติ',               // 6-7
+    'OT อัตรา/ชม.','ชม.OT วันปกติ',               // 6-7
     'ชม.OT วันหยุด','รวมชม.OT','ค่า OT รวม',            // 8-10
     'โบนัส','เบี้ยพิเศษ','หมายเหตุเบี้ยพิเศษ',          // 11-13
     'รายได้รวม',                                          // 14
@@ -4448,7 +4448,7 @@ function exportPayrollCSV() {
   ];
   const dataRows = payrollData.map((r, i) => {
     const sal    = parseFloat(r.salary||0);
-    const otRate = sal > 0 ? Math.round(sal/30/8*1.5*100)/100 : 0;
+    const otRate = sal > 0 ? Math.round(sal/30/8*((r.ot_rate_weekday||(window._otRates||{}).weekday)||1.0)*100)/100 : 0;
     return [
       i+1,                                                          // 1
       r.employee_code||'',                                          // 2
