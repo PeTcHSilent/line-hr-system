@@ -189,11 +189,118 @@
       padding: 6px 10px; font-size: 13px; background: white; outline: none;
     }
     .year-selector label { font-size: 12px; color: #9CA3AF; white-space: nowrap; }
+
+    /* ─── Calendar ─────────────────────────────────────── */
+    .cal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; border-bottom: 1px solid #F3F4F6;
+    }
+    .cal-nav {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: none; background: #F3F4F6; cursor: pointer;
+      font-size: 16px; display: flex; align-items: center; justify-content: center;
+      color: #374151; transition: background 0.15s;
+    }
+    .cal-nav:active { background: #E5E7EB; }
+    .cal-month-label { font-size: 14px; font-weight: 700; color: #1F2937; }
+
+    .cal-grid { padding: 8px 12px 10px; }
+    .cal-weekdays {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      margin-bottom: 4px;
+    }
+    .cal-wd {
+      text-align: center; font-size: 10px; font-weight: 600;
+      color: #9CA3AF; padding: 3px 0;
+    }
+    .cal-wd:first-child { color: #EF4444; }
+    .cal-wd:last-child  { color: #3B82F6; }
+
+    .cal-days {
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;
+    }
+    .cal-day {
+      position: relative;
+      aspect-ratio: 1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      border-radius: 8px;
+      font-size: 12px; font-weight: 500; color: #374151;
+      cursor: default; user-select: none;
+      padding-bottom: 2px;
+    }
+    .cal-day.other-month { color: #D1D5DB; }
+    .cal-day.today {
+      background: #1357B0 !important; color: #fff !important;
+      font-weight: 700;
+    }
+    .cal-day.today .cal-dot { background: rgba(255,255,255,0.8) !important; }
+    .cal-day.is-sun { color: #EF4444; }
+    .cal-day.is-sat { color: #3B82F6; }
+
+    /* event highlights */
+    .cal-day.holiday          { background: #FEE2E2; color: #991B1B !important; }
+    .cal-day.leave-approved   { background: #DCFCE7; color: #166534 !important; }
+    .cal-day.leave-pending    { background: #FEF9C3; color: #92400E !important; }
+    .cal-day.leave-rejected   { background: #F3F4F6; color: #6B7280 !important; }
+    /* holiday + leave: holiday background wins for background, but show dot */
+    .cal-day.holiday.leave-approved { background: #FEE2E2; }
+    .cal-day.holiday.leave-pending  { background: #FEE2E2; }
+
+    /* tap feedback */
+    .cal-day.has-event { cursor: pointer; }
+    .cal-day.has-event:active { filter: brightness(0.93); }
+
+    .cal-dot {
+      width: 4px; height: 4px; border-radius: 50%;
+      margin-top: 1px; flex-shrink: 0;
+    }
+    .cal-dot.d-holiday  { background: #EF4444; }
+    .cal-dot.d-approved { background: #22C55E; }
+    .cal-dot.d-pending  { background: #F59E0B; }
+    .cal-dot.d-rejected { background: #9CA3AF; }
+
+    /* Legend */
+    .cal-legend {
+      display: flex; flex-wrap: wrap; gap: 6px 14px;
+      padding: 8px 14px 12px;
+      border-top: 1px solid #F3F4F6;
+    }
+    .cal-leg-item {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; color: #6B7280;
+    }
+    .leg-box {
+      width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0;
+    }
+    .leg-box.hol { background: #FEE2E2; border: 1px solid #FECACA; }
+    .leg-box.apv { background: #DCFCE7; border: 1px solid #BBF7D0; }
+    .leg-box.pnd { background: #FEF9C3; border: 1px solid #FDE68A; }
+
+    /* Popup info */
+    .cal-popup {
+      position: fixed; bottom: 72px; left: 50%; transform: translateX(-50%);
+      background: #1F2937; color: #fff; border-radius: 12px;
+      padding: 12px 16px 10px; font-size: 12px; line-height: 1.7;
+      z-index: 999; min-width: 230px; max-width: 290px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+      opacity: 0; transition: opacity 0.18s; pointer-events: none;
+    }
+    .cal-popup.show { opacity: 1; pointer-events: auto; }
+    .cal-popup-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #F9FAFB; }
+    .cal-popup-close {
+      float: right; font-size: 18px; line-height: 1; cursor: pointer;
+      color: #9CA3AF; margin-left: 8px;
+    }
+    .cal-popup-row { display: flex; gap: 6px; align-items: flex-start; }
+    .cal-popup-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;
+    }
   </style>
 </head>
 <body>
 
-<!-- Header (ใส่ข้อมูลจาก API) -->
+<!-- Header -->
 <div class="header">
   <div class="header-top">
     <div class="header-title">👤 โปรไฟล์ของฉัน</div>
@@ -218,13 +325,30 @@
   </div>
 </div>
 
+<!-- Calendar popup -->
+<div class="cal-popup" id="cal-popup">
+  <span class="cal-popup-close" id="cal-popup-close">×</span>
+  <div class="cal-popup-title" id="cal-popup-title"></div>
+  <div id="cal-popup-body"></div>
+</div>
+
 <script>
-const LIFF_ID_PROFILE = '2010328906-dL5V0qlL'; // LIFF สำหรับ /liff/profile
+const LIFF_ID_PROFILE = '2010328906-dL5V0qlL';
 
 let lineUserId = null;
 let employeeData = null;
 
+// ─── Calendar state ─────────────────────────────────────────────────────────
+let _calYear  = null;   // AD year currently shown
+let _calMonth = null;   // 0-based month
+let _calLeaveMap    = {};  // "YYYY-MM-DD" → [{type_name, status}]
+let _calHolidayMap  = {};  // "YYYY-MM-DD" → holiday_name
+
 // ─── Date helpers ─────────────────────────────────────────────────────────
+const THAI_MONTHS_FULL = [
+  'มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+  'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'
+];
 const THAI_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.',
                      'ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 function thaiDate(isoStr) {
@@ -237,10 +361,16 @@ function shortThaiDate(isoStr) {
 }
 function thaiTime(isoStr) {
   if (!isoStr) return '—';
-  // อาจเป็น "08:00" หรือ full ISO
   if (isoStr.length <= 8) return isoStr.slice(0,5);
   return new Date(isoStr).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 }
+// "YYYY-MM-DD" from a Date object (local)
+function toISO(d) {
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
 const now = new Date();
 const currentYear = now.getFullYear() + 543;
 document.getElementById('header-date').textContent =
@@ -251,21 +381,16 @@ async function initLIFF() {
   try {
     let liffId = LIFF_ID_PROFILE;
     try {
-      const configUrl = window.location.origin + '/api/config';
-      const cfg = await fetch(configUrl).then(r => r.json());
+      const cfg = await fetch(window.location.origin + '/api/config').then(r => r.json());
       if (cfg.liff_id_profile) liffId = cfg.liff_id_profile;
     } catch (e) { /* use default */ }
-    if (!liffId) throw new Error('LIFF ID ยังไม่ได้ตั้งค่า — กรุณาตั้งค่า LIFF_ID_PROFILE ใน .env แล้ว restart server');
-    await liff.init({ liffId }); // LIFF ID สำหรับ /liff/profile (โหลดจาก /api/config)
-    if (!liff.isLoggedIn()) {
-      liff.login({ redirectUri: location.href });
-      return;
-    }
+    if (!liffId) throw new Error('LIFF ID ยังไม่ได้ตั้งค่า');
+    await liff.init({ liffId });
+    if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
     const profile = await liff.getProfile();
     lineUserId = profile.userId;
     loadProfile();
   } catch (err) {
-    // Dev mode: ลองดึงจาก URL param
     const params = new URLSearchParams(location.search);
     lineUserId = params.get('uid');
     if (lineUserId) {
@@ -279,16 +404,49 @@ async function initLIFF() {
 // ─── Load all data ─────────────────────────────────────────────────────────
 async function loadProfile() {
   try {
-    const [empRes, balRes, otRes] = await Promise.all([
+    const yr = now.getFullYear();
+    const [empRes, balRes, otRes, leaveRes, holidayRes] = await Promise.all([
       fetch(`/api/employee/me?line_user_id=${lineUserId}`),
       fetch(`/api/employee/leave-balance?line_user_id=${lineUserId}`),
-      fetch(`/api/ot/mine?line_user_id=${lineUserId}&year=${now.getFullYear()}`),
+      fetch(`/api/ot/mine?line_user_id=${lineUserId}&year=${yr}`),
+      fetch(`/api/leave/history?line_user_id=${lineUserId}&year=${yr}`),
+      fetch(`/api/holidays?year=${yr}`),
     ]);
 
     if (!empRes.ok) { showError('ไม่พบข้อมูลพนักงาน กรุณาติดต่อ HR'); return; }
-    employeeData = await empRes.json();
-    const balance = balRes.ok ? await balRes.json() : [];
-    const otData  = otRes.ok  ? await otRes.json()  : { records: [], summary: {} };
+    employeeData  = await empRes.json();
+    const balance = balRes.ok   ? await balRes.json()    : [];
+    const otData  = otRes.ok    ? await otRes.json()     : { records: [], summary: {} };
+    const leaveData   = leaveRes.ok   ? await leaveRes.json()   : { history: [] };
+    const holidayData = holidayRes.ok ? await holidayRes.json() : { holidays: [] };
+
+    // ── Build leave map (expand date ranges per record) ──
+    _calLeaveMap = {};
+    const leaves = Array.isArray(leaveData.history) ? leaveData.history : leaveData;
+    leaves.forEach(r => {
+      if (!r.start_date || !r.end_date) return;
+      const start = new Date(r.start_date);
+      const end   = new Date(r.end_date);
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const key = toISO(d);
+        if (!_calLeaveMap[key]) _calLeaveMap[key] = [];
+        _calLeaveMap[key].push({
+          type_name: r.leave_type_name || r.type_name || r.leave_type || '—',
+          status:    r.status || 'pending',
+        });
+      }
+    });
+
+    // ── Build holiday map ──
+    _calHolidayMap = {};
+    const hols = Array.isArray(holidayData.holidays) ? holidayData.holidays : holidayData;
+    hols.forEach(h => {
+      if (h.date) _calHolidayMap[h.date.slice(0,10)] = h.name;
+    });
+
+    // ── Init calendar to current month ──
+    _calYear  = now.getFullYear();
+    _calMonth = now.getMonth();
 
     renderHeader(employeeData);
     renderContent(employeeData, balance, otData);
@@ -297,7 +455,7 @@ async function loadProfile() {
   }
 }
 
-// ─── Render header ─────────────────────────────────────────────────────────
+// ─── Render header ──────────────────────────────────────────────────────────
 function renderHeader(emp) {
   document.getElementById('loading-state')?.remove();
   const initials = (emp.name || '?').trim().split(' ')
@@ -312,7 +470,7 @@ function renderHeader(emp) {
   document.getElementById('role-badge').textContent = roleLabels[emp.role] || emp.role;
 }
 
-// ─── Render content ─────────────────────────────────────────────────────────
+// ─── Render content ──────────────────────────────────────────────────────────
 function renderContent(emp, balance, otData) {
   const content = document.getElementById('main-content');
   content.innerHTML = '';
@@ -322,16 +480,13 @@ function renderContent(emp, balance, otData) {
     <div class="section-title">ลัดเมนู</div>
     <div class="quick-actions">
       <a class="qa-btn" href="https://liff.line.me/${getLiffId('leave')}">
-        <span class="qa-icon">📋</span>
-        <span class="qa-label">ลางาน</span>
+        <span class="qa-icon">📋</span><span class="qa-label">ลางาน</span>
       </a>
       <a class="qa-btn" href="/liff/history?line_user_id=${lineUserId}">
-        <span class="qa-icon">📜</span>
-        <span class="qa-label">ประวัติลา</span>
+        <span class="qa-icon">📜</span><span class="qa-label">ประวัติลา</span>
       </a>
       <a class="qa-btn" href="/liff/checkin">
-        <span class="qa-icon">⏰</span>
-        <span class="qa-label">เข้า-ออกงาน</span>
+        <span class="qa-icon">⏰</span><span class="qa-label">เข้า-ออกงาน</span>
       </a>
     </div>
   `);
@@ -339,11 +494,7 @@ function renderContent(emp, balance, otData) {
   // 2. Leave balance
   content.insertAdjacentHTML('beforeend', `<div class="section-title">วันลาคงเหลือ ปี ${currentYear}</div>`);
   if (!balance || !balance.length) {
-    content.insertAdjacentHTML('beforeend', `
-      <div class="card">
-        <div class="empty-state">ไม่พบข้อมูลวันลา</div>
-      </div>
-    `);
+    content.insertAdjacentHTML('beforeend', `<div class="card"><div class="empty-state">ไม่พบข้อมูลวันลา</div></div>`);
   } else {
     const grid = document.createElement('div');
     grid.className = 'card balance-grid';
@@ -357,42 +508,36 @@ function renderContent(emp, balance, otData) {
           <div class="balance-label">${b.leave_type_name || b.name}</div>
           <div class="balance-used">${used} <small style="font-size:14px;font-weight:400;color:#9CA3AF;">/ ${max} วัน</small></div>
           <div class="balance-max">เหลือ ${Math.max(0, max - used)} วัน</div>
-          <div class="balance-bar">
-            <div class="balance-bar-fill ${cls}" style="width:${pct}%"></div>
-          </div>
+          <div class="balance-bar"><div class="balance-bar-fill ${cls}" style="width:${pct}%"></div></div>
         </div>
       `);
     });
     content.appendChild(grid);
   }
 
-  // 3. OT summary
+  // 3. Calendar
+  content.insertAdjacentHTML('beforeend', `<div class="section-title">ปฏิทิน</div>`);
+  const calCard = document.createElement('div');
+  calCard.className = 'card';
+  calCard.id = 'cal-card';
+  content.appendChild(calCard);
+  renderCalendar();
+
+  // 4. OT summary
   const sum = otData.summary || {};
   content.insertAdjacentHTML('beforeend', `
     <div class="section-title">OT ปี ${currentYear}</div>
     <div class="card">
       <div class="ot-summary">
-        <div class="ot-stat">
-          <div class="num blue">${sum.total || 0}</div>
-          <div class="lbl">ทั้งหมด</div>
-        </div>
-        <div class="ot-stat">
-          <div class="num green">${sum.approved || 0}</div>
-          <div class="lbl">อนุมัติ</div>
-        </div>
-        <div class="ot-stat">
-          <div class="num yellow">${sum.pending || 0}</div>
-          <div class="lbl">รอ</div>
-        </div>
-        <div class="ot-stat">
-          <div class="num blue">${sum.total_approved_hours || 0} ชม.</div>
-          <div class="lbl">ชม.ที่ได้รับ</div>
-        </div>
+        <div class="ot-stat"><div class="num blue">${sum.total || 0}</div><div class="lbl">ทั้งหมด</div></div>
+        <div class="ot-stat"><div class="num green">${sum.approved || 0}</div><div class="lbl">อนุมัติ</div></div>
+        <div class="ot-stat"><div class="num yellow">${sum.pending || 0}</div><div class="lbl">รอ</div></div>
+        <div class="ot-stat"><div class="num blue">${sum.total_approved_hours || 0} ชม.</div><div class="lbl">ชม.ที่ได้รับ</div></div>
       </div>
     </div>
   `);
 
-  // 4. OT history (recent 10)
+  // 5. OT history (recent 10)
   const records = (otData.records || []).slice(0, 10);
   if (records.length) {
     content.insertAdjacentHTML('beforeend', `<div class="section-title">รายการ OT ล่าสุด</div>`);
@@ -400,19 +545,16 @@ function renderContent(emp, balance, otData) {
     otCard.className = 'card';
     records.forEach(r => {
       const { day, mon } = shortThaiDate(r.ot_date);
-      const startT = thaiTime(r.start_time);
-      const endT   = thaiTime(r.end_time);
       const hrs    = r.total_hours ? `${parseFloat(r.total_hours).toFixed(1)} ชม.` : '';
       const sBadge = r.status === 'approved' ? 's-approved' : r.status === 'rejected' ? 's-rejected' : 's-pending';
       const sLabel = r.status === 'approved' ? 'อนุมัติ' : r.status === 'rejected' ? 'ปฏิเสธ' : 'รออนุมัติ';
       otCard.insertAdjacentHTML('beforeend', `
         <div class="ot-item">
           <div class="ot-date-col">
-            <div class="ot-day">${day}</div>
-            <div class="ot-mon">${mon}</div>
+            <div class="ot-day">${day}</div><div class="ot-mon">${mon}</div>
           </div>
           <div class="ot-info">
-            <div class="ot-time">${startT} – ${endT}</div>
+            <div class="ot-time">${thaiTime(r.start_time)} – ${thaiTime(r.end_time)}</div>
             <div class="ot-reason">${r.reason || 'ไม่ระบุเหตุผล'}</div>
           </div>
           <div style="text-align:right;">
@@ -425,7 +567,7 @@ function renderContent(emp, balance, otData) {
     content.appendChild(otCard);
   }
 
-  // 5. ข้อมูลพนักงาน
+  // 6. ข้อมูลพนักงาน
   content.insertAdjacentHTML('beforeend', `
     <div class="section-title">ข้อมูลส่วนตัว</div>
     <div class="card">
@@ -454,8 +596,159 @@ function renderContent(emp, balance, otData) {
   `);
 }
 
+// ─── Calendar render ────────────────────────────────────────────────────────
+function renderCalendar() {
+  const card = document.getElementById('cal-card');
+  if (!card) return;
+
+  const year  = _calYear;
+  const month = _calMonth;
+  const beYear = year + 543;
+
+  // nav
+  card.innerHTML = `
+    <div class="cal-header">
+      <button class="cal-nav" id="cal-prev">&#8249;</button>
+      <div class="cal-month-label">${THAI_MONTHS_FULL[month]} ${beYear}</div>
+      <button class="cal-nav" id="cal-next">&#8250;</button>
+    </div>
+    <div class="cal-grid">
+      <div class="cal-weekdays">
+        <div class="cal-wd">อา</div><div class="cal-wd">จ</div>
+        <div class="cal-wd">อ</div><div class="cal-wd">พ</div>
+        <div class="cal-wd">พฤ</div><div class="cal-wd">ศ</div>
+        <div class="cal-wd">ส</div>
+      </div>
+      <div class="cal-days" id="cal-days"></div>
+    </div>
+    <div class="cal-legend">
+      <div class="cal-leg-item"><div class="leg-box hol"></div> วันหยุด</div>
+      <div class="cal-leg-item"><div class="leg-box apv"></div> ลา (อนุมัติ)</div>
+      <div class="cal-leg-item"><div class="leg-box pnd"></div> ลา (รออนุมัติ)</div>
+    </div>
+  `;
+
+  document.getElementById('cal-prev').addEventListener('click', () => {
+    if (_calMonth === 0) { _calMonth = 11; _calYear--; }
+    else { _calMonth--; }
+    renderCalendar();
+  });
+  document.getElementById('cal-next').addEventListener('click', () => {
+    if (_calMonth === 11) { _calMonth = 0; _calYear++; }
+    else { _calMonth++; }
+    renderCalendar();
+  });
+
+  const grid = document.getElementById('cal-days');
+  const today = toISO(now);
+
+  // first day of month, total days
+  const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const prevDays    = new Date(year, month, 0).getDate();
+
+  // prev month filler
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const el = document.createElement('div');
+    el.className = 'cal-day other-month';
+    el.textContent = prevDays - i;
+    grid.appendChild(el);
+  }
+
+  // current month
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateObj = new Date(year, month, d);
+    const key = toISO(dateObj);
+    const dow = dateObj.getDay(); // 0=Sun
+
+    const el = document.createElement('div');
+    let cls = 'cal-day';
+    if (dow === 0) cls += ' is-sun';
+    if (dow === 6) cls += ' is-sat';
+    if (key === today) cls += ' today';
+
+    const isHoliday = !!_calHolidayMap[key];
+    const leaves    = _calLeaveMap[key] || [];
+    const approved  = leaves.filter(l => l.status === 'approved');
+    const pending   = leaves.filter(l => l.status === 'pending');
+
+    let dotClass = '';
+    if (isHoliday && key !== today) { cls += ' holiday'; dotClass = 'd-holiday'; }
+    if (approved.length && key !== today) { cls += ' leave-approved'; dotClass = 'd-approved'; }
+    if (pending.length  && key !== today && !approved.length) { cls += ' leave-pending'; dotClass = 'd-pending'; }
+
+    const hasEvent = isHoliday || leaves.length > 0;
+    if (hasEvent) cls += ' has-event';
+
+    el.className = cls;
+
+    const numEl = document.createElement('span');
+    numEl.textContent = d;
+    el.appendChild(numEl);
+
+    if (dotClass) {
+      const dot = document.createElement('div');
+      dot.className = `cal-dot ${dotClass}`;
+      el.appendChild(dot);
+    }
+
+    if (hasEvent) {
+      el.addEventListener('click', () => showCalPopup(key, dateObj, isHoliday, leaves));
+    }
+
+    grid.appendChild(el);
+  }
+
+  // next month filler
+  const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+  for (let d = 1; d <= totalCells - firstDay - daysInMonth; d++) {
+    const el = document.createElement('div');
+    el.className = 'cal-day other-month';
+    el.textContent = d;
+    grid.appendChild(el);
+  }
+}
+
+// ─── Popup ──────────────────────────────────────────────────────────────────
+function showCalPopup(key, dateObj, isHoliday, leaves) {
+  const popup  = document.getElementById('cal-popup');
+  const title  = document.getElementById('cal-popup-title');
+  const body   = document.getElementById('cal-popup-body');
+
+  const beDate = `${dateObj.getDate()} ${THAI_MONTHS_FULL[dateObj.getMonth()]} ${dateObj.getFullYear() + 543}`;
+  title.textContent = beDate;
+
+  let html = '';
+  if (isHoliday) {
+    html += `<div class="cal-popup-row">
+      <div class="cal-popup-dot" style="background:#EF4444;"></div>
+      <div>🏖️ ${_calHolidayMap[key]}</div>
+    </div>`;
+  }
+  leaves.forEach(l => {
+    const color = l.status === 'approved' ? '#22C55E' : l.status === 'rejected' ? '#9CA3AF' : '#F59E0B';
+    const label = l.status === 'approved' ? 'อนุมัติ' : l.status === 'rejected' ? 'ปฏิเสธ' : 'รออนุมัติ';
+    html += `<div class="cal-popup-row">
+      <div class="cal-popup-dot" style="background:${color};"></div>
+      <div>ลา${l.type_name} <span style="opacity:0.7;">(${label})</span></div>
+    </div>`;
+  });
+  body.innerHTML = html;
+  popup.classList.add('show');
+}
+
+document.getElementById('cal-popup-close').addEventListener('click', () => {
+  document.getElementById('cal-popup').classList.remove('show');
+});
+document.addEventListener('click', (e) => {
+  const popup = document.getElementById('cal-popup');
+  if (!popup.contains(e.target) && !e.target.closest('.cal-day.has-event')) {
+    popup.classList.remove('show');
+  }
+});
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
 function getLiffId(type) {
-  // ดึงจาก meta tag ที่ server inject หรือ fallback
   return type === 'leave' ? '2010328906-y4bbKHYu' : '2010328906-qgLeVPzG';
 }
 
@@ -472,7 +765,7 @@ function showError(html) {
   `;
 }
 
-// ─── Start ────────────────────────────────────────────────────────────────
+// ─── Start ──────────────────────────────────────────────────────────────────
 initLIFF();
 </script>
 </body>
