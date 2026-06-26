@@ -117,6 +117,25 @@ async function adminSetLineId(employeeId, lineUserId) {
  */
 async function getLeaveBalance(employeeId, sex) {
   const year = new Date().getFullYear();
+
+  // คำนวณอายุงาน (ปี) จาก hire_date
+  const empRes = await db.query(
+    `SELECT hire_date FROM employees WHERE id = $1`,
+    [employeeId]
+  );
+  const hireDate = empRes.rows[0]?.hire_date;
+  const seniorityYears = hireDate
+    ? (Date.now() - new Date(hireDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+    : 0;
+
+  // ดึง leave_quota_rules ทั้งหมด
+  const quotaRes = await db.query(
+    `SELECT leave_type_id, min_years, max_years, quota_days
+     FROM leave_quota_rules ORDER BY leave_type_id, min_years`
+  );
+  const quotaRules = quotaRes.rows;
+
+  // ดึง leave types + วันที่ใช้ไปปีนี้
   const result = await db.query(
     `SELECT lt.id, lt.name, lt.max_days, lt.gender_restriction,
             COALESCE(SUM(lr.total_days) FILTER (WHERE lr.status = 'approved'), 0) AS used_days
@@ -131,7 +150,19 @@ async function getLeaveBalance(employeeId, sex) {
      ORDER BY lt.id`,
     [employeeId, year, sex || null]
   );
-  return result.rows;
+
+  // รวม effective quota (quota rule > max_days fallback)
+  return result.rows.map(lt => {
+    const matching = quotaRules
+      .filter(r =>
+        r.leave_type_id === lt.id &&
+        seniorityYears >= parseFloat(r.min_years) &&
+        (r.max_years === null || seniorityYears < parseFloat(r.max_years))
+      )
+      .sort((a, b) => parseFloat(b.min_years) - parseFloat(a.min_years));
+    const effectiveQuota = matching[0] ? matching[0].quota_days : lt.max_days;
+    return { ...lt, effective_quota: effectiveQuota, seniority_years: Math.round(seniorityYears * 10) / 10 };
+  });
 }
 
 /**

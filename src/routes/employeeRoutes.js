@@ -78,7 +78,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/employee/leave-balance?line_user_id=xxx — วันลาคงเหลือ
+// GET /api/employee/leave-balance?line_user_id=xxx — วันลาคงเหลือ (LIFF)
 router.get('/leave-balance', async (req, res) => {
   const lineUserId = req.query.line_user_id;
   if (!lineUserId) return res.status(400).json({ error: 'ต้องระบุ line_user_id' });
@@ -88,6 +88,16 @@ router.get('/leave-balance', async (req, res) => {
 
   const balance = await employeeService.getLeaveBalance(emp.id, emp.sex);
   res.json(balance);
+});
+
+// GET /api/employee/:id/balance — วันลาคงเหลือรายคน (Admin)
+router.get('/:id/balance', async (req, res) => {
+  try {
+    const emp = await employeeService.getById(parseInt(req.params.id));
+    if (!emp) return res.status(404).json({ error: 'ไม่พบพนักงาน' });
+    const balance = await employeeService.getLeaveBalance(emp.id, emp.sex);
+    res.json({ employee_name: emp.name, employee_code: emp.employee_code, balance });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // GET /api/employee/search?keyword=xxx&department_id=1&role=employee&branch_id=1

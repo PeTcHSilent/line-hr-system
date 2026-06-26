@@ -525,6 +525,15 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
           <div class="filter-group"><div class="filter-label">ค้นหา</div>
             <input type="text" id="lr-search" placeholder="ชื่อ / รหัสพนักงาน" style="width:180px;" oninput="filterLeaveRecords()"></div>
         </div>
+        <!-- Leave Balance lookup -->
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;margin:0 0 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:600;color:#374151;">📊 วันลาคงเหลือ:</span>
+          <select id="lr-balance-emp" style="width:220px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+            <option value="">— เลือกพนักงาน —</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="loadLeaveBalance()">ดูยอดคงเหลือ</button>
+          <div id="lr-balance-result" style="display:none;flex-wrap:wrap;gap:8px;margin-top:4px;width:100%;"></div>
+        </div>
         <div class="tbl-wrap">
           <table><thead><tr><th>พนักงาน</th><th>แผนก</th><th>ประเภทการลา</th><th>วันที่เริ่ม</th><th>วันที่สิ้นสุด</th><th>จำนวนวัน</th><th>สถานะ</th><th>หมายเหตุ</th><th>จัดการ</th></tr></thead>
           <tbody id="lr-tbody"><tr><td colspan="9" class="no-data">กำลังโหลด...</td></tr></tbody></table>
@@ -2973,6 +2982,7 @@ function initLeaveRecords() {
     });
     lrInited = true;
   }
+  initLeaveBalanceEmpDropdown();
   loadLeaveRecords();
 }
 
@@ -3067,6 +3077,55 @@ async function rejectLeave(id) {
     toast(data.message || 'ปฏิเสธสำเร็จ');
     loadLeaveRecords();
   } catch(err) { toast(err.message, 'error'); }
+}
+
+// ---- LEAVE BALANCE (Admin lookup) ----
+async function initLeaveBalanceEmpDropdown() {
+  const sel = document.getElementById('lr-balance-emp');
+  if (sel.dataset.loaded) return;
+  try {
+    const r = await apiFetch(`${API}/api/employee?limit=500`);
+    const data = await r.json();
+    const list = data.data || data;
+    list.forEach(e => {
+      const opt = document.createElement('option');
+      opt.value = e.id;
+      opt.textContent = `${e.employee_code || ''} ${e.name}`.trim();
+      sel.appendChild(opt);
+    });
+    sel.dataset.loaded = '1';
+  } catch(err) { console.warn('initLeaveBalanceEmpDropdown', err); }
+}
+
+async function loadLeaveBalance() {
+  const sel = document.getElementById('lr-balance-emp');
+  const empId = sel.value;
+  const resultDiv = document.getElementById('lr-balance-result');
+  if (!empId) { toast('กรุณาเลือกพนักงาน', 'error'); return; }
+  resultDiv.style.display = 'none';
+  resultDiv.innerHTML = 'กำลังโหลด...';
+  resultDiv.style.display = 'flex';
+  try {
+    const r = await apiFetch(`${API}/api/employee/${empId}/balance`);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'โหลดข้อมูลไม่ได้');
+    const bal = data.balance || [];
+    if (!bal.length) { resultDiv.innerHTML = '<span style="color:#6b7280;font-size:13px;">ไม่พบข้อมูลประเภทการลา</span>'; return; }
+    const clr = used => used <= 0 ? '#15803d' : '#1d4ed8';
+    resultDiv.innerHTML = `<div style="font-size:12px;color:#6b7280;margin-bottom:4px;width:100%;">
+        อายุงาน ${bal[0]?.seniority_years ?? '?'} ปี — <strong>${sel.options[sel.selectedIndex].text}</strong>
+      </div>` +
+      bal.map(b => {
+        const quota = b.effective_quota ?? b.max_days;
+        const used  = parseInt(b.used_days);
+        const rem   = quota - used;
+        return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px 14px;min-width:130px;text-align:center;">
+          <div style="font-size:18px;font-weight:700;color:${rem<=0?'#dc2626':rem<=2?'#d97706':clr(used)};">${rem}</div>
+          <div style="font-size:11px;color:#374151;font-weight:600;">${b.name}</div>
+          <div style="font-size:11px;color:#9ca3af;">ใช้ ${used}/${quota} วัน</div>
+        </div>`;
+      }).join('');
+  } catch(err) { resultDiv.innerHTML = `<span style="color:#ef4444;font-size:13px;">❌ ${err.message}</span>`; }
 }
 
 // ---- HOLIDAYS ----

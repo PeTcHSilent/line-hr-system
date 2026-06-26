@@ -270,14 +270,15 @@ function applyLeaveBalance(balance) {
   balance.forEach(item => {
     const el = document.getElementById(`quota-${item.id}`);
     if (!el) return;
-    const remaining = item.max_days - parseInt(item.used_days);
+    const quota = item.effective_quota ?? item.max_days;
+    const remaining = quota - parseInt(item.used_days);
     const btn = el.closest('.leave-type-btn');
     if (remaining <= 0) {
       el.textContent = 'หมดสิทธิ์';
       el.classList.add('used-up');
       btn.classList.add('no-quota');
     } else {
-      el.textContent = `เหลือ ${remaining}/${item.max_days} วัน`;
+      el.textContent = `เหลือ ${remaining}/${quota} วัน`;
       if (remaining <= 3) el.classList.add('used-up');
     }
   });
