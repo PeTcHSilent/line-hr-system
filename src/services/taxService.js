@@ -69,11 +69,11 @@ async function getPND1(year, month) {
   );
 
   const totals = rows.reduce((acc, r) => {
-    acc.gross_income   += r.gross_income;
-    acc.tax_withholding += r.tax_withholding;
-    acc.social_security += r.social_security;
-    acc.provident_fund  += r.provident_fund;
-    acc.net_income      += r.net_income;
+    acc.gross_income    += parseFloat(r.gross_income)    || 0;
+    acc.tax_withholding += parseFloat(r.tax_withholding) || 0;
+    acc.social_security += parseFloat(r.social_security) || 0;
+    acc.provident_fund  += parseFloat(r.provident_fund)  || 0;
+    acc.net_income      += parseFloat(r.net_income)      || 0;
     return acc;
   }, { gross_income: 0, tax_withholding: 0, social_security: 0, provident_fund: 0, net_income: 0 });
 
@@ -141,11 +141,11 @@ async function getPND1K(year) {
   );
 
   const totals = rows.reduce((acc, r) => {
-    acc.ytd_gross += r.ytd_gross;
-    acc.ytd_tax   += r.ytd_tax;
-    acc.ytd_ss    += r.ytd_ss;
-    acc.ytd_pf    += r.ytd_pf;
-    acc.ytd_net   += r.ytd_net;
+    acc.ytd_gross += parseFloat(r.ytd_gross) || 0;
+    acc.ytd_tax   += parseFloat(r.ytd_tax)   || 0;
+    acc.ytd_ss    += parseFloat(r.ytd_ss)    || 0;
+    acc.ytd_pf    += parseFloat(r.ytd_pf)    || 0;
+    acc.ytd_net   += parseFloat(r.ytd_net)   || 0;
     return acc;
   }, { ytd_gross: 0, ytd_tax: 0, ytd_ss: 0, ytd_pf: 0, ytd_net: 0 });
 

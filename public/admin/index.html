@@ -6592,12 +6592,14 @@ async function loadPND1() {
         <td class="num" style="color:#15803d;font-weight:600;">${fmtTax(r.net_income)}</td>
       </tr>`
     ).join('') + `<tr class="total-row">
-      <td colspan="10" style="text-align:right;padding-right:12px;">รวมทั้งหมด ${data.count} คน</td>
+      <td colspan="6" style="text-align:right;padding-right:12px;">รวมทั้งหมด ${data.count} คน</td>
+      <td colspan="4"></td>
+      <td class="num" style="color:#0369a1;"><strong>${fmtTax(data.totals.gross_income)}</strong></td>
       <td colspan="2"></td>
-      <td class="num">${fmtTax(data.totals.social_security)}</td>
+      <td class="num" style="color:#7c3aed;">${fmtTax(data.totals.social_security)}</td>
       <td></td>
-      <td class="num">${fmtTax(data.totals.tax_withholding)}</td>
-      <td class="num">${fmtTax(data.totals.net_income)}</td>
+      <td class="num" style="color:#dc2626;">${fmtTax(data.totals.tax_withholding)}</td>
+      <td class="num" style="color:#15803d;">${fmtTax(data.totals.net_income)}</td>
     </tr>`;
   } catch(err) {
     tbody.innerHTML = `<tr><td colspan="13" class="no-data" style="color:#ef4444;">❌ ${err.message}</td></tr>`;
