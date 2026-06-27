@@ -181,6 +181,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         Payroll & Payslip
       </a>
+      <a class="nav-item" data-page="tax-report" onclick="showPage('tax-report')" href="#">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        รายงานภาษี (ภ.ง.ด.)
+      </a>
       <a class="nav-item" data-page="warnings" onclick="showPage('warnings')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         สาย / ขาดงาน
@@ -896,6 +900,118 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
                 <input type="text" id="s-bank-account-name" placeholder="ชื่อบัญชีภาษาอังกฤษ">
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         PAGE: รายงานภาษี (ภ.ง.ด.1 / ภ.ง.ด.1ก / YTD)
+    ══════════════════════════════════════════════════════ -->
+    <div id="page-tax-report" class="page">
+      <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid #e5e7eb;">
+        <button id="tax-tab-pnd1"  class="tax-tab active" onclick="switchTaxTab('pnd1')">📄 ภ.ง.ด.1 (รายเดือน)</button>
+        <button id="tax-tab-pnd1k" class="tax-tab"        onclick="switchTaxTab('pnd1k')">📋 ภ.ง.ด.1ก (รายปี)</button>
+        <button id="tax-tab-ytd"   class="tax-tab"        onclick="switchTaxTab('ytd')">📊 YTD Summary</button>
+      </div>
+      <style>
+        .tax-tab{background:none;border:none;padding:10px 20px;font-size:13px;font-weight:600;color:#6b7280;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;}
+        .tax-tab.active{color:#1357B0;border-bottom-color:#1357B0;}
+        .tax-tab:hover:not(.active){color:#374151;}
+        .tax-tbl{width:100%;border-collapse:collapse;font-size:12px;}
+        .tax-tbl th{background:#f1f5f9;padding:7px 10px;text-align:left;border-bottom:1px solid #e5e7eb;white-space:nowrap;}
+        .tax-tbl td{padding:6px 10px;border-bottom:1px solid #f3f4f6;vertical-align:middle;}
+        .tax-tbl tr:hover td{background:#f8fafc;}
+        .tax-tbl .num{text-align:right;}
+        .tax-tbl .total-row td{font-weight:700;background:#f0f9ff;border-top:2px solid #bae6fd;}
+      </style>
+
+      <!-- ภ.ง.ด.1 -->
+      <div id="tax-section-pnd1">
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-header">
+            <div class="card-title">📄 ภ.ง.ด.1 — ภาษีหัก ณ ที่จ่ายรายเดือน</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <select id="pnd1-year" style="width:130px;" onchange="loadPND1()"></select>
+              <select id="pnd1-month" style="width:130px;" onchange="loadPND1()">
+                <option value="1">มกราคม</option><option value="2">กุมภาพันธ์</option><option value="3">มีนาคม</option>
+                <option value="4">เมษายน</option><option value="5">พฤษภาคม</option><option value="6">มิถุนายน</option>
+                <option value="7">กรกฎาคม</option><option value="8">สิงหาคม</option><option value="9">กันยายน</option>
+                <option value="10">ตุลาคม</option><option value="11">พฤศจิกายน</option><option value="12">ธันวาคม</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" onclick="exportTaxCSV('pnd1')">⬇️ Export CSV</button>
+            </div>
+          </div>
+          <div id="pnd1-kpi" style="display:flex;gap:12px;padding:12px 16px 0;flex-wrap:wrap;"></div>
+          <div class="tbl-wrap" style="margin-top:12px;">
+            <table class="tax-tbl"><thead><tr>
+              <th>#</th><th>เลขบัตรประชาชน</th><th>คำนำหน้า</th><th>ชื่อ-สกุล</th>
+              <th>รหัส</th><th>แผนก</th>
+              <th class="num">เงินเดือน</th><th class="num">OT</th><th class="num">โบนัส</th>
+              <th class="num">รายได้รวม</th><th class="num">ประกันสังคม</th>
+              <th class="num">ภาษีหัก ณ ที่จ่าย</th><th class="num">รายได้สุทธิ</th>
+            </tr></thead>
+            <tbody id="pnd1-tbody"><tr><td colspan="13" class="no-data">กำลังโหลด...</td></tr></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ภ.ง.ด.1ก -->
+      <div id="tax-section-pnd1k" style="display:none;">
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-header">
+            <div class="card-title">📋 ภ.ง.ด.1ก — ภาษีหัก ณ ที่จ่ายรายปี</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="pnd1k-year" style="width:130px;" onchange="loadPND1K()"></select>
+              <button class="btn btn-secondary btn-sm" onclick="exportTaxCSV('pnd1k')">⬇️ Export CSV</button>
+            </div>
+          </div>
+          <div id="pnd1k-kpi" style="display:flex;gap:12px;padding:12px 16px 0;flex-wrap:wrap;"></div>
+          <div class="tbl-wrap" style="margin-top:12px;">
+            <table class="tax-tbl"><thead><tr>
+              <th>#</th><th>เลขบัตรประชาชน</th><th>คำนำหน้า</th><th>ชื่อ-สกุล</th>
+              <th>รหัส</th><th>แผนก</th><th class="num">เดือน</th>
+              <th class="num">รายได้รวมทั้งปี</th><th class="num">เงินเดือนรวม</th>
+              <th class="num">OT รวม</th><th class="num">โบนัสรวม</th>
+              <th class="num">ประกันสังคมรวม</th><th class="num">ภาษีรวมทั้งปี</th>
+              <th class="num">รายได้สุทธิรวม</th>
+            </tr></thead>
+            <tbody id="pnd1k-tbody"><tr><td colspan="14" class="no-data">กำลังโหลด...</td></tr></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- YTD Summary -->
+      <div id="tax-section-ytd" style="display:none;">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header">
+            <div class="card-title">📊 YTD Summary — สรุปประจำปี</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="ytd-year" style="width:130px;" onchange="loadYTD()"></select>
+              <button class="btn btn-secondary btn-sm" onclick="exportTaxCSV('ytd')">⬇️ Export CSV</button>
+            </div>
+          </div>
+          <div id="ytd-kpi" style="display:flex;gap:12px;padding:12px 16px 0;flex-wrap:wrap;"></div>
+          <div class="tbl-wrap" style="margin-top:12px;">
+            <table class="tax-tbl"><thead><tr>
+              <th>เดือน</th><th class="num">พนักงาน</th>
+              <th class="num">เงินเดือนรวม</th><th class="num">OT รวม</th><th class="num">โบนัส</th>
+              <th class="num">รายได้รวม</th><th class="num">ประกันสังคม</th>
+              <th class="num">ภาษีหัก ณ ที่จ่าย</th><th class="num">รายได้สุทธิ</th>
+              <th class="num">YTD รายได้สะสม</th><th class="num">YTD ภาษีสะสม</th>
+            </tr></thead>
+            <tbody id="ytd-tbody"><tr><td colspan="11" class="no-data">กำลังโหลด...</td></tr></tbody></table>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-header"><div class="card-title">👤 สรุป YTD ต่อพนักงาน</div></div>
+          <div class="tbl-wrap">
+            <table class="tax-tbl"><thead><tr>
+              <th>#</th><th>รหัส</th><th>ชื่อ</th><th>แผนก</th><th class="num">เดือน</th>
+              <th class="num">รายได้รวม YTD</th><th class="num">ประกันสังคม YTD</th>
+              <th class="num">ภาษี YTD</th><th class="num">สุทธิ YTD</th>
+            </tr></thead>
+            <tbody id="ytd-emp-tbody"><tr><td colspan="9" class="no-data">กำลังโหลด...</td></tr></tbody></table>
           </div>
         </div>
       </div>
@@ -1685,6 +1801,7 @@ function showPage(name) {
   if (name === 'admin-users')  initAdminUsers();
   if (name === 'branches')     loadBranches();
   if (name === 'role-management') initRoleManagement();
+  if (name === 'tax-report')     initTaxReport();
 }
 
 function updateClock() {
@@ -6362,6 +6479,248 @@ async function saveOTEdit() {
     loadOTDailyTab(); // รีโหลด table
   } catch(err) { toast(err.message, 'error'); }
 }
+
+// ════════════════════════════════════════════════════════════
+// SECTION: รายงานภาษี (ภ.ง.ด.1 / ภ.ง.ด.1ก / YTD)
+// ════════════════════════════════════════════════════════════
+
+let taxInited = false;
+
+async function initTaxReport() {
+  if (!taxInited) {
+    // โหลดปีที่มีข้อมูล
+    try {
+      const r    = await apiFetch(`${API}/api/tax/years`);
+      const yrs  = await r.json();
+      const cy   = new Date().getFullYear();
+      const avail = yrs.length ? yrs : [cy];
+      ['pnd1-year', 'pnd1k-year', 'ytd-year'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        sel.innerHTML = '';
+        avail.forEach(y => {
+          const o = document.createElement('option');
+          o.value = y; o.textContent = `${y + 543} (${y})`;
+          if (y === cy) o.selected = true;
+          sel.appendChild(o);
+        });
+      });
+      // set current month
+      const cm = new Date().getMonth() + 1;
+      const ms = document.getElementById('pnd1-month');
+      if (ms) ms.value = cm;
+    } catch(e) { console.warn('initTaxReport years', e); }
+    taxInited = true;
+  }
+  switchTaxTab('pnd1');
+}
+
+function switchTaxTab(tab) {
+  ['pnd1','pnd1k','ytd'].forEach(t => {
+    const btn = document.getElementById(`tax-tab-${t}`);
+    const sec = document.getElementById(`tax-section-${t}`);
+    if (btn) btn.classList.toggle('active', t === tab);
+    if (sec) sec.style.display = t === tab ? '' : 'none';
+  });
+  if (tab === 'pnd1')  loadPND1();
+  if (tab === 'pnd1k') loadPND1K();
+  if (tab === 'ytd')   loadYTD();
+}
+
+function fmtTax(n) { return parseFloat(n||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function taxKpi(containerId, items) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = items.map(({label, value, color}) =>
+    `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px 16px;min-width:140px;text-align:center;">
+      <div style="font-size:18px;font-weight:700;color:${color||'#1357B0'};">${value}</div>
+      <div style="font-size:11px;color:#6b7280;">${label}</div>
+    </div>`
+  ).join('');
+}
+
+async function loadPND1() {
+  const year  = document.getElementById('pnd1-year')?.value  || new Date().getFullYear();
+  const month = document.getElementById('pnd1-month')?.value || new Date().getMonth()+1;
+  const tbody = document.getElementById('pnd1-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="13" class="no-data">กำลังโหลด...</td></tr>';
+  try {
+    const r    = await apiFetch(`${API}/api/tax/pnd1?year=${year}&month=${month}`);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+
+    taxKpi('pnd1-kpi', [
+      { label: 'พนักงาน', value: data.count + ' คน' },
+      { label: 'รายได้รวม', value: '฿' + fmtTax(data.totals.gross_income), color:'#0369a1' },
+      { label: 'ประกันสังคมรวม', value: '฿' + fmtTax(data.totals.social_security), color:'#7c3aed' },
+      { label: 'ภาษีรวม', value: '฿' + fmtTax(data.totals.tax_withholding), color:'#dc2626' },
+      { label: 'รายได้สุทธิรวม', value: '฿' + fmtTax(data.totals.net_income), color:'#15803d' },
+    ]);
+
+    if (!data.rows.length) {
+      tbody.innerHTML = '<tr><td colspan="13" class="no-data">ไม่มีข้อมูล Payroll เดือนนี้</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.rows.map(r =>
+      `<tr>
+        <td>${r.seq}</td>
+        <td style="font-family:monospace;font-size:11px;">${r.tax_id || '<span style="color:#9ca3af;">ไม่ระบุ</span>'}</td>
+        <td>${r.name_prefix || ''}</td>
+        <td><strong>${r.employee_name}</strong></td>
+        <td style="font-size:11px;color:#6b7280;">${r.employee_code}</td>
+        <td style="font-size:11px;">${r.department_name||'—'}</td>
+        <td class="num">${fmtTax(r.base_salary)}</td>
+        <td class="num">${parseFloat(r.ot_pay||0)>0?fmtTax(r.ot_pay):'—'}</td>
+        <td class="num">${parseFloat(r.bonus||0)>0?fmtTax(r.bonus):'—'}</td>
+        <td class="num"><strong>${fmtTax(r.gross_income)}</strong></td>
+        <td class="num" style="color:#7c3aed;">${fmtTax(r.social_security)}</td>
+        <td class="num" style="color:#dc2626;font-weight:600;">${fmtTax(r.tax_withholding)}</td>
+        <td class="num" style="color:#15803d;font-weight:600;">${fmtTax(r.net_income)}</td>
+      </tr>`
+    ).join('') + `<tr class="total-row">
+      <td colspan="9" style="text-align:right;padding-right:12px;">รวมทั้งหมด ${data.count} คน</td>
+      <td class="num">${fmtTax(data.totals.gross_income)}</td>
+      <td class="num">${fmtTax(data.totals.social_security)}</td>
+      <td class="num">${fmtTax(data.totals.tax_withholding)}</td>
+      <td class="num">${fmtTax(data.totals.net_income)}</td>
+    </tr>`;
+  } catch(err) {
+    tbody.innerHTML = `<tr><td colspan="13" class="no-data" style="color:#ef4444;">❌ ${err.message}</td></tr>`;
+  }
+}
+
+async function loadPND1K() {
+  const year  = document.getElementById('pnd1k-year')?.value || new Date().getFullYear();
+  const tbody = document.getElementById('pnd1k-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="14" class="no-data">กำลังโหลด...</td></tr>';
+  try {
+    const r    = await apiFetch(`${API}/api/tax/pnd1k?year=${year}`);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+
+    taxKpi('pnd1k-kpi', [
+      { label: 'พนักงาน', value: data.count + ' คน' },
+      { label: 'รายได้รวมทั้งปี', value: '฿' + fmtTax(data.totals.ytd_gross), color:'#0369a1' },
+      { label: 'ประกันสังคมรวม', value: '฿' + fmtTax(data.totals.ytd_ss), color:'#7c3aed' },
+      { label: 'ภาษีรวมทั้งปี', value: '฿' + fmtTax(data.totals.ytd_tax), color:'#dc2626' },
+      { label: 'รายได้สุทธิรวม', value: '฿' + fmtTax(data.totals.ytd_net), color:'#15803d' },
+    ]);
+
+    if (!data.rows.length) {
+      tbody.innerHTML = '<tr><td colspan="14" class="no-data">ไม่มีข้อมูล Payroll ปีนี้</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.rows.map(r =>
+      `<tr>
+        <td>${r.seq}</td>
+        <td style="font-family:monospace;font-size:11px;">${r.tax_id || '<span style="color:#9ca3af;">ไม่ระบุ</span>'}</td>
+        <td>${r.name_prefix||''}</td>
+        <td><strong>${r.employee_name}</strong></td>
+        <td style="font-size:11px;color:#6b7280;">${r.employee_code}</td>
+        <td style="font-size:11px;">${r.department_name||'—'}</td>
+        <td class="num">${r.months_paid}</td>
+        <td class="num"><strong>${fmtTax(r.ytd_gross)}</strong></td>
+        <td class="num">${fmtTax(r.ytd_salary)}</td>
+        <td class="num">${parseFloat(r.ytd_ot_pay||0)>0?fmtTax(r.ytd_ot_pay):'—'}</td>
+        <td class="num">${parseFloat(r.ytd_bonus||0)>0?fmtTax(r.ytd_bonus):'—'}</td>
+        <td class="num" style="color:#7c3aed;">${fmtTax(r.ytd_ss)}</td>
+        <td class="num" style="color:#dc2626;font-weight:600;">${fmtTax(r.ytd_tax)}</td>
+        <td class="num" style="color:#15803d;font-weight:600;">${fmtTax(r.ytd_net)}</td>
+      </tr>`
+    ).join('') + `<tr class="total-row">
+      <td colspan="7" style="text-align:right;padding-right:12px;">รวม ${data.count} คน</td>
+      <td class="num">${fmtTax(data.totals.ytd_gross)}</td>
+      <td colspan="3"></td>
+      <td class="num">${fmtTax(data.totals.ytd_ss)}</td>
+      <td class="num">${fmtTax(data.totals.ytd_tax)}</td>
+      <td class="num">${fmtTax(data.totals.ytd_net)}</td>
+    </tr>`;
+  } catch(err) {
+    tbody.innerHTML = `<tr><td colspan="14" class="no-data" style="color:#ef4444;">❌ ${err.message}</td></tr>`;
+  }
+}
+
+async function loadYTD() {
+  const year = document.getElementById('ytd-year')?.value || new Date().getFullYear();
+  const tbody    = document.getElementById('ytd-tbody');
+  const empTbody = document.getElementById('ytd-emp-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="11" class="no-data">กำลังโหลด...</td></tr>';
+  try {
+    const r    = await apiFetch(`${API}/api/tax/ytd?year=${year}`);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+
+    taxKpi('ytd-kpi', [
+      { label: 'รายได้รวมทั้งปี', value: '฿' + fmtTax(data.totals.gross), color:'#0369a1' },
+      { label: 'OT รวม', value: '฿' + fmtTax(data.totals.total_ot), color:'#d97706' },
+      { label: 'ภาษีรวม', value: '฿' + fmtTax(data.totals.total_tax), color:'#dc2626' },
+      { label: 'ประกันสังคมรวม', value: '฿' + fmtTax(data.totals.total_ss), color:'#7c3aed' },
+      { label: 'รายได้สุทธิรวม', value: '฿' + fmtTax(data.totals.total_net), color:'#15803d' },
+    ]);
+
+    const months = data.monthly || [];
+    tbody.innerHTML = months.map(m =>
+      `<tr style="${parseFloat(m.gross||0)===0?'color:#d1d5db;':''}">
+        <td><strong>${m.month_name}</strong></td>
+        <td class="num">${m.head_count||0}</td>
+        <td class="num">${fmtTax(m.total_salary)}</td>
+        <td class="num">${parseFloat(m.total_ot||0)>0?fmtTax(m.total_ot):'—'}</td>
+        <td class="num">${parseFloat(m.total_bonus||0)>0?fmtTax(m.total_bonus):'—'}</td>
+        <td class="num"><strong>${fmtTax(m.gross)}</strong></td>
+        <td class="num" style="color:#7c3aed;">${fmtTax(m.total_ss)}</td>
+        <td class="num" style="color:#dc2626;">${fmtTax(m.total_tax)}</td>
+        <td class="num" style="color:#15803d;">${fmtTax(m.total_net)}</td>
+        <td class="num" style="color:#0369a1;">${fmtTax(m.ytd_gross)}</td>
+        <td class="num" style="color:#dc2626;">${fmtTax(m.ytd_tax)}</td>
+      </tr>`
+    ).join('') + `<tr class="total-row">
+      <td>รวมทั้งปี</td><td></td>
+      <td></td><td class="num">${fmtTax(data.totals.total_ot)}</td><td class="num">${fmtTax(data.totals.total_bonus)}</td>
+      <td class="num">${fmtTax(data.totals.gross)}</td>
+      <td class="num">${fmtTax(data.totals.total_ss)}</td>
+      <td class="num">${fmtTax(data.totals.total_tax)}</td>
+      <td class="num">${fmtTax(data.totals.total_net)}</td>
+      <td></td><td></td>
+    </tr>`;
+
+    // Per-employee table
+    if (empTbody) {
+      const emps = data.per_employee || [];
+      empTbody.innerHTML = emps.length
+        ? emps.map((e, i) => `<tr>
+            <td>${i+1}</td>
+            <td style="font-size:11px;color:#6b7280;">${e.employee_code}</td>
+            <td><strong>${e.employee_name}</strong></td>
+            <td style="font-size:11px;">${e.department_name||'—'}</td>
+            <td class="num">${e.months_count}</td>
+            <td class="num" style="color:#0369a1;">${fmtTax(e.ytd_gross)}</td>
+            <td class="num" style="color:#7c3aed;">${fmtTax(e.ytd_ss)}</td>
+            <td class="num" style="color:#dc2626;">${fmtTax(e.ytd_tax)}</td>
+            <td class="num" style="color:#15803d;">${fmtTax(e.ytd_net)}</td>
+          </tr>`).join('')
+        : '<tr><td colspan="9" class="no-data">ไม่มีข้อมูล</td></tr>';
+    }
+  } catch(err) {
+    tbody.innerHTML = `<tr><td colspan="11" class="no-data" style="color:#ef4444;">❌ ${err.message}</td></tr>`;
+  }
+}
+
+function exportTaxCSV(type) {
+  const year  = document.getElementById(`${type==='pnd1'?'pnd1':'pnd1k'}-year`)?.value
+              || document.getElementById('ytd-year')?.value
+              || new Date().getFullYear();
+  const month = document.getElementById('pnd1-month')?.value || new Date().getMonth()+1;
+  let url;
+  if (type === 'pnd1')  url = `${API}/api/tax/pnd1/csv?year=${year}&month=${month}`;
+  if (type === 'pnd1k') url = `${API}/api/tax/pnd1k/csv?year=${year}`;
+  if (type === 'ytd')   url = `${API}/api/tax/ytd/csv?year=${year}`;
+  if (url) window.open(url, '_blank');
+}
+
 </script>
 
 <!-- OT Edit Modal -->

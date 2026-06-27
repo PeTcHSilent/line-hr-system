@@ -66,21 +66,24 @@ cron.schedule('30 17 * * 1-5', async () => {
 
     console.log(`  → พบ ${rows.length} คนที่ยังไม่เช็คเอาท์`);
 
-    for (const emp of rows) {
-      await notifyService.sendEmail({
-        to: emp.email,
-        subject: '[HR] แจ้งเตือน: อย่าลืมเช็คเอาท์',
-        html: `<p>เรียน <b>${emp.name}</b>, กรุณาเช็คเอาท์ผ่าน LINE HR ก่อนออกจากที่ทำงานนะครับ</p>`,
-      }).catch(() => {});
+    const lineClient2 = new (require('@line/bot-sdk').messagingApi.MessagingApiClient)({
+      channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+    });
 
+    for (const emp of rows) {
+      // LINE push
       if (emp.line_user_id) {
-        const lineClient = require('@line/bot-sdk').messagingApi;
-        const client = new lineClient.MessagingApiClient({
-          channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-        });
-        await client.pushMessage({
+        await lineClient2.pushMessage({
           to: emp.line_user_id,
-          messages: [{ type: 'text', text: `🚪 อย่าลืมเช็คเอาท์ก่อนกลับบ้านนะครับ คุณ${emp.name}!` }],
+          messages: [{ type: 'text', text: `🚪 คุณ${emp.name} อย่าลืมเช็คเอาท์ก่อนกลับบ้านนะครับ! \n👉 เปิด LINE HR แล้วกดปุ่มเช็คเอาท์ได้เลยครับ` }],
+        }).catch(() => {});
+      }
+      // Email
+      if (emp.email) {
+        await notifyService.sendEmail({
+          to: emp.email,
+          subject: '[HR] แจ้งเตือน: อย่าลืมเช็คเอาท์',
+          html: `<p>เรียน <b>${emp.name}</b>, กรุณาเช็คเอาท์ผ่าน LINE HR ก่อนออกจากที่ทำงานนะครับ</p>`,
         }).catch(() => {});
       }
     }
@@ -172,7 +175,7 @@ cron.schedule('0 18 * * *', async () => {
 
     // ตรวจว่าพรุ่งนี้เป็นวันหยุดนักขัตฤกษ์ไหม
     const { rows: holidays } = await db.query(
-      `SELECT name FROM holidays WHERE date = $1 AND is_active = TRUE LIMIT 1`,
+      `SELECT name FROM holidays WHERE date = $1 LIMIT 1`,
       [tomorrow]
     );
     if (!holidays.length) {
