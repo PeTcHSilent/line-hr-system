@@ -229,12 +229,13 @@ async function getYTDSummary(year) {
     acc.gross     += parseFloat(r.gross || 0);
     acc.total_ot  += parseFloat(r.total_ot || 0);
     acc.total_bonus += parseFloat(r.total_bonus || 0);
+    acc.total_special += parseFloat(r.total_special || 0);
     acc.total_ss  += parseFloat(r.total_ss || 0);
     acc.total_pf  += parseFloat(r.total_pf || 0);
     acc.total_tax += parseFloat(r.total_tax || 0);
     acc.total_net += parseFloat(r.total_net || 0);
     return acc;
-  }, { gross: 0, total_ot: 0, total_bonus: 0, total_ss: 0, total_pf: 0, total_tax: 0, total_net: 0 });
+  }, { gross: 0, total_ot: 0, total_bonus: 0, total_special: 0, total_ss: 0, total_pf: 0, total_tax: 0, total_net: 0 });
 
   // รายพนักงาน YTD
   const { rows: perEmp } = await db.query(
@@ -266,6 +267,7 @@ async function getYTDSummary(year) {
       gross:      round2(totals.gross),
       total_ot:   round2(totals.total_ot),
       total_bonus: round2(totals.total_bonus),
+      total_special: round2(totals.total_special),
       total_ss:   round2(totals.total_ss),
       total_pf:   round2(totals.total_pf),
       total_tax:  round2(totals.total_tax),

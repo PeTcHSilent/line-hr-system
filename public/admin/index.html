@@ -947,8 +947,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
             <table class="tax-tbl"><thead><tr>
               <th>#</th><th>เลขบัตรประชาชน</th><th>คำนำหน้า</th><th>ชื่อ-สกุล</th>
               <th>รหัส</th><th>แผนก</th>
-              <th class="num">เงินเดือน</th><th class="num">OT</th><th class="num">โบนัส</th>
-              <th class="num">รายได้รวม</th><th class="num">ประกันสังคม</th>
+              <th class="num">เงินเดือน</th><th class="num">ค่า OT</th>
+              <th class="num">โบนัส</th><th class="num">เบี้ยพิเศษ</th>
+              <th class="num">รายได้รวม</th>
+              <th class="num">หักสาย</th><th class="num">หักขาดงาน</th>
+              <th class="num">ประกันสังคม</th><th class="num">กองทุนสำรอง</th>
               <th class="num">ภาษีหัก ณ ที่จ่าย</th><th class="num">รายได้สุทธิ</th>
             </tr></thead>
             <tbody id="pnd1-tbody"><tr><td colspan="13" class="no-data">กำลังโหลด...</td></tr></tbody></table>
@@ -973,7 +976,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
               <th>รหัส</th><th>แผนก</th><th class="num">เดือน</th>
               <th class="num">รายได้รวมทั้งปี</th><th class="num">เงินเดือนรวม</th>
               <th class="num">OT รวม</th><th class="num">โบนัสรวม</th>
-              <th class="num">ประกันสังคมรวม</th><th class="num">ภาษีรวมทั้งปี</th>
+              <th class="num">เบี้ยพิเศษรวม</th>
+              <th class="num">ประกันสังคมรวม</th><th class="num">กองทุนสำรองรวม</th>
+              <th class="num">ภาษีรวมทั้งปี</th>
               <th class="num">รายได้สุทธิรวม</th>
             </tr></thead>
             <tbody id="pnd1k-tbody"><tr><td colspan="14" class="no-data">กำลังโหลด...</td></tr></tbody></table>
@@ -995,8 +1000,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
           <div class="tbl-wrap" style="margin-top:12px;">
             <table class="tax-tbl"><thead><tr>
               <th>เดือน</th><th class="num">พนักงาน</th>
-              <th class="num">เงินเดือนรวม</th><th class="num">OT รวม</th><th class="num">โบนัส</th>
-              <th class="num">รายได้รวม</th><th class="num">ประกันสังคม</th>
+              <th class="num">เงินเดือนรวม</th><th class="num">OT รวม</th>
+              <th class="num">โบนัส</th><th class="num">เบี้ยพิเศษ</th>
+              <th class="num">รายได้รวม</th>
+              <th class="num">หักสาย</th><th class="num">หักขาดงาน</th>
+              <th class="num">ประกันสังคม</th><th class="num">กองทุนสำรอง</th>
               <th class="num">ภาษีหัก ณ ที่จ่าย</th><th class="num">รายได้สุทธิ</th>
               <th class="num">YTD รายได้สะสม</th><th class="num">YTD ภาษีสะสม</th>
             </tr></thead>
@@ -6574,15 +6582,20 @@ async function loadPND1() {
         <td class="num">${fmtTax(r.base_salary)}</td>
         <td class="num">${parseFloat(r.ot_pay||0)>0?fmtTax(r.ot_pay):'—'}</td>
         <td class="num">${parseFloat(r.bonus||0)>0?fmtTax(r.bonus):'—'}</td>
+        <td class="num">${parseFloat(r.special_allowance||0)>0?fmtTax(r.special_allowance):'—'}</td>
         <td class="num"><strong>${fmtTax(r.gross_income)}</strong></td>
+        <td class="num" style="color:#ef4444;">${parseFloat(r.late_deduction||0)>0?'-'+fmtTax(r.late_deduction):'—'}</td>
+        <td class="num" style="color:#ef4444;">${parseFloat(r.absent_deduction||0)>0?'-'+fmtTax(r.absent_deduction):'—'}</td>
         <td class="num" style="color:#7c3aed;">${fmtTax(r.social_security)}</td>
+        <td class="num" style="color:#7c3aed;">${parseFloat(r.provident_fund||0)>0?fmtTax(r.provident_fund):'—'}</td>
         <td class="num" style="color:#dc2626;font-weight:600;">${fmtTax(r.tax_withholding)}</td>
         <td class="num" style="color:#15803d;font-weight:600;">${fmtTax(r.net_income)}</td>
       </tr>`
     ).join('') + `<tr class="total-row">
-      <td colspan="9" style="text-align:right;padding-right:12px;">รวมทั้งหมด ${data.count} คน</td>
-      <td class="num">${fmtTax(data.totals.gross_income)}</td>
+      <td colspan="10" style="text-align:right;padding-right:12px;">รวมทั้งหมด ${data.count} คน</td>
+      <td colspan="2"></td>
       <td class="num">${fmtTax(data.totals.social_security)}</td>
+      <td></td>
       <td class="num">${fmtTax(data.totals.tax_withholding)}</td>
       <td class="num">${fmtTax(data.totals.net_income)}</td>
     </tr>`;
@@ -6626,15 +6639,18 @@ async function loadPND1K() {
         <td class="num">${fmtTax(r.ytd_salary)}</td>
         <td class="num">${parseFloat(r.ytd_ot_pay||0)>0?fmtTax(r.ytd_ot_pay):'—'}</td>
         <td class="num">${parseFloat(r.ytd_bonus||0)>0?fmtTax(r.ytd_bonus):'—'}</td>
+        <td class="num">${parseFloat(r.ytd_special||0)>0?fmtTax(r.ytd_special):'—'}</td>
         <td class="num" style="color:#7c3aed;">${fmtTax(r.ytd_ss)}</td>
+        <td class="num" style="color:#7c3aed;">${parseFloat(r.ytd_pf||0)>0?fmtTax(r.ytd_pf):'—'}</td>
         <td class="num" style="color:#dc2626;font-weight:600;">${fmtTax(r.ytd_tax)}</td>
         <td class="num" style="color:#15803d;font-weight:600;">${fmtTax(r.ytd_net)}</td>
       </tr>`
     ).join('') + `<tr class="total-row">
       <td colspan="7" style="text-align:right;padding-right:12px;">รวม ${data.count} คน</td>
       <td class="num">${fmtTax(data.totals.ytd_gross)}</td>
-      <td colspan="3"></td>
+      <td colspan="4"></td>
       <td class="num">${fmtTax(data.totals.ytd_ss)}</td>
+      <td class="num">${fmtTax(data.totals.ytd_pf)}</td>
       <td class="num">${fmtTax(data.totals.ytd_tax)}</td>
       <td class="num">${fmtTax(data.totals.ytd_net)}</td>
     </tr>`;
@@ -6670,8 +6686,12 @@ async function loadYTD() {
         <td class="num">${fmtTax(m.total_salary)}</td>
         <td class="num">${parseFloat(m.total_ot||0)>0?fmtTax(m.total_ot):'—'}</td>
         <td class="num">${parseFloat(m.total_bonus||0)>0?fmtTax(m.total_bonus):'—'}</td>
+        <td class="num">${parseFloat(m.total_special||0)>0?fmtTax(m.total_special):'—'}</td>
         <td class="num"><strong>${fmtTax(m.gross)}</strong></td>
+        <td class="num" style="color:#ef4444;">${parseFloat(m.total_late||0)>0?'-'+fmtTax(m.total_late):'—'}</td>
+        <td class="num" style="color:#ef4444;">${parseFloat(m.total_absent||0)>0?'-'+fmtTax(m.total_absent):'—'}</td>
         <td class="num" style="color:#7c3aed;">${fmtTax(m.total_ss)}</td>
+        <td class="num" style="color:#7c3aed;">${parseFloat(m.total_pf||0)>0?fmtTax(m.total_pf):'—'}</td>
         <td class="num" style="color:#dc2626;">${fmtTax(m.total_tax)}</td>
         <td class="num" style="color:#15803d;">${fmtTax(m.total_net)}</td>
         <td class="num" style="color:#0369a1;">${fmtTax(m.ytd_gross)}</td>
@@ -6679,9 +6699,14 @@ async function loadYTD() {
       </tr>`
     ).join('') + `<tr class="total-row">
       <td>รวมทั้งปี</td><td></td>
-      <td></td><td class="num">${fmtTax(data.totals.total_ot)}</td><td class="num">${fmtTax(data.totals.total_bonus)}</td>
+      <td></td>
+      <td class="num">${fmtTax(data.totals.total_ot)}</td>
+      <td class="num">${fmtTax(data.totals.total_bonus)}</td>
+      <td class="num">${fmtTax(data.totals.total_special||0)}</td>
       <td class="num">${fmtTax(data.totals.gross)}</td>
+      <td colspan="2"></td>
       <td class="num">${fmtTax(data.totals.total_ss)}</td>
+      <td class="num">${fmtTax(data.totals.total_pf)}</td>
       <td class="num">${fmtTax(data.totals.total_tax)}</td>
       <td class="num">${fmtTax(data.totals.total_net)}</td>
       <td></td><td></td>
