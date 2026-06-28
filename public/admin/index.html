@@ -2129,7 +2129,8 @@ async function loadDashboard() {
         if (!list.length) {
           tbody.innerHTML = '<tr><td colspan="4" class="no-data">ไม่มีใบลารออนุมัติ</td></tr>';
         } else {
-          const fmtDay = v => v ? new Date(v).toLocaleDateString('th-TH', {day:'numeric',month:'short',year:'numeric'}) : '—';
+          const thMo = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+          const fmtDay = v => { if(!v) return '—'; const d=new Date(v); if(isNaN(d)) return '—'; return `${d.getDate()} ${thMo[d.getMonth()]} ${d.getFullYear()+543}`; };
           tbody.innerHTML = list.slice(0,5).map(r => `<tr>
             <td style="font-size:12px;">${r.employee_name||'—'}</td>
             <td><span class="badge badge-warning" style="font-size:11px;">${r.leave_type_name||'—'}</span></td>
@@ -2159,7 +2160,8 @@ async function loadDashboard() {
         if (!pending.length) {
           tbody.innerHTML = '<tr><td colspan="4" class="no-data">ไม่มี OT รออนุมัติ</td></tr>';
         } else {
-          const fmtDayOT = v => v ? new Date(v).toLocaleDateString('th-TH', {day:'numeric',month:'short',year:'numeric'}) : '—';
+          const thMoOT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+          const fmtDayOT = v => { if(!v) return '—'; const d=new Date(v); if(isNaN(d)) return '—'; return `${d.getDate()} ${thMoOT[d.getMonth()]} ${d.getFullYear()+543}`; };
           tbody.innerHTML = pending.slice(0,5).map(r => `<tr>
             <td style="font-size:12px;">${r.employee_name||'—'}</td>
             <td style="font-size:11px;">${fmtDayOT(r.created_at)}</td>
