@@ -5532,11 +5532,16 @@ async function loadDashboard() {
       if (el) el.textContent = list.length;
       const tbody = document.getElementById('dash-leave-tbody');
       if (tbody && list.length) {
+        const _thMoL = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+        const _fmtL = v => { if(!v) return '—'; const d=new Date(v); if(isNaN(d)) return '—'; return `${d.getDate()} ${_thMoL[d.getMonth()]} ${d.getFullYear()+543}`; };
         tbody.innerHTML = list.slice(0,5).map(l => `<tr>
-          <td>${l.employee_name||'—'}</td><td>${l.leave_type_name||'—'}</td>
-          <td style="font-size:12px;">${l.start_date||'—'}</td>
-          <td><button class="btn btn-success btn-xs" onclick="quickApproveLeave(${l.id})">✅</button>
-              <button class="btn btn-danger btn-xs" onclick="quickRejectLeave(${l.id})">❌</button></td>
+          <td style="font-size:12px;">${l.employee_name||'—'}</td>
+          <td><span class="badge badge-warning" style="font-size:11px;">${l.leave_type_name||'—'}</span></td>
+          <td style="font-size:11px;">${_fmtL(l.created_at)}</td>
+          <td>
+            <button class="btn btn-primary btn-sm" style="padding:2px 8px;font-size:11px;" onclick="approveLeave(${l.id});loadDashboard();">✓</button>
+            <button class="btn btn-danger btn-sm" style="padding:2px 8px;font-size:11px;" onclick="rejectLeave(${l.id});loadDashboard();">✗</button>
+          </td>
         </tr>`).join('');
       }
     }
@@ -5551,11 +5556,16 @@ async function loadDashboard() {
       if (el) el.textContent = list.length;
       const tbody = document.getElementById('dash-ot-tbody');
       if (tbody && list.length) {
+        const _thMoO = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+        const _fmtO = v => { if(!v) return '—'; const d=new Date(v); if(isNaN(d)) return '—'; return `${d.getDate()} ${_thMoO[d.getMonth()]} ${d.getFullYear()+543}`; };
         tbody.innerHTML = list.slice(0,5).map(o => `<tr>
-          <td>${o.employee_name||'—'}</td>
-          <td style="font-size:12px;">${o.ot_date||o.date||'—'}</td>
-          <td>${o.hours||o.total_hours||'—'}</td>
-          <td><button class="btn btn-success btn-xs" onclick="quickApproveOT(${o.id})">✅</button></td>
+          <td style="font-size:12px;">${o.employee_name||'—'}</td>
+          <td style="font-size:11px;">${_fmtO(o.created_at)}</td>
+          <td style="font-size:12px;">${parseFloat(o.total_hours||o.hours||0).toFixed(1)} ชม.</td>
+          <td>
+            <button class="btn btn-primary btn-sm" style="padding:2px 8px;font-size:11px;" onclick="approveOT(${o.id});loadDashboard();">✓</button>
+            <button class="btn btn-danger btn-sm" style="padding:2px 8px;font-size:11px;" onclick="rejectOT(${o.id});loadDashboard();">✗</button>
+          </td>
         </tr>`).join('');
       }
     }
