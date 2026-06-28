@@ -258,12 +258,12 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
         <div class="card" style="margin-bottom:0;">
           <div class="card-header"><div class="card-title">⏳ ใบลารออนุมัติ</div><button class="btn btn-secondary btn-sm" onclick="showPage('leave-records')">ดูทั้งหมด</button></div>
-          <div class="tbl-wrap" style="padding:0 0 8px;"><table><thead><tr><th>ชื่อ</th><th>ประเภท</th><th>วันที่</th><th>จัดการ</th></tr></thead>
+          <div class="tbl-wrap" style="padding:0 0 8px;"><table><thead><tr><th>ชื่อ</th><th>ประเภท</th><th>วันที่ทำรายการ</th><th>จัดการ</th></tr></thead>
           <tbody id="dash-leave-tbody"><tr><td colspan="4" class="no-data">กำลังโหลด...</td></tr></tbody></table></div>
         </div>
         <div class="card" style="margin-bottom:0;">
           <div class="card-header"><div class="card-title">⏳ OT รออนุมัติ</div><button class="btn btn-secondary btn-sm" onclick="showPage('ot')">ดูทั้งหมด</button></div>
-          <div class="tbl-wrap" style="padding:0 0 8px;"><table><thead><tr><th>ชื่อ</th><th>วันที่</th><th>ชม.</th><th>จัดการ</th></tr></thead>
+          <div class="tbl-wrap" style="padding:0 0 8px;"><table><thead><tr><th>ชื่อ</th><th>วันที่ทำรายการ</th><th>ชม.</th><th>จัดการ</th></tr></thead>
           <tbody id="dash-ot-tbody"><tr><td colspan="4" class="no-data">กำลังโหลด...</td></tr></tbody></table></div>
         </div>
       </div>
@@ -2129,10 +2129,11 @@ async function loadDashboard() {
         if (!list.length) {
           tbody.innerHTML = '<tr><td colspan="4" class="no-data">ไม่มีใบลารออนุมัติ</td></tr>';
         } else {
+          const fmtDay = v => v ? new Date(v).toLocaleDateString('th-TH', {day:'numeric',month:'short',year:'numeric'}) : '—';
           tbody.innerHTML = list.slice(0,5).map(r => `<tr>
             <td style="font-size:12px;">${r.employee_name||'—'}</td>
             <td><span class="badge badge-warning" style="font-size:11px;">${r.leave_type_name||'—'}</span></td>
-            <td style="font-size:11px;">${r.start_date?.slice(0,10)||'—'}</td>
+            <td style="font-size:11px;">${fmtDay(r.created_at)}</td>
             <td>
               <button class="btn btn-primary btn-sm" style="padding:2px 8px;font-size:11px;" onclick="approveLeave(${r.id});loadDashboard();">✓</button>
               <button class="btn btn-danger btn-sm" style="padding:2px 8px;font-size:11px;" onclick="rejectLeave(${r.id});loadDashboard();">✗</button>
@@ -2158,9 +2159,10 @@ async function loadDashboard() {
         if (!pending.length) {
           tbody.innerHTML = '<tr><td colspan="4" class="no-data">ไม่มี OT รออนุมัติ</td></tr>';
         } else {
+          const fmtDayOT = v => v ? new Date(v).toLocaleDateString('th-TH', {day:'numeric',month:'short',year:'numeric'}) : '—';
           tbody.innerHTML = pending.slice(0,5).map(r => `<tr>
             <td style="font-size:12px;">${r.employee_name||'—'}</td>
-            <td style="font-size:11px;">${r.ot_date?.slice(0,10)||'—'}</td>
+            <td style="font-size:11px;">${fmtDayOT(r.created_at)}</td>
             <td style="font-size:12px;">${parseFloat(r.total_hours||0).toFixed(1)} ชม.</td>
             <td>
               <button class="btn btn-primary btn-sm" style="padding:2px 8px;font-size:11px;" onclick="approveOT(${r.id});loadDashboard();">✓</button>
