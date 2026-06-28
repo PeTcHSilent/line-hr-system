@@ -4005,69 +4005,6 @@ async function loadBroadcastHistory() {
   try { await loadSettings(); } catch(e) { /* ignore */ }
 })();
 
-async function loadAttendance() {
-  const date   = document.getElementById('att-date').value;
-  const deptId = document.getElementById('att-dept').value;
-  if (!date) return;
-  const tbody = document.getElementById('att-tbody');
-  tbody.innerHTML = '<tr><td colspan="8" class="no-data">⏳ กำลังโหลด...</td></tr>';
-  try {
-    let url = `${API}/api/attendance/all?date=${date}`;
-    if (deptId) url += `&department_id=${deptId}`;
-    const res = await apiFetch(url);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    allAttendance = await res.json();
-    renderAttendance(allAttendance);
-  } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="8" class="no-data" style="color:#ef4444;">❌ ${e.message}</td></tr>`;
-  }
-}
-
-function filterAttendance() {
-  const q = document.getElementById('att-search').value.toLowerCase();
-  const filtered = allAttendance.filter(r =>
-    (r.employee_name||'').toLowerCase().includes(q) ||
-    (r.employee_code||'').toLowerCase().includes(q)
-  );
-  renderAttendance(filtered);
-}
-
-function renderAttendance(rows) {
-  const tbody = document.getElementById('att-tbody');
-  let total=0,inCount=0,outCount=0,outside=0;
-  if (!rows.length) {
-    tbody.innerHTML='<tr><td colspan="8" class="no-data">ไม่พบข้อมูล</td></tr>';
-  } else {
-    tbody.innerHTML = rows.map(r => {
-      total++;
-      const hasIn  = !!r.check_in;
-      const hasOut = !!r.check_out;
-      if (hasIn)  inCount++;
-      if (hasOut) outCount++;
-      const inOutside  = r.check_in_within_radius  === false;
-      const outOutside = r.check_out_within_radius === false;
-      if (inOutside || outOutside) outside++;
-      const fmtTime = t => t ? new Date(t).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',hour12:false}) : '—';
-      const distBadge = (d, ok) => d == null ? '—' : `<span style="color:${ok===false?'#ef4444':'#22c55e'};font-size:11px;">${d} ม.</span>`;
-      const hours = r.hours_worked != null ? `${r.hours_worked} ชม.` : '—';
-      return `<tr>
-        <td>${r.employee_name||'—'}<br><span style="font-size:11px;color:#9ca3af;">${r.employee_code||''}</span></td>
-        <td>${r.department_name||'—'}</td>
-        <td>${r.work_date||'—'}</td>
-        <td style="font-family:monospace;font-weight:600;">${fmtTime(r.check_in)}</td>
-        <td style="font-family:monospace;font-weight:600;">${fmtTime(r.check_out)}</td>
-        <td>${hours}</td>
-        <td>${distBadge(r.check_in_distance, r.check_in_within_radius)}</td>
-        <td>${distBadge(r.check_out_distance, r.check_out_within_radius)}</td>
-      </tr>`;
-    }).join('');
-  }
-  document.getElementById('att-total').textContent   = total;
-  document.getElementById('att-in').textContent      = inCount;
-  document.getElementById('att-out').textContent     = outCount;
-  document.getElementById('att-outside').textContent = outside;
-}
-
 async function runLateAbsentCheck() {
   try {
     const res = await apiFetch(`${API}/api/payroll/check-late-absent`, { method: 'POST' });
