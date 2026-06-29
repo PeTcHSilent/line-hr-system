@@ -107,7 +107,8 @@ router.get('/attendance', requireAuth, async (req, res) => {
         e.employee_code, e.name AS employee_name,
         d.name AS department_name, b.name AS branch_name,
         a.work_date, a.check_in, a.check_out,
-        a.hours_worked, a.is_late,
+        ROUND(EXTRACT(EPOCH FROM (a.check_out - a.check_in))/3600, 2) AS hours_worked,
+        a.is_late,
         a.check_in_distance,  a.check_in_within_radius,
         a.check_out_distance, a.check_out_within_radius
       FROM attendance a
@@ -193,7 +194,7 @@ router.get('/leave', requireAuth, async (req, res) => {
       LEFT JOIN departments d  ON d.id  = e.department_id
       LEFT JOIN branches    b  ON b.id  = e.branch_id
       LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
-      LEFT JOIN employees   ab ON ab.id = lr.approved_by_id
+      LEFT JOIN employees   ab ON ab.id = lr.approved_by
       WHERE lr.start_date BETWEEN $1 AND $2 ${statusCond}
       ORDER BY lr.created_at DESC
     `, params);
@@ -259,11 +260,11 @@ router.get('/ot', requireAuth, async (req, res) => {
         o.ot_date, o.start_time, o.end_time, o.total_hours,
         o.reason, o.status, o.created_at,
         ab.name AS approved_by_name
-      FROM ot_requests o
+      FROM ot_records o
       JOIN employees e      ON e.id  = o.employee_id
       LEFT JOIN departments d  ON d.id  = e.department_id
       LEFT JOIN branches    b  ON b.id  = e.branch_id
-      LEFT JOIN employees   ab ON ab.id = o.approved_by_id
+      LEFT JOIN employees   ab ON ab.id = o.approved_by
       WHERE o.ot_date BETWEEN $1 AND $2 ${statusCond}
       ORDER BY o.ot_date DESC
     `, params);

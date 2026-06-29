@@ -293,10 +293,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         <div class="card" style="margin-bottom:0;">
           <div class="card-header">
             <div class="card-title" id="leave-chart-title">📊 การลา 6 เดือนล่าสุด</div>
-            <div style="display:flex;gap:4px;">
+            <div style="display:flex;gap:4px;align-items:center;">
               <button class="btn btn-sm btn-secondary" id="leave-btn-1" onclick="setLeaveRange(1)" style="font-size:11px;padding:3px 10px;">เดือนนี้</button>
               <button class="btn btn-sm btn-primary"   id="leave-btn-6" onclick="setLeaveRange(6)" style="font-size:11px;padding:3px 10px;">6 เดือน</button>
-              <button class="btn btn-sm btn-secondary" id="leave-btn-12" onclick="setLeaveRange(12)" style="font-size:11px;padding:3px 10px;">1 ปี</button>
+              <button class="btn btn-sm btn-secondary" id="leave-btn-y" onclick="setLeaveRange('year')" style="font-size:11px;padding:3px 10px;">รายปี</button>
+              <input type="number" id="leave-year-input" value="" min="2020" max="2099" style="width:68px;padding:3px 6px;font-size:11px;border:1px solid #e2e8f0;border-radius:6px;display:none;" onchange="setLeaveRange('year')">
             </div>
           </div>
           <canvas id="dash-leave-chart" height="200"></canvas>
@@ -311,10 +312,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         <div class="card" style="margin-bottom:0;">
           <div class="card-header">
             <div class="card-title" id="ot-chart-title">⏱️ ชั่วโมง OT รายเดือน</div>
-            <div id="ot-range-btns" style="display:flex;gap:4px;">
+            <div id="ot-range-btns" style="display:flex;gap:4px;align-items:center;">
               <button class="btn btn-sm btn-secondary" id="ot-btn-1" onclick="setOTRange(1)" style="font-size:11px;padding:3px 10px;">เดือนนี้</button>
               <button class="btn btn-sm btn-primary"   id="ot-btn-6" onclick="setOTRange(6)" style="font-size:11px;padding:3px 10px;">6 เดือน</button>
-              <button class="btn btn-sm btn-secondary" id="ot-btn-12" onclick="setOTRange(12)" style="font-size:11px;padding:3px 10px;">1 ปี</button>
+              <button class="btn btn-sm btn-secondary" id="ot-btn-y" onclick="setOTRange('year')" style="font-size:11px;padding:3px 10px;">รายปี</button>
+              <input type="number" id="ot-year-input" value="" min="2020" max="2099" style="width:68px;padding:3px 6px;font-size:11px;border:1px solid #e2e8f0;border-radius:6px;display:none;" onchange="setOTRange('year')">
             </div>
           </div>
           <canvas id="dash-ot-monthly-chart" height="200"></canvas>
@@ -322,10 +324,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         <div class="card" style="margin-bottom:0;">
           <div class="card-header">
             <div class="card-title" id="cost-chart-title">💰 แนวโน้มค่าใช้จ่าย Payroll</div>
-            <div id="cost-range-btns" style="display:flex;gap:4px;">
+            <div id="cost-range-btns" style="display:flex;gap:4px;align-items:center;">
               <button class="btn btn-sm btn-secondary" id="cost-btn-1" onclick="setCostRange(1)" style="font-size:11px;padding:3px 10px;">เดือนนี้</button>
               <button class="btn btn-sm btn-primary"   id="cost-btn-6" onclick="setCostRange(6)" style="font-size:11px;padding:3px 10px;">6 เดือน</button>
-              <button class="btn btn-sm btn-secondary" id="cost-btn-12" onclick="setCostRange(12)" style="font-size:11px;padding:3px 10px;">1 ปี</button>
+              <button class="btn btn-sm btn-secondary" id="cost-btn-y" onclick="setCostRange('year')" style="font-size:11px;padding:3px 10px;">รายปี</button>
+              <input type="number" id="cost-year-input" value="" min="2020" max="2099" style="width:68px;padding:3px 6px;font-size:11px;border:1px solid #e2e8f0;border-radius:6px;display:none;" onchange="setCostRange('year')">
             </div>
           </div>
           <canvas id="dash-cost-trend-chart" height="200"></canvas>
@@ -5704,14 +5707,30 @@ async function loadDashboard() {
 
 let _leaveChartMonths = 6;
 
-function setLeaveRange(n) {
-  _leaveChartMonths = n;
-  _setRangeBtnActive('leave', n);
+function setLeaveRange(mode) {
+  _leaveChartMonths = mode;
+  _setRangeBtnActive('leave', mode);
   const titleEl = document.getElementById('leave-chart-title');
-  if (titleEl) titleEl.textContent = n === 1 ? '📊 การลา — เดือนนี้'
-    : n === 12 ? '📊 การลา (1 ปีล่าสุด)'
-    : '📊 การลา 6 เดือนล่าสุด';
-  drawLeaveChart(n);
+  if (mode === 1)      { if (titleEl) titleEl.textContent = '📊 การลา — เดือนนี้'; }
+  else if (mode === 6) { if (titleEl) titleEl.textContent = '📊 การลา 6 เดือนล่าสุด'; }
+  else                 { const y = _getYearInputVal('leave'); if (titleEl) titleEl.textContent = `📊 การลา รายปี ${y+543}`; }
+  drawLeaveChart(mode);
+}
+
+function _buildMonthRange(mode, prefix) {
+  // returns array of {y, m, label}
+  const result = [];
+  if (mode === 'year') {
+    const yr = _getYearInputVal(prefix);
+    for (let m = 1; m <= 12; m++) result.push({ y: yr, m, label: `${m}/${String(yr).slice(2)}` });
+  } else {
+    const n = parseInt(mode) || 6;
+    for (let i = n - 1; i >= 0; i--) {
+      const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i);
+      result.push({ y: d.getFullYear(), m: d.getMonth()+1, label: `${d.getMonth()+1}/${String(d.getFullYear()).slice(2)}` });
+    }
+  }
+  return result;
 }
 
 async function drawLeaveChart(months = 6) {
@@ -5719,11 +5738,9 @@ async function drawLeaveChart(months = 6) {
   if (!canvas) return;
   const labels = [];
   const counts = [];
-  for (let i = months - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - i);
-    const y = d.getFullYear(), m = d.getMonth()+1;
-    labels.push(`${m}/${String(y).slice(2)}`);
+  const range = _buildMonthRange(months, 'leave');
+  for (const { y, m, label } of range) {
+    labels.push(label);
     try {
       const res = await apiFetch(`${API}/api/leave/all?year=${y}&month=${m}`);
       if (res.ok) {
@@ -5773,32 +5790,44 @@ let dashCostTrendChart  = null;
 let _otChartMonths = 6;
 let _costChartMonths = 6;
 
-function _setRangeBtnActive(prefix, n) {
-  [1,6,12].forEach(v => {
+function _setRangeBtnActive(prefix, mode) {
+  ['1','6','y'].forEach(v => {
     const el = document.getElementById(`${prefix}-btn-${v}`);
     if (!el) return;
-    el.className = 'btn btn-sm ' + (v === n ? 'btn-primary' : 'btn-secondary');
+    const active = (mode === 'year' && v === 'y') || (mode !== 'year' && String(mode) === v);
+    el.className = 'btn btn-sm ' + (active ? 'btn-primary' : 'btn-secondary');
     el.style.fontSize = '11px'; el.style.padding = '3px 10px';
   });
+  // show/hide year input
+  const yearInput = document.getElementById(`${prefix}-year-input`);
+  if (yearInput) {
+    yearInput.style.display = mode === 'year' ? 'block' : 'none';
+    if (mode === 'year' && !yearInput.value) yearInput.value = new Date().getFullYear();
+  }
 }
 
-function setOTRange(n) {
-  _otChartMonths = n;
-  _setRangeBtnActive('ot', n);
+function _getYearInputVal(prefix) {
+  const el = document.getElementById(`${prefix}-year-input`);
+  return el ? (parseInt(el.value) || new Date().getFullYear()) : new Date().getFullYear();
+}
+
+function setOTRange(mode) {
+  _otChartMonths = mode;
+  _setRangeBtnActive('ot', mode);
   const titleEl = document.getElementById('ot-chart-title');
-  if (titleEl) titleEl.textContent = n === 1 ? '⏱️ ชั่วโมง OT — เดือนนี้'
-    : n === 12 ? '⏱️ ชั่วโมง OT รายเดือน (1 ปีล่าสุด)'
-    : '⏱️ ชั่วโมง OT รายเดือน (6 เดือนล่าสุด)';
+  if (mode === 1)      { if (titleEl) titleEl.textContent = '⏱️ ชั่วโมง OT — เดือนนี้'; }
+  else if (mode === 6) { if (titleEl) titleEl.textContent = '⏱️ ชั่วโมง OT รายเดือน (6 เดือนล่าสุด)'; }
+  else                 { const y = _getYearInputVal('ot'); if (titleEl) titleEl.textContent = `⏱️ ชั่วโมง OT รายปี ${y+543}`; }
   drawOTMonthlyChart(_otChartMonths);
 }
 
-function setCostRange(n) {
-  _costChartMonths = n;
-  _setRangeBtnActive('cost', n);
+function setCostRange(mode) {
+  _costChartMonths = mode;
+  _setRangeBtnActive('cost', mode);
   const titleEl = document.getElementById('cost-chart-title');
-  if (titleEl) titleEl.textContent = n === 1 ? '💰 ค่าใช้จ่าย Payroll — เดือนนี้'
-    : n === 12 ? '💰 แนวโน้มค่าใช้จ่าย Payroll (1 ปีล่าสุด)'
-    : '💰 แนวโน้มค่าใช้จ่าย Payroll (6 เดือนล่าสุด)';
+  if (mode === 1)      { if (titleEl) titleEl.textContent = '💰 ค่าใช้จ่าย Payroll — เดือนนี้'; }
+  else if (mode === 6) { if (titleEl) titleEl.textContent = '💰 แนวโน้มค่าใช้จ่าย Payroll (6 เดือนล่าสุด)'; }
+  else                 { const y = _getYearInputVal('cost'); if (titleEl) titleEl.textContent = `💰 แนวโน้มค่าใช้จ่าย Payroll ปี ${y+543}`; }
   drawCostTrendChart(_costChartMonths);
 }
 
@@ -5806,12 +5835,9 @@ async function drawOTMonthlyChart(months = 6) {
   const canvas = document.getElementById('dash-ot-monthly-chart');
   if (!canvas) return;
   const labels = [], hoursData = [], otPayData = [];
-  for (let i = months - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(1);
-    d.setMonth(d.getMonth() - i);
-    const y = d.getFullYear(), m = d.getMonth() + 1;
-    labels.push(`${m}/${String(y).slice(2)}`);
+  const range = _buildMonthRange(months, 'ot');
+  for (const { y, m, label } of range) {
+    labels.push(label);
     try {
       const res = await apiFetch(`${API}/api/ot/summary?year=${y}&month=${m}`);
       if (res.ok) {
@@ -5860,12 +5886,9 @@ async function drawCostTrendChart(months = 6) {
   const canvas = document.getElementById('dash-cost-trend-chart');
   if (!canvas) return;
   const labels = [], netData = [], salaryData = [], otPayData2 = [];
-  for (let i = months - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(1);
-    d.setMonth(d.getMonth() - i);
-    const y = d.getFullYear(), m = d.getMonth() + 1;
-    labels.push(`${m}/${String(y).slice(2)}`);
+  const range = _buildMonthRange(months, 'cost');
+  for (const { y, m, label } of range) {
+    labels.push(label);
     try {
       const res = await apiFetch(`${API}/api/payroll/monthly?year=${y}&month=${m}`);
       if (res.ok) {
