@@ -5,6 +5,7 @@ const employeeService = require('../services/employeeService');
 const line = require('@line/bot-sdk');
 const flexMessages = require('../utils/flexMessages');
 const { requireAuth } = require('../middleware/authMiddleware');
+const audit = require('../services/auditService');
 
 const client = new line.messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
@@ -139,6 +140,17 @@ router.patch('/:id/approve', requireAuth, async (req, res) => {
     );
     if (!result) return res.status(404).json({ error: 'ไม่พบคำขอลา' });
 
+    // Audit log
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'approve_leave',
+      targetType:  'leave',
+      targetId:    result.id,
+      description: `อนุมัติการลา: ${result.employee_name || ''} — ${result.leave_type_name || ''} (${result.start_date ? result.start_date.toISOString?.().slice(0,10) || result.start_date : ''})`,
+      meta:        { employee_name: result.employee_name, leave_type: result.leave_type_name, start_date: result.start_date, days_taken: result.days_taken },
+    });
+
     // แจ้งพนักงานผ่าน LINE
     if (result.employee_line_id) {
       const flexMessages = require('../utils/flexMessages');
@@ -159,6 +171,17 @@ router.patch('/:id/reject', requireAuth, async (req, res) => {
       parseInt(req.params.id), 'rejected', approved_by_id || null, reject_reason || 'ไม่อนุมัติโดย HR'
     );
     if (!result) return res.status(404).json({ error: 'ไม่พบคำขอลา' });
+
+    // Audit log
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'reject_leave',
+      targetType:  'leave',
+      targetId:    result.id,
+      description: `ไม่อนุมัติการลา: ${result.employee_name || ''} — ${result.leave_type_name || ''} เหตุผล: ${reject_reason || ''}`,
+      meta:        { employee_name: result.employee_name, leave_type: result.leave_type_name, reject_reason },
+    });
 
     if (result.employee_line_id) {
       const flexMessages = require('../utils/flexMessages');

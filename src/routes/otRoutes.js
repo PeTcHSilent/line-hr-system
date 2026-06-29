@@ -5,6 +5,7 @@ const employeeService = require('../services/employeeService');
 const flexMessages = require('../utils/flexMessages');
 const line = require('@line/bot-sdk');
 const { requireAuth } = require('../middleware/authMiddleware');
+const audit = require('../services/auditService');
 const client = new line.messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN
 });
@@ -161,6 +162,15 @@ router.patch('/:id/approve', requireAuth, async (req, res) => {
     if (ot && ot.employee_line_id) {
       client.pushMessage({ to: ot.employee_line_id, messages: [flexMessages.otStatusUpdate(ot, 'approved')] }).catch(() => {});
     }
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'approve_ot',
+      targetType:  'ot',
+      targetId:    ot?.id,
+      description: `อนุมัติ OT: ${ot?.employee_name || ''} — ${ot?.total_hours || ''} ชม. (${ot?.ot_date || ''})`,
+      meta:        { employee_name: ot?.employee_name, ot_date: ot?.ot_date, total_hours: ot?.total_hours },
+    });
     res.json({ success: true, ot, message: 'อนุมัติ OT สำเร็จ' });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
@@ -172,6 +182,15 @@ router.patch('/:id/reject', requireAuth, async (req, res) => {
     if (ot && ot.employee_line_id) {
       client.pushMessage({ to: ot.employee_line_id, messages: [flexMessages.otStatusUpdate(ot, 'rejected')] }).catch(() => {});
     }
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'reject_ot',
+      targetType:  'ot',
+      targetId:    ot?.id,
+      description: `ไม่อนุมัติ OT: ${ot?.employee_name || ''} — ${ot?.total_hours || ''} ชม. (${ot?.ot_date || ''})`,
+      meta:        { employee_name: ot?.employee_name, ot_date: ot?.ot_date, total_hours: ot?.total_hours },
+    });
     res.json({ success: true, ot, message: 'ปฏิเสธ OT สำเร็จ' });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
