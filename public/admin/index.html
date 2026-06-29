@@ -1655,6 +1655,13 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
           <label class="form-label">วันเริ่มงาน</label>
           <input type="date" id="f-start-date">
         </div>
+        <div class="form-group" id="f-status-group" style="display:none;">
+          <label class="form-label">สถานะพนักงาน</label>
+          <select id="f-status">
+            <option value="active">🟢 ทำงาน</option>
+            <option value="inactive">🔴 ออก</option>
+          </select>
+        </div>
       </div>
       <div id="line-status-section" style="margin-bottom:12px;"></div>
       <div class="modal-footer">
@@ -2504,6 +2511,8 @@ function openAddModal() {
   document.getElementById('f-manager').value = '';
   document.getElementById('f-code').disabled = false;
   document.getElementById('line-status-section').innerHTML = '';
+  const sg = document.getElementById('f-status-group');
+  if (sg) sg.style.display = 'none'; // ซ่อนตอนเพิ่มพนักงานใหม่
   populateDeptModalSelect();
   populateBranchModalSelect();
   document.getElementById('f-branch').value = '';
@@ -2553,6 +2562,13 @@ async function openEditModal(id) {
   document.getElementById('f-start-date').value = emp.hire_date ? emp.hire_date.slice(0,10) : '';
   // checkbox หักเงินขาดงาน (default TRUE ถ้าไม่มีค่า)
   document.getElementById('f-deduct-absent').checked = emp.deduct_absent !== false;
+
+  // สถานะ ทำงาน/ออก (แสดงเฉพาะตอน edit)
+  const statusGroup = document.getElementById('f-status-group');
+  if (statusGroup) {
+    statusGroup.style.display = '';
+    document.getElementById('f-status').value = emp.is_active !== false ? 'active' : 'inactive';
+  }
 
   // แสดง LINE status ใน modal
   const lineSection = document.getElementById('line-status-section');
@@ -2631,6 +2647,11 @@ async function saveEmployee() {
     hire_date: document.getElementById('f-start-date').value || null,
     deduct_absent: document.getElementById('f-deduct-absent').checked,
   };
+  // is_active: เฉพาะตอน edit (ค่าจาก dropdown สถานะ)
+  if (editingId) {
+    const statusEl = document.getElementById('f-status');
+    if (statusEl) body.is_active = statusEl.value === 'active';
+  }
 
   try {
     const url = editingId ? `${API}/api/employee/${editingId}` : `${API}/api/employee/`;

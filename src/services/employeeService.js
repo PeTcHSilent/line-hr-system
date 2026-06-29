@@ -189,7 +189,7 @@ async function getById(id) {
 async function updateEmployee(id, fields) {
   const allowed = ['name', 'sex', 'phone_no', 'email', 'department_id', 'role', 'manager_id', 'salary', 'deduct_absent',
     'bank_name', 'bank_branch', 'bank_account_no', 'bank_account_name',
-    'probation_start_date', 'probation_end_date', 'probation_status', 'branch_id', 'hire_date'];
+    'probation_start_date', 'probation_end_date', 'probation_status', 'branch_id', 'hire_date', 'is_active'];
   const setClauses = [];
   const values = [];
   let idx = 1;
@@ -206,7 +206,7 @@ async function updateEmployee(id, fields) {
 
   const result = await db.query(
     `UPDATE employees SET ${setClauses.join(', ')}
-     WHERE id = $${idx} AND is_active = TRUE
+     WHERE id = $${idx}
      RETURNING *`,
     values
   );
