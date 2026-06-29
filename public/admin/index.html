@@ -6926,10 +6926,9 @@ async function loadYTD() {
 }
 
 function exportTaxCSV(type) {
-  const year  = document.getElementById(`${type==='pnd1'?'pnd1':'pnd1k'}-year`)?.value
-              || document.getElementById('ytd-year')?.value
-              || new Date().getFullYear();
-  const month = document.getElementById('pnd1-month')?.value || new Date().getMonth()+1;
+  const yearId = type === 'pnd1' ? 'pnd1-year' : type === 'pnd1k' ? 'pnd1k-year' : 'ytd-year';
+  const year   = document.getElementById(yearId)?.value || new Date().getFullYear();
+  const month  = document.getElementById('pnd1-month')?.value || new Date().getMonth()+1;
   let url;
   if (type === 'pnd1')  url = `${API}/api/tax/pnd1/csv?year=${year}&month=${month}`;
   if (type === 'pnd1k') url = `${API}/api/tax/pnd1k/csv?year=${year}`;
