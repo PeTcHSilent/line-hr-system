@@ -5628,6 +5628,52 @@ async function loadDashboard() {
     }
   } catch(e) {}
 
+  // Branch summary — today's check-in rate
+  const branchTbody = document.getElementById('dash-branch-tbody');
+  if (branchTbody) {
+    try {
+      const empRes2 = await apiFetch(`${API}/api/employee`);
+      const emps2 = empRes2.ok ? await empRes2.json() : [];
+      const empList = Array.isArray(emps2) ? emps2 : (emps2.employees || emps2.data || []);
+      const branchEmp = {};
+      empList.forEach(e => {
+        const bn = e.branch_name || 'ไม่ระบุสาขา';
+        branchEmp[bn] = (branchEmp[bn] || 0) + 1;
+      });
+      const todayStr = new Date().toISOString().split('T')[0];
+      const attRes2 = await apiFetch(`${API}/api/attendance/all?date=${todayStr}`);
+      const att2 = attRes2.ok ? await attRes2.json() : [];
+      const branchCI = {};
+      (Array.isArray(att2) ? att2 : []).forEach(r => {
+        if (r.check_in) {
+          const bn = r.branch_name || 'ไม่ระบุสาขา';
+          branchCI[bn] = (branchCI[bn] || 0) + 1;
+        }
+      });
+      const rows = Object.entries(branchEmp).sort(([a],[b]) => a.localeCompare(b, 'th'));
+      if (!rows.length) {
+        branchTbody.innerHTML = '<tr><td colspan="4" class="no-data">ไม่พบข้อมูลสาขา</td></tr>';
+      } else {
+        branchTbody.innerHTML = rows.map(([bn, total]) => {
+          const ci = branchCI[bn] || 0;
+          const pct = total ? Math.round(ci / total * 100) : 0;
+          const barColor = pct >= 80 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444';
+          return `<tr>
+            <td style="font-size:12px;font-weight:600;">${bn}</td>
+            <td style="text-align:center;font-weight:600;">${total}</td>
+            <td style="text-align:center;color:#22c55e;font-weight:600;">${ci}</td>
+            <td><div style="display:flex;align-items:center;gap:6px;">
+              <div style="flex:1;background:#e5e7eb;border-radius:4px;height:8px;">
+                <div style="width:${pct}%;background:${barColor};border-radius:4px;height:8px;transition:width 0.5s;"></div>
+              </div>
+              <span style="font-size:11px;color:#6b7280;min-width:34px;">${pct}%</span>
+            </div></td>
+          </tr>`;
+        }).join('');
+      }
+    } catch(e) { console.warn('dashboard branch:', e.message); }
+  }
+
   // Leave trend chart (last 6 months)
   drawLeaveChart();
   // OT monthly chart + cost trend chart
