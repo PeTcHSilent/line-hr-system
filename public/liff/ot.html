@@ -269,6 +269,9 @@ async function checkOTType(dateStr) {
     if (data.ot_type === 'holiday') {
       label.className = 'ot-type-label holiday';
       label.innerHTML = '🎌 วันหยุด';
+    } else if (data.ot_type === 'weekend') {
+      label.className = 'ot-type-label holiday';
+      label.innerHTML = '📅 วันหยุดสุดสัปดาห์';
     } else {
       label.className = 'ot-type-label weekday';
       label.innerHTML = '📅 วันทำงานปกติ';
