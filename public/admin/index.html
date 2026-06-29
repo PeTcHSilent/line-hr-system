@@ -291,7 +291,14 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
     <!-- Charts Row -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
         <div class="card" style="margin-bottom:0;">
-          <div class="card-header"><div class="card-title">📊 การลา 6 เดือนล่าสุด</div></div>
+          <div class="card-header">
+            <div class="card-title" id="leave-chart-title">📊 การลา 6 เดือนล่าสุด</div>
+            <div style="display:flex;gap:4px;">
+              <button class="btn btn-sm btn-secondary" id="leave-btn-1" onclick="setLeaveRange(1)" style="font-size:11px;padding:3px 10px;">เดือนนี้</button>
+              <button class="btn btn-sm btn-primary"   id="leave-btn-6" onclick="setLeaveRange(6)" style="font-size:11px;padding:3px 10px;">6 เดือน</button>
+              <button class="btn btn-sm btn-secondary" id="leave-btn-12" onclick="setLeaveRange(12)" style="font-size:11px;padding:3px 10px;">1 ปี</button>
+            </div>
+          </div>
           <canvas id="dash-leave-chart" height="200"></canvas>
         </div>
         <div class="card" style="margin-bottom:0;">
@@ -302,11 +309,25 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
       <!-- OT & Cost Trend Charts -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
         <div class="card" style="margin-bottom:0;">
-          <div class="card-header"><div class="card-title">⏱️ ชั่วโมง OT รายเดือน (6 เดือนล่าสุด)</div></div>
+          <div class="card-header">
+            <div class="card-title" id="ot-chart-title">⏱️ ชั่วโมง OT รายเดือน</div>
+            <div id="ot-range-btns" style="display:flex;gap:4px;">
+              <button class="btn btn-sm btn-secondary" id="ot-btn-1" onclick="setOTRange(1)" style="font-size:11px;padding:3px 10px;">เดือนนี้</button>
+              <button class="btn btn-sm btn-primary"   id="ot-btn-6" onclick="setOTRange(6)" style="font-size:11px;padding:3px 10px;">6 เดือน</button>
+              <button class="btn btn-sm btn-secondary" id="ot-btn-12" onclick="setOTRange(12)" style="font-size:11px;padding:3px 10px;">1 ปี</button>
+            </div>
+          </div>
           <canvas id="dash-ot-monthly-chart" height="200"></canvas>
         </div>
         <div class="card" style="margin-bottom:0;">
-          <div class="card-header"><div class="card-title">💰 แนวโน้มค่าใช้จ่าย Payroll (6 เดือนล่าสุด)</div></div>
+          <div class="card-header">
+            <div class="card-title" id="cost-chart-title">💰 แนวโน้มค่าใช้จ่าย Payroll</div>
+            <div id="cost-range-btns" style="display:flex;gap:4px;">
+              <button class="btn btn-sm btn-secondary" id="cost-btn-1" onclick="setCostRange(1)" style="font-size:11px;padding:3px 10px;">เดือนนี้</button>
+              <button class="btn btn-sm btn-primary"   id="cost-btn-6" onclick="setCostRange(6)" style="font-size:11px;padding:3px 10px;">6 เดือน</button>
+              <button class="btn btn-sm btn-secondary" id="cost-btn-12" onclick="setCostRange(12)" style="font-size:11px;padding:3px 10px;">1 ปี</button>
+            </div>
+          </div>
           <canvas id="dash-cost-trend-chart" height="200"></canvas>
         </div>
       </div>
@@ -5677,20 +5698,32 @@ async function loadDashboard() {
   // Leave trend chart (last 6 months)
   drawLeaveChart();
   // OT monthly chart + cost trend chart
-  drawOTMonthlyChart();
-  drawCostTrendChart();
+  drawOTMonthlyChart(_otChartMonths);
+  drawCostTrendChart(_costChartMonths);
 }
 
-async function drawLeaveChart() {
+let _leaveChartMonths = 6;
+
+function setLeaveRange(n) {
+  _leaveChartMonths = n;
+  _setRangeBtnActive('leave', n);
+  const titleEl = document.getElementById('leave-chart-title');
+  if (titleEl) titleEl.textContent = n === 1 ? '📊 การลา — เดือนนี้'
+    : n === 12 ? '📊 การลา (1 ปีล่าสุด)'
+    : '📊 การลา 6 เดือนล่าสุด';
+  drawLeaveChart(n);
+}
+
+async function drawLeaveChart(months = 6) {
   const canvas = document.getElementById('dash-leave-chart');
   if (!canvas) return;
   const labels = [];
   const counts = [];
-  for (let i = 5; i >= 0; i--) {
+  for (let i = months - 1; i >= 0; i--) {
     const d = new Date();
     d.setMonth(d.getMonth() - i);
     const y = d.getFullYear(), m = d.getMonth()+1;
-    labels.push(`${m}/${y}`);
+    labels.push(`${m}/${String(y).slice(2)}`);
     try {
       const res = await apiFetch(`${API}/api/leave/all?year=${y}&month=${m}`);
       if (res.ok) {
@@ -5737,11 +5770,43 @@ async function drawDeptChart(depts) {
 let dashOTMonthlyChart = null;
 let dashCostTrendChart  = null;
 
-async function drawOTMonthlyChart() {
+let _otChartMonths = 6;
+let _costChartMonths = 6;
+
+function _setRangeBtnActive(prefix, n) {
+  [1,6,12].forEach(v => {
+    const el = document.getElementById(`${prefix}-btn-${v}`);
+    if (!el) return;
+    el.className = 'btn btn-sm ' + (v === n ? 'btn-primary' : 'btn-secondary');
+    el.style.fontSize = '11px'; el.style.padding = '3px 10px';
+  });
+}
+
+function setOTRange(n) {
+  _otChartMonths = n;
+  _setRangeBtnActive('ot', n);
+  const titleEl = document.getElementById('ot-chart-title');
+  if (titleEl) titleEl.textContent = n === 1 ? '⏱️ ชั่วโมง OT — เดือนนี้'
+    : n === 12 ? '⏱️ ชั่วโมง OT รายเดือน (1 ปีล่าสุด)'
+    : '⏱️ ชั่วโมง OT รายเดือน (6 เดือนล่าสุด)';
+  drawOTMonthlyChart(_otChartMonths);
+}
+
+function setCostRange(n) {
+  _costChartMonths = n;
+  _setRangeBtnActive('cost', n);
+  const titleEl = document.getElementById('cost-chart-title');
+  if (titleEl) titleEl.textContent = n === 1 ? '💰 ค่าใช้จ่าย Payroll — เดือนนี้'
+    : n === 12 ? '💰 แนวโน้มค่าใช้จ่าย Payroll (1 ปีล่าสุด)'
+    : '💰 แนวโน้มค่าใช้จ่าย Payroll (6 เดือนล่าสุด)';
+  drawCostTrendChart(_costChartMonths);
+}
+
+async function drawOTMonthlyChart(months = 6) {
   const canvas = document.getElementById('dash-ot-monthly-chart');
   if (!canvas) return;
   const labels = [], hoursData = [], otPayData = [];
-  for (let i = 5; i >= 0; i--) {
+  for (let i = months - 1; i >= 0; i--) {
     const d = new Date();
     d.setDate(1);
     d.setMonth(d.getMonth() - i);
@@ -5791,11 +5856,11 @@ async function drawOTMonthlyChart() {
   });
 }
 
-async function drawCostTrendChart() {
+async function drawCostTrendChart(months = 6) {
   const canvas = document.getElementById('dash-cost-trend-chart');
   if (!canvas) return;
   const labels = [], netData = [], salaryData = [], otPayData2 = [];
-  for (let i = 5; i >= 0; i--) {
+  for (let i = months - 1; i >= 0; i--) {
     const d = new Date();
     d.setDate(1);
     d.setMonth(d.getMonth() - i);
