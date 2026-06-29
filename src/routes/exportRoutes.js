@@ -108,7 +108,12 @@ router.get('/attendance', requireAuth, async (req, res) => {
         d.name AS department_name, b.name AS branch_name,
         a.work_date, a.check_in, a.check_out,
         ROUND(EXTRACT(EPOCH FROM (a.check_out - a.check_in))/3600, 2) AS hours_worked,
-        a.is_late,
+        EXISTS(
+          SELECT 1 FROM attendance_warnings aw
+          WHERE aw.employee_id = a.employee_id
+            AND aw.warning_date = a.work_date
+            AND aw.warning_type = 'late'
+        ) AS is_late,
         a.check_in_distance,  a.check_in_within_radius,
         a.check_out_distance, a.check_out_within_radius
       FROM attendance a
@@ -186,7 +191,7 @@ router.get('/leave', requireAuth, async (req, res) => {
         e.employee_code, e.name AS employee_name,
         d.name AS department_name, b.name AS branch_name,
         lt.name AS leave_type_name,
-        lr.start_date, lr.end_date, lr.days_taken,
+        lr.start_date, lr.end_date, lr.total_days AS days_taken,
         lr.reason, lr.status, lr.created_at,
         ab.name AS approved_by_name
       FROM leave_requests lr
