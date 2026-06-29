@@ -268,10 +268,10 @@ async function checkOTType(dateStr) {
     const data = await res.json();
     if (data.ot_type === 'holiday') {
       label.className = 'ot-type-label holiday';
-      label.innerHTML = '🎌 วันหยุด — อัตรา OT × 3.0';
+      label.innerHTML = '🎌 วันหยุด';
     } else {
       label.className = 'ot-type-label weekday';
-      label.innerHTML = '📅 วันทำงานปกติ — อัตรา OT × 1.5';
+      label.innerHTML = '📅 วันทำงานปกติ';
     }
     label.style.display = 'flex';
   } catch (e) { label.style.display = 'none'; }
