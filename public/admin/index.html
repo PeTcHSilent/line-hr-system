@@ -185,6 +185,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         รายงานภาษี (ภ.ง.ด.)
       </a>
+      <a class="nav-item" data-page="salary-adjustment" onclick="showPage('salary-adjustment')" href="#">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        ขึ้นเงินเดือนประจำปี
+      </a>
       <a class="nav-item" data-page="warnings" onclick="showPage('warnings')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         สาย / ขาดงาน
@@ -1272,6 +1276,163 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
       </div>
     </div>
 
+    <!-- ========== ขึ้นเงินเดือนประจำปี ========== -->
+    <div id="page-salary-adjustment" class="page">
+      <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <h2 class="page-title">ขึ้นเงินเดือนประจำปี</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn" onclick="openSalaryBulkModal()">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="17 11 12 6 7 11"/><polyline points="17 18 12 13 7 18"/></svg>
+            ขึ้นเงินเดือน Bulk
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI Summary -->
+      <div class="kpi-row" id="salary-adj-kpi" style="display:none;">
+        <div class="kpi"><div class="kpi-num" id="sa-kpi-count">0</div><div class="kpi-label">พนักงาน</div></div>
+        <div class="kpi"><div class="kpi-num" id="sa-kpi-avg-pct">0%</div><div class="kpi-label">เฉลี่ย %</div></div>
+        <div class="kpi"><div class="kpi-num" id="sa-kpi-total-diff">฿0</div><div class="kpi-label">ยอดขึ้นรวม/เดือน</div></div>
+      </div>
+
+      <!-- Filter -->
+      <div class="filter-bar" style="margin-bottom:12px;">
+        <select id="sa-filter-round" onchange="loadSalaryAdj()" style="min-width:200px;">
+          <option value="">— ทุกรอบ —</option>
+        </select>
+        <select id="sa-filter-year" onchange="loadSalaryAdj()">
+          <option value="">— ทุกปี —</option>
+        </select>
+        <button class="btn btn-outline" onclick="loadSalaryAdj()">🔍 ค้นหา</button>
+      </div>
+
+      <!-- Table -->
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>รหัส</th><th>ชื่อพนักงาน</th><th>แผนก</th>
+            <th>เงินเดือนเดิม</th><th>เพิ่ม</th><th>เงินเดือนใหม่</th>
+            <th>%</th><th>รอบ</th><th>วันที่มีผล</th><th>จัดการ</th>
+          </tr></thead>
+          <tbody id="salary-adj-tbody">
+            <tr><td colspan="10" class="no-data">กำลังโหลด...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Modal: ขึ้นเงินเดือนรายคน -->
+    <div id="modal-salary-one" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeSalaryOneModal()">
+      <div class="modal" style="max-width:480px;">
+        <div class="modal-header">
+          <h3 class="modal-title" id="salary-one-title">ขึ้นเงินเดือน</h3>
+          <button class="modal-close" onclick="closeSalaryOneModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">พนักงาน</label>
+            <select id="sa-one-emp"></select>
+          </div>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:12px;display:none;" id="sa-one-current-box">
+            <div style="font-size:12px;color:#64748b;">เงินเดือนปัจจุบัน</div>
+            <div style="font-size:20px;font-weight:700;color:#0f172a;" id="sa-one-current-salary">—</div>
+          </div>
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group">
+              <label class="form-label">ประเภท</label>
+              <select id="sa-one-type" onchange="calcSalaryPreview()">
+                <option value="percent">เปอร์เซ็นต์ (%)</option>
+                <option value="amount">จำนวนเงิน (บาท)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" id="sa-one-value-label">จำนวน (%)</label>
+              <input type="number" id="sa-one-value" min="0" step="0.01" placeholder="เช่น 5" oninput="calcSalaryPreview()">
+            </div>
+          </div>
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;margin-bottom:12px;display:none;" id="sa-one-preview-box">
+            <div style="font-size:12px;color:#3b82f6;">เงินเดือนใหม่ (Preview)</div>
+            <div style="font-size:20px;font-weight:700;color:#1d4ed8;" id="sa-one-new-salary">—</div>
+            <div style="font-size:12px;color:#64748b;" id="sa-one-diff-label"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">วันที่มีผล</label>
+            <input type="date" id="sa-one-date">
+          </div>
+          <div class="form-group">
+            <label class="form-label">ชื่อรอบ (เช่น ประจำปี 2026)</label>
+            <input type="text" id="sa-one-round" placeholder="ประจำปี 2026">
+          </div>
+          <div class="form-group">
+            <label class="form-label">เหตุผล / หมายเหตุ</label>
+            <textarea id="sa-one-reason" rows="2" placeholder="ผลการประเมินประจำปี..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeSalaryOneModal()">ยกเลิก</button>
+          <button class="btn" onclick="submitSalaryOne()">💾 ยืนยันขึ้นเงินเดือน</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: ขึ้นเงินเดือน Bulk -->
+    <div id="modal-salary-bulk" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeSalaryBulkModal()">
+      <div class="modal" style="max-width:520px;">
+        <div class="modal-header">
+          <h3 class="modal-title">ขึ้นเงินเดือน Bulk</h3>
+          <button class="modal-close" onclick="closeSalaryBulkModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#92400e;">
+            ⚠️ การขึ้นเงินเดือน Bulk จะอัปเดตเงินเดือนพนักงานทันที — ไม่สามารถย้อนกลับได้หลายรายการพร้อมกัน
+          </div>
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group">
+              <label class="form-label">กรองแผนก</label>
+              <select id="sa-bulk-dept">
+                <option value="">ทุกแผนก</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">กรองสาขา</label>
+              <select id="sa-bulk-branch">
+                <option value="">ทุกสาขา</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group">
+              <label class="form-label">ประเภท</label>
+              <select id="sa-bulk-type">
+                <option value="percent">เปอร์เซ็นต์ (%)</option>
+                <option value="amount">จำนวนเงิน (บาท)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">จำนวน</label>
+              <input type="number" id="sa-bulk-value" min="0" step="0.01" placeholder="เช่น 5">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">วันที่มีผล</label>
+            <input type="date" id="sa-bulk-date">
+          </div>
+          <div class="form-group">
+            <label class="form-label">ชื่อรอบ</label>
+            <input type="text" id="sa-bulk-round" placeholder="ประจำปี 2026">
+          </div>
+          <div class="form-group">
+            <label class="form-label">เหตุผล</label>
+            <textarea id="sa-bulk-reason" rows="2" placeholder="ผลการประเมินประจำปี 2026..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeSalaryBulkModal()">ยกเลิก</button>
+          <button class="btn btn-danger" onclick="submitSalaryBulk()">🚀 ดำเนินการขึ้นเงินเดือน</button>
+        </div>
+      </div>
+    </div>
+
     <div id="page-warnings" class="page">
       <div class="kpi-row">
         <div class="kpi"><div class="kpi-num" id="warn-total">0</div><div class="kpi-label">รายการทั้งหมด</div></div>
@@ -1896,6 +2057,7 @@ function showPage(name) {
     'org-chart':'Org Chart — โครงสร้างองค์กร', 'admin-users':'Admin LINE Users',
     'role-management':'จัดการ Role & สิทธิ์',
     'audit-log':'Audit Log — ประวัติการดำเนินการ',
+    'salary-adjustment':'ขึ้นเงินเดือนประจำปี',
   };
   document.getElementById('page-title').textContent = titles[name] || name;
   if (name === 'employees')   loadEmployees();
@@ -1923,7 +2085,8 @@ function showPage(name) {
   if (name === 'branches')     loadBranches();
   if (name === 'role-management') initRoleManagement();
   if (name === 'tax-report')     initTaxReport();
-  if (name === 'audit-log')      loadAuditLog(0);
+  if (name === 'audit-log')        loadAuditLog(0);
+  if (name === 'salary-adjustment') initSalaryAdj();
 }
 
 function updateClock() {
@@ -2464,6 +2627,7 @@ function renderEmpPage() {
       <td style="text-align:center;">${activeBadge}</td>
       <td><div class="actions">
         <button class="btn btn-ghost btn-sm" onclick="openEditModal(${e.id})">แก้ไข</button>
+        <button class="btn btn-sm" style="background:#dcfce7;color:#166534;border:none;" onclick="openSalaryAdjForEmp(${e.id})" title="ขึ้นเงินเดือน">💹</button>
         <button class="btn btn-danger btn-sm" onclick="confirmDelete(${e.id}, '${e.name}')">ลบ</button>
       </div></td>
     </tr>`;
@@ -7094,6 +7258,277 @@ async function exportOT() {
     setTimeout(() => URL.revokeObjectURL(url), 3000);
     toast('Export สำเร็จ ✅');
   } catch(err) { alert('Export ผิดพลาด: ' + err.message); }
+}
+
+// ════════════════════════════════════════════════════════════
+// ขึ้นเงินเดือนประจำปี (Salary Adjustment)
+// ════════════════════════════════════════════════════════════
+
+let _saAllEmps = [];
+
+async function initSalaryAdj() {
+  // โหลด dropdown พนักงาน / แผนก / สาขา
+  if (_saAllEmps.length === 0) {
+    const token = localStorage.getItem('hr_token');
+    const r = await fetch('/api/employee', { headers: { Authorization: 'Bearer ' + token } });
+    _saAllEmps = await r.json();
+  }
+
+  // เติม filter round
+  await loadSalaryAdjRounds();
+
+  // เติม filter year
+  const yearSel = document.getElementById('sa-filter-year');
+  const curYear = new Date().getFullYear();
+  yearSel.innerHTML = '<option value="">— ทุกปี —</option>';
+  for (let y = curYear; y >= curYear - 4; y--) {
+    yearSel.innerHTML += `<option value="${y}">${y + 543}</option>`;
+  }
+
+  await loadSalaryAdj();
+}
+
+async function loadSalaryAdjRounds() {
+  const token = localStorage.getItem('hr_token');
+  const rounds = await fetch('/api/salary-adjustment/rounds', {
+    headers: { Authorization: 'Bearer ' + token }
+  }).then(r => r.json()).catch(() => []);
+
+  const sel = document.getElementById('sa-filter-round');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— ทุกรอบ —</option>';
+  rounds.forEach(rd => {
+    sel.innerHTML += `<option value="${rd.round_name}" ${rd.round_name === cur ? 'selected' : ''}>${rd.round_name} (${rd.emp_count} คน)</option>`;
+  });
+}
+
+async function loadSalaryAdj() {
+  const token    = localStorage.getItem('hr_token');
+  const round    = document.getElementById('sa-filter-round')?.value || '';
+  const year     = document.getElementById('sa-filter-year')?.value  || '';
+  const tbody    = document.getElementById('salary-adj-tbody');
+  tbody.innerHTML = '<tr><td colspan="10" class="no-data">กำลังโหลด...</td></tr>';
+
+  const params = new URLSearchParams();
+  if (round) params.set('round_name', round);
+  if (year)  params.set('year', year);
+
+  const rows = await fetch('/api/salary-adjustment?' + params, {
+    headers: { Authorization: 'Bearer ' + token }
+  }).then(r => r.json()).catch(() => []);
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="no-data">ไม่มีข้อมูล</td></tr>';
+    document.getElementById('salary-adj-kpi').style.display = 'none';
+    return;
+  }
+
+  // KPI
+  const totalDiff = rows.reduce((s, r) => s + parseFloat(r.diff_amount || 0), 0);
+  const avgPct    = rows.reduce((s, r) => s + parseFloat(r.diff_percent || 0), 0) / rows.length;
+  document.getElementById('sa-kpi-count').textContent     = rows.length;
+  document.getElementById('sa-kpi-avg-pct').textContent   = avgPct.toFixed(2) + '%';
+  document.getElementById('sa-kpi-total-diff').textContent = '฿' + totalDiff.toLocaleString('th-TH', {minimumFractionDigits:2});
+  document.getElementById('salary-adj-kpi').style.display = 'flex';
+
+  const fmt = n => parseFloat(n||0).toLocaleString('th-TH', {minimumFractionDigits:2});
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.employee_code}</td>
+      <td>${r.employee_name}</td>
+      <td>${r.department_name || '—'}</td>
+      <td style="text-align:right;">฿${fmt(r.old_salary)}</td>
+      <td style="text-align:right;color:#16a34a;">+฿${fmt(r.diff_amount)}</td>
+      <td style="text-align:right;font-weight:600;">฿${fmt(r.new_salary)}</td>
+      <td style="text-align:right;color:#2563eb;">${parseFloat(r.diff_percent||0).toFixed(2)}%</td>
+      <td>${r.round_name || '—'}</td>
+      <td>${r.effective_date ? r.effective_date.slice(0,10) : '—'}</td>
+      <td>
+        <button class="btn btn-sm btn-outline" style="color:#dc2626;border-color:#dc2626;" onclick="rollbackSalaryAdj(${r.id}, '${r.employee_name}')">↩ ยกเลิก</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ── Modal รายคน ──────────────────────────────────────────────────────────────
+
+function openSalaryOneModal(empId) {
+  const sel = document.getElementById('sa-one-emp');
+  sel.innerHTML = _saAllEmps.map(e =>
+    `<option value="${e.id}" data-salary="${e.salary||0}" ${e.id == empId ? 'selected' : ''}>${e.employee_code} — ${e.name} (฿${parseFloat(e.salary||0).toLocaleString('th-TH')})</option>`
+  ).join('');
+  sel.onchange = () => updateSalaryOneEmpInfo();
+  updateSalaryOneEmpInfo();
+
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('sa-one-date').value    = today;
+  document.getElementById('sa-one-round').value   = `ประจำปี ${new Date().getFullYear() + 543}`;
+  document.getElementById('sa-one-value').value   = '';
+  document.getElementById('sa-one-reason').value  = '';
+  document.getElementById('sa-one-preview-box').style.display = 'none';
+
+  document.getElementById('modal-salary-one').style.display = 'flex';
+}
+
+function updateSalaryOneEmpInfo() {
+  const sel = document.getElementById('sa-one-emp');
+  const opt = sel.options[sel.selectedIndex];
+  const salary = parseFloat(opt?.dataset?.salary || 0);
+  document.getElementById('sa-one-current-salary').textContent = '฿' + salary.toLocaleString('th-TH', {minimumFractionDigits:2});
+  document.getElementById('sa-one-current-box').style.display = salary > 0 ? 'block' : 'none';
+  calcSalaryPreview();
+}
+
+function calcSalaryPreview() {
+  const sel     = document.getElementById('sa-one-emp');
+  const opt     = sel.options[sel.selectedIndex];
+  const salary  = parseFloat(opt?.dataset?.salary || 0);
+  const type    = document.getElementById('sa-one-type').value;
+  const val     = parseFloat(document.getElementById('sa-one-value').value || 0);
+  const lbl     = document.getElementById('sa-one-value-label');
+  lbl.textContent = type === 'percent' ? 'จำนวน (%)' : 'จำนวนเงิน (บาท)';
+
+  if (!val || !salary) {
+    document.getElementById('sa-one-preview-box').style.display = 'none';
+    return;
+  }
+  const newSal = type === 'percent'
+    ? Math.round(salary * (1 + val/100) * 100) / 100
+    : Math.round((salary + val) * 100) / 100;
+  const diff   = Math.round((newSal - salary) * 100) / 100;
+  const pct    = salary > 0 ? (diff / salary * 100).toFixed(2) : 0;
+
+  document.getElementById('sa-one-new-salary').textContent  = '฿' + newSal.toLocaleString('th-TH', {minimumFractionDigits:2});
+  document.getElementById('sa-one-diff-label').textContent  = `+฿${diff.toLocaleString('th-TH', {minimumFractionDigits:2})} (+${pct}%)`;
+  document.getElementById('sa-one-preview-box').style.display = 'block';
+}
+
+function closeSalaryOneModal() {
+  document.getElementById('modal-salary-one').style.display = 'none';
+}
+
+async function submitSalaryOne() {
+  const token  = localStorage.getItem('hr_token');
+  const empId  = document.getElementById('sa-one-emp').value;
+  const type   = document.getElementById('sa-one-type').value;
+  const val    = parseFloat(document.getElementById('sa-one-value').value);
+  const date   = document.getElementById('sa-one-date').value;
+  const round  = document.getElementById('sa-one-round').value.trim();
+  const reason = document.getElementById('sa-one-reason').value.trim();
+
+  if (!empId) return toast('กรุณาเลือกพนักงาน', 'error');
+  if (!val || isNaN(val)) return toast('กรุณาระบุจำนวน', 'error');
+  if (!date)  return toast('กรุณาระบุวันที่มีผล', 'error');
+
+  try {
+    const res = await fetch('/api/salary-adjustment/one', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ employee_id: empId, adjustment_type: type, adjustment_value: val, effective_date: date, round_name: round, reason }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    toast(`✅ ขึ้นเงินเดือน ${data.result.employee_name} เป็น ฿${parseFloat(data.result.new_salary).toLocaleString('th-TH')} แล้ว`);
+    closeSalaryOneModal();
+    _saAllEmps = []; // reset cache
+    await loadSalaryAdjRounds();
+    await loadSalaryAdj();
+  } catch (e) { toast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
+}
+
+// ── Modal Bulk ────────────────────────────────────────────────────────────────
+
+async function openSalaryBulkModal() {
+  const token = localStorage.getItem('hr_token');
+
+  // เติม dept
+  const deptSel = document.getElementById('sa-bulk-dept');
+  if (deptSel.options.length <= 1) {
+    const depts = await fetch('/api/department', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()).catch(() => []);
+    depts.forEach(d => { deptSel.innerHTML += `<option value="${d.id}">${d.name}</option>`; });
+  }
+
+  // เติม branch
+  const branchSel = document.getElementById('sa-bulk-branch');
+  if (branchSel.options.length <= 1) {
+    const branches = await fetch('/api/branch', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()).catch(() => []);
+    branches.forEach(b => { branchSel.innerHTML += `<option value="${b.id}">${b.name}</option>`; });
+  }
+
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('sa-bulk-date').value  = today;
+  document.getElementById('sa-bulk-round').value = `ประจำปี ${new Date().getFullYear() + 543}`;
+  document.getElementById('sa-bulk-value').value = '';
+  document.getElementById('sa-bulk-reason').value = '';
+
+  document.getElementById('modal-salary-bulk').style.display = 'flex';
+}
+
+function closeSalaryBulkModal() {
+  document.getElementById('modal-salary-bulk').style.display = 'none';
+}
+
+async function submitSalaryBulk() {
+  const token  = localStorage.getItem('hr_token');
+  const type   = document.getElementById('sa-bulk-type').value;
+  const val    = parseFloat(document.getElementById('sa-bulk-value').value);
+  const date   = document.getElementById('sa-bulk-date').value;
+  const round  = document.getElementById('sa-bulk-round').value.trim();
+  const reason = document.getElementById('sa-bulk-reason').value.trim();
+  const dept   = document.getElementById('sa-bulk-dept').value || null;
+  const branch = document.getElementById('sa-bulk-branch').value || null;
+
+  if (!val || isNaN(val)) return toast('กรุณาระบุจำนวน', 'error');
+  if (!date)              return toast('กรุณาระบุวันที่มีผล', 'error');
+
+  const typeLabel = type === 'percent' ? `${val}%` : `฿${val}`;
+  const scopeLabel = dept
+    ? document.getElementById('sa-bulk-dept').options[document.getElementById('sa-bulk-dept').selectedIndex].text
+    : branch
+      ? document.getElementById('sa-bulk-branch').options[document.getElementById('sa-bulk-branch').selectedIndex].text
+      : 'พนักงานทุกคน';
+
+  if (!confirm(`⚠️ ยืนยันการขึ้นเงินเดือน ${typeLabel} สำหรับ "${scopeLabel}" มีผล ${date}\nดำเนินการต่อ?`)) return;
+
+  try {
+    const res = await fetch('/api/salary-adjustment/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ adjustment_type: type, adjustment_value: val, effective_date: date, round_name: round, reason, department_id: dept, branch_id: branch }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    toast(`✅ ขึ้นเงินเดือนสำเร็จ ${data.success}/${data.total} คน${data.failed > 0 ? ` (ผิดพลาด ${data.failed} คน)` : ''}`);
+    closeSalaryBulkModal();
+    _saAllEmps = [];
+    await loadSalaryAdjRounds();
+    await loadSalaryAdj();
+  } catch (e) { toast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
+}
+
+// ── Rollback ──────────────────────────────────────────────────────────────────
+
+async function rollbackSalaryAdj(id, empName) {
+  if (!confirm(`ยืนยันการยกเลิกการขึ้นเงินเดือนของ "${empName}"?\nเงินเดือนจะถูกคืนกลับเป็นค่าเดิม`)) return;
+  const token = localStorage.getItem('hr_token');
+  try {
+    const res = await fetch(`/api/salary-adjustment/${id}/rollback`, {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    toast('↩ ยกเลิกการขึ้นเงินเดือนเรียบร้อยแล้ว');
+    _saAllEmps = [];
+    await loadSalaryAdjRounds();
+    await loadSalaryAdj();
+  } catch (e) { toast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
+}
+
+// เปิด modal รายคน จากหน้า Employee list
+function openSalaryAdjForEmp(empId) {
+  showPage('salary-adjustment');
+  setTimeout(() => openSalaryOneModal(empId), 300);
 }
 
 </script>
