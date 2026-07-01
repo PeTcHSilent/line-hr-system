@@ -499,8 +499,8 @@ function renderContent(emp, balance, otData) {
     const grid = document.createElement('div');
     grid.className = 'card balance-grid';
     balance.forEach(b => {
-      const used = b.days_used || 0;
-      const max  = b.max_days  || 0;
+      const used = b.used_days || b.days_used || 0;
+      const max  = b.effective_quota || b.max_days || 0;
       const pct  = max > 0 ? Math.min(100, Math.round(used / max * 100)) : 0;
       const cls  = pct >= 100 ? 'full' : pct >= 75 ? 'warn' : '';
       grid.insertAdjacentHTML('beforeend', `
