@@ -7269,8 +7269,7 @@ let _saAllEmps = [];
 async function initSalaryAdj() {
   // โหลด dropdown พนักงาน / แผนก / สาขา
   if (_saAllEmps.length === 0) {
-    const token = localStorage.getItem('hr_token');
-    const r = await fetch('/api/employee', { headers: { Authorization: 'Bearer ' + token } });
+    const r = await apiFetch('/api/employee');
     _saAllEmps = await r.json();
   }
 
@@ -7289,21 +7288,18 @@ async function initSalaryAdj() {
 }
 
 async function loadSalaryAdjRounds() {
-  const token = localStorage.getItem('hr_token');
-  const rounds = await fetch('/api/salary-adjustment/rounds', {
-    headers: { Authorization: 'Bearer ' + token }
-  }).then(r => r.json()).catch(() => []);
+  const rounds = await apiFetch('/api/salary-adjustment/rounds')
+    .then(r => r.json()).catch(() => []);
 
   const sel = document.getElementById('sa-filter-round');
   const cur = sel.value;
   sel.innerHTML = '<option value="">— ทุกรอบ —</option>';
-  rounds.forEach(rd => {
+  (Array.isArray(rounds) ? rounds : []).forEach(rd => {
     sel.innerHTML += `<option value="${rd.round_name}" ${rd.round_name === cur ? 'selected' : ''}>${rd.round_name} (${rd.emp_count} คน)</option>`;
   });
 }
 
 async function loadSalaryAdj() {
-  const token    = localStorage.getItem('hr_token');
   const round    = document.getElementById('sa-filter-round')?.value || '';
   const year     = document.getElementById('sa-filter-year')?.value  || '';
   const tbody    = document.getElementById('salary-adj-tbody');
@@ -7313,9 +7309,8 @@ async function loadSalaryAdj() {
   if (round) params.set('round_name', round);
   if (year)  params.set('year', year);
 
-  const rows = await fetch('/api/salary-adjustment?' + params, {
-    headers: { Authorization: 'Bearer ' + token }
-  }).then(r => r.json()).catch(() => []);
+  const rows = await apiFetch('/api/salary-adjustment?' + params)
+    .then(r => r.json()).catch(() => []);
 
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="10" class="no-data">ไม่มีข้อมูล</td></tr>';
@@ -7408,7 +7403,6 @@ function closeSalaryOneModal() {
 }
 
 async function submitSalaryOne() {
-  const token  = localStorage.getItem('hr_token');
   const empId  = document.getElementById('sa-one-emp').value;
   const type   = document.getElementById('sa-one-type').value;
   const val    = parseFloat(document.getElementById('sa-one-value').value);
@@ -7421,9 +7415,8 @@ async function submitSalaryOne() {
   if (!date)  return toast('กรุณาระบุวันที่มีผล', 'error');
 
   try {
-    const res = await fetch('/api/salary-adjustment/one', {
+    const res = await apiFetch('/api/salary-adjustment/one', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
       body: JSON.stringify({ employee_id: empId, adjustment_type: type, adjustment_value: val, effective_date: date, round_name: round, reason }),
     });
     const data = await res.json();
@@ -7439,19 +7432,17 @@ async function submitSalaryOne() {
 // ── Modal Bulk ────────────────────────────────────────────────────────────────
 
 async function openSalaryBulkModal() {
-  const token = localStorage.getItem('hr_token');
-
   // เติม dept
   const deptSel = document.getElementById('sa-bulk-dept');
   if (deptSel.options.length <= 1) {
-    const depts = await fetch('/api/department', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()).catch(() => []);
+    const depts = await apiFetch('/api/department').then(r => r.json()).catch(() => []);
     depts.forEach(d => { deptSel.innerHTML += `<option value="${d.id}">${d.name}</option>`; });
   }
 
   // เติม branch
   const branchSel = document.getElementById('sa-bulk-branch');
   if (branchSel.options.length <= 1) {
-    const branches = await fetch('/api/branch', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()).catch(() => []);
+    const branches = await apiFetch('/api/branch').then(r => r.json()).catch(() => []);
     branches.forEach(b => { branchSel.innerHTML += `<option value="${b.id}">${b.name}</option>`; });
   }
 
@@ -7469,7 +7460,6 @@ function closeSalaryBulkModal() {
 }
 
 async function submitSalaryBulk() {
-  const token  = localStorage.getItem('hr_token');
   const type   = document.getElementById('sa-bulk-type').value;
   const val    = parseFloat(document.getElementById('sa-bulk-value').value);
   const date   = document.getElementById('sa-bulk-date').value;
@@ -7491,9 +7481,8 @@ async function submitSalaryBulk() {
   if (!confirm(`⚠️ ยืนยันการขึ้นเงินเดือน ${typeLabel} สำหรับ "${scopeLabel}" มีผล ${date}\nดำเนินการต่อ?`)) return;
 
   try {
-    const res = await fetch('/api/salary-adjustment/bulk', {
+    const res = await apiFetch('/api/salary-adjustment/bulk', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
       body: JSON.stringify({ adjustment_type: type, adjustment_value: val, effective_date: date, round_name: round, reason, department_id: dept, branch_id: branch }),
     });
     const data = await res.json();
@@ -7510,11 +7499,9 @@ async function submitSalaryBulk() {
 
 async function rollbackSalaryAdj(id, empName) {
   if (!confirm(`ยืนยันการยกเลิกการขึ้นเงินเดือนของ "${empName}"?\nเงินเดือนจะถูกคืนกลับเป็นค่าเดิม`)) return;
-  const token = localStorage.getItem('hr_token');
   try {
-    const res = await fetch(`/api/salary-adjustment/${id}/rollback`, {
+    const res = await apiFetch(`/api/salary-adjustment/${id}/rollback`, {
       method: 'DELETE',
-      headers: { Authorization: 'Bearer ' + token },
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
