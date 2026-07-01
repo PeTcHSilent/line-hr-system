@@ -2115,15 +2115,18 @@ const MENU_DEFS = [
   { key:'ot',                label:'⏱️ OT' },
   { key:'report',            label:'📈 Summary Report' },
   { key:'calendar',          label:'📆 ปฏิทิน' },
-  { key:'payroll',           label:'💰 Payroll' },
-  { key:'warnings',          label:'⚠️ สาย/ขาดงาน' },
-  { key:'expense',           label:'🧾 เบิกค่าใช้จ่าย' },
-  { key:'probation',         label:'📝 ทดลองงาน' },
-  { key:'broadcast',         label:'📢 Broadcast' },
-  { key:'shift',             label:'🔄 Shift' },
-  { key:'org-chart',         label:'🌐 Org Chart' },
-  { key:'admin-users',       label:'🛡️ Admin LINE' },
-  { key:'settings',          label:'⚙️ ตั้งค่า' },
+  { key:'payroll',            label:'💰 Payroll' },
+  { key:'tax-report',         label:'🧾 รายงานภาษี (ภ.ง.ด.)' },
+  { key:'salary-adjustment',  label:'📈 ขึ้นเงินเดือนประจำปี' },
+  { key:'warnings',           label:'⚠️ สาย/ขาดงาน' },
+  { key:'expense',            label:'🧾 เบิกค่าใช้จ่าย' },
+  { key:'probation',          label:'📝 ทดลองงาน' },
+  { key:'broadcast',          label:'📢 Broadcast' },
+  { key:'shift',              label:'🔄 Shift' },
+  { key:'org-chart',          label:'🌐 Org Chart' },
+  { key:'admin-users',        label:'🛡️ Admin LINE' },
+  { key:'audit-log',          label:'📋 Audit Log' },
+  { key:'settings',           label:'⚙️ ตั้งค่า' },
 ];
 
 let _roles = [], _subAdmins = [], _roleInited = false;
@@ -7598,4 +7601,28 @@ function openSalaryAdjForEmp(empId) {
       </div>
       <div>
         <label class="form-label">ชั่วโมง OT (ระบุเพื่อ override)</label>
- 
+        <input type="number" id="ot-edit-hours" class="form-input" step="0.25" min="0" placeholder="เว้นว่างเพื่อคำนวณจากเวลา">
+        <div id="ot-edit-hours-note" style="font-size:11px;color:#9ca3af;margin-top:4px;"></div>
+      </div>
+      <div>
+        <label class="form-label">ประเภท OT</label>
+        <select id="ot-edit-type" class="form-input">
+          <option value="weekday">วันธรรมดา</option>
+          <option value="weekend">วันหยุดสัปดาห์</option>
+          <option value="holiday">วันหยุดนักขัตฤกษ์</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">เหตุผล</label>
+        <input type="text" id="ot-edit-reason" class="form-input" placeholder="เหตุผลการทำ OT">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('ot-edit-modal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveOTEdit()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
