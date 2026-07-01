@@ -1326,8 +1326,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
     </div>
 
     <!-- Modal: ขึ้นเงินเดือนรายคน -->
-    <div id="modal-salary-one" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeSalaryOneModal()">
-      <div class="modal" style="max-width:480px;">
+    <div id="modal-salary-one" class="modal" onclick="if(event.target===this)closeSalaryOneModal()">
+      <div class="modal-box" style="max-width:480px;">
         <div class="modal-header">
           <h3 class="modal-title" id="salary-one-title">ขึ้นเงินเดือน</h3>
           <button class="modal-close" onclick="closeSalaryOneModal()">✕</button>
@@ -1380,8 +1380,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
     </div>
 
     <!-- Modal: ขึ้นเงินเดือน Bulk -->
-    <div id="modal-salary-bulk" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeSalaryBulkModal()">
-      <div class="modal" style="max-width:520px;">
+    <div id="modal-salary-bulk" class="modal" onclick="if(event.target===this)closeSalaryBulkModal()">
+      <div class="modal-box" style="max-width:520px;">
         <div class="modal-header">
           <h3 class="modal-title">ขึ้นเงินเดือน Bulk</h3>
           <button class="modal-close" onclick="closeSalaryBulkModal()">✕</button>
@@ -7379,7 +7379,7 @@ async function openSalaryOneModal(empId) {
   document.getElementById('sa-one-reason').value  = '';
   document.getElementById('sa-one-preview-box').style.display = 'none';
 
-  document.getElementById('modal-salary-one').style.display = 'flex';
+  document.getElementById('modal-salary-one').classList.add('open');
 }
 
 function updateSalaryOneEmpInfo() {
@@ -7416,7 +7416,7 @@ function calcSalaryPreview() {
 }
 
 function closeSalaryOneModal() {
-  document.getElementById('modal-salary-one').style.display = 'none';
+  document.getElementById('modal-salary-one').classList.remove('open');
 }
 
 async function submitSalaryOne() {
@@ -7469,11 +7469,11 @@ async function openSalaryBulkModal() {
   document.getElementById('sa-bulk-value').value = '';
   document.getElementById('sa-bulk-reason').value = '';
 
-  document.getElementById('modal-salary-bulk').style.display = 'flex';
+  document.getElementById('modal-salary-bulk').classList.add('open');
 }
 
 function closeSalaryBulkModal() {
-  document.getElementById('modal-salary-bulk').style.display = 'none';
+  document.getElementById('modal-salary-bulk').classList.remove('open');
 }
 
 async function submitSalaryBulk() {
