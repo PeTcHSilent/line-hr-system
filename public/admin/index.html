@@ -7273,8 +7273,11 @@ let _saAllEmps = [];
 async function initSalaryAdj() {
   // โหลด dropdown พนักงาน / แผนก / สาขา
   if (_saAllEmps.length === 0) {
-    const r = await apiFetch('/api/employee');
-    _saAllEmps = await r.json();
+    try {
+      const r = await apiFetch('/api/employee');
+      const data = await r.json();
+      _saAllEmps = Array.isArray(data) ? data : [];
+    } catch(e) { _saAllEmps = []; }
   }
 
   // เติม filter round
@@ -7351,7 +7354,17 @@ async function loadSalaryAdj() {
 
 // ── Modal รายคน ──────────────────────────────────────────────────────────────
 
-function openSalaryOneModal(empId) {
+async function openSalaryOneModal(empId) {
+  // reload ถ้ายังไม่มีข้อมูลพนักงาน (กรณีคลิกเร็วก่อน initSalaryAdj โหลดเสร็จ)
+  if (!Array.isArray(_saAllEmps) || _saAllEmps.length === 0) {
+    try {
+      const r = await apiFetch('/api/employee');
+      const data = await r.json();
+      _saAllEmps = Array.isArray(data) ? data : [];
+    } catch(e) { _saAllEmps = []; }
+  }
+  if (_saAllEmps.length === 0) return toast('ไม่พบข้อมูลพนักงาน', 'error');
+
   const sel = document.getElementById('sa-one-emp');
   sel.innerHTML = _saAllEmps.map(e =>
     `<option value="${e.id}" data-salary="${e.salary||0}" ${e.id == empId ? 'selected' : ''}>${e.employee_code} — ${e.name} (฿${parseFloat(e.salary||0).toLocaleString('th-TH')})</option>`
