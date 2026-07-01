@@ -523,20 +523,6 @@ function renderContent(emp, balance, otData) {
   content.appendChild(calCard);
   renderCalendar();
 
-  // 4. OT summary
-  const sum = otData.summary || {};
-  content.insertAdjacentHTML('beforeend', `
-    <div class="section-title">OT ปี ${currentYear}</div>
-    <div class="card">
-      <div class="ot-summary">
-        <div class="ot-stat"><div class="num blue">${sum.total || 0}</div><div class="lbl">ทั้งหมด</div></div>
-        <div class="ot-stat"><div class="num green">${sum.approved || 0}</div><div class="lbl">อนุมัติ</div></div>
-        <div class="ot-stat"><div class="num yellow">${sum.pending || 0}</div><div class="lbl">รอ</div></div>
-        <div class="ot-stat"><div class="num blue">${sum.total_approved_hours || 0} ชม.</div><div class="lbl">ชม.ที่ได้รับ</div></div>
-      </div>
-    </div>
-  `);
-
   // 5. OT history (recent 10)
   const records = (otData.records || []).slice(0, 10);
   if (records.length) {
