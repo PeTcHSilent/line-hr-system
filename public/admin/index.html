@@ -6626,28 +6626,67 @@ function renderOrgChart() {
     }
   });
 
-  function renderNode(node, depth=0) {
-    const roleColor = { admin:'#7c3aed', hr:'#0891b2', manager:'#b45309', employee:'#374151' };
+  const roleColor = { admin:'#7c3aed', hr:'#0891b2', manager:'#b45309', employee:'#374151' };
+
+  function makeCard(node) {
     const color = roleColor[node.role] || '#374151';
-    const deptBadge = node.department_name ? `<span style="font-size:10px;background:#f1f5f9;color:#64748b;padding:1px 6px;border-radius:4px;">${node.department_name}</span>` : '';
-    const childrenHtml = node.children.length
-      ? `<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:2px solid #e2e8f0;">${node.children.map(c => renderNode(c, depth+1)).join('')}</div>`
+    const dept = node.department_name
+      ? `<span style="font-size:10px;background:#f1f5f9;color:#64748b;padding:1px 5px;border-radius:3px;display:inline-block;margin-top:3px;">${node.department_name}</span>`
       : '';
-    return `<div style="display:inline-flex;flex-direction:column;align-items:center;min-width:120px;max-width:160px;">
-      <div style="background:#fff;border:2px solid ${color};border-radius:10px;padding:10px 12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:default;width:100%;box-sizing:border-box;">
-        <div style="width:36px;height:36px;border-radius:50%;background:${color}22;border:2px solid ${color};display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:14px;">
-          ${node.sex==='W'?'👩':'👨'}
-        </div>
-        <div style="font-size:11px;font-weight:700;color:${color};margin-bottom:2px;">${node.employee_code||''}</div>
-        <div style="font-size:12px;font-weight:600;color:#1e293b;margin-bottom:4px;line-height:1.2;">${node.name||'—'}</div>
-        ${deptBadge}
-        <div style="font-size:10px;color:#94a3b8;margin-top:2px;">${node.role||''}</div>
-      </div>
-      ${childrenHtml}
+    return `<div class="oc2-card" style="border-color:${color};">
+      <div class="oc2-av" style="background:${color}22;border-color:${color};">${node.sex==='W'?'👩':'👨'}</div>
+      <div style="font-size:11px;font-weight:700;color:${color};margin-bottom:1px;">${node.employee_code||''}</div>
+      <div style="font-size:12px;font-weight:600;color:#1e293b;line-height:1.3;margin-bottom:2px;">${node.name||'—'}</div>
+      ${dept}
+      <div style="font-size:10px;color:#94a3b8;margin-top:2px;">${node.role||''}</div>
     </div>`;
   }
 
-  container.innerHTML = `<div style="display:flex;gap:24px;justify-content:center;flex-wrap:wrap;padding:8px;">${roots.map(r => renderNode(r)).join('')}</div>`;
+  function renderNode(node) {
+    const card = makeCard(node);
+    if (!node.children.length) {
+      return `<div class="oc2-leaf">${card}</div>`;
+    }
+    const cols = node.children.map(c => `<div class="oc2-col">${renderNode(c)}</div>`).join('');
+    return `<div class="oc2-node">
+      ${card}
+      <div class="oc2-vdown"></div>
+      <div class="oc2-row">${cols}</div>
+    </div>`;
+  }
+
+  const css = `<style>
+    .oc2-wrap { overflow-x:auto; padding:16px; }
+    .oc2-roots { display:flex; justify-content:center; gap:32px; flex-wrap:wrap; }
+    .oc2-node, .oc2-leaf { display:flex; flex-direction:column; align-items:center; }
+    .oc2-card {
+      background:#fff; border:2px solid; border-radius:10px;
+      padding:10px 12px; text-align:center;
+      box-shadow:0 2px 8px rgba(0,0,0,.08);
+      min-width:110px; max-width:145px; cursor:default; box-sizing:border-box;
+    }
+    .oc2-av {
+      width:32px; height:32px; border-radius:50%; border:2px solid;
+      display:flex; align-items:center; justify-content:center;
+      margin:0 auto 4px; font-size:14px;
+    }
+    .oc2-vdown { width:2px; height:20px; background:#cbd5e1; flex-shrink:0; }
+    .oc2-row { display:flex; position:relative; align-items:flex-start; }
+    .oc2-col { display:flex; flex-direction:column; align-items:center; padding:0 10px; position:relative; }
+    .oc2-col:not(:only-child)::before {
+      content:''; position:absolute; top:0; left:0; width:50%; height:2px; background:#cbd5e1;
+    }
+    .oc2-col:not(:only-child)::after {
+      content:''; position:absolute; top:0; right:0; width:50%; height:2px; background:#cbd5e1;
+    }
+    .oc2-col:first-child::before { display:none; }
+    .oc2-col:last-child::after { display:none; }
+    .oc2-col > .oc2-node::before, .oc2-col > .oc2-leaf::before {
+      content:''; display:block; width:2px; height:20px; background:#cbd5e1; margin:0 auto;
+    }
+  </style>`;
+
+  container.innerHTML = css + `<div class="oc2-wrap"><div class="oc2-roots">${roots.map(r => renderNode(r)).join('')}</div></div>`;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -7559,28 +7598,4 @@ function openSalaryAdjForEmp(empId) {
       </div>
       <div>
         <label class="form-label">ชั่วโมง OT (ระบุเพื่อ override)</label>
-        <input type="number" id="ot-edit-hours" class="form-input" step="0.25" min="0" placeholder="เว้นว่างเพื่อคำนวณจากเวลา">
-        <div id="ot-edit-hours-note" style="font-size:11px;color:#9ca3af;margin-top:4px;"></div>
-      </div>
-      <div>
-        <label class="form-label">ประเภท OT</label>
-        <select id="ot-edit-type" class="form-input">
-          <option value="weekday">วันธรรมดา</option>
-          <option value="weekend">วันหยุดสัปดาห์</option>
-          <option value="holiday">วันหยุดนักขัตฤกษ์</option>
-        </select>
-      </div>
-      <div>
-        <label class="form-label">เหตุผล</label>
-        <input type="text" id="ot-edit-reason" class="form-input" placeholder="เหตุผลการทำ OT">
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('ot-edit-modal')">ยกเลิก</button>
-      <button class="btn btn-primary" onclick="saveOTEdit()">💾 บันทึก</button>
-    </div>
-  </div>
-</div>
-
-</body>
-</html>
+ 
