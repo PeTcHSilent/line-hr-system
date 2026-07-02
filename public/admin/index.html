@@ -610,8 +610,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
             <select id="holiday-year" style="width:140px;" onchange="loadHolidays()"><option value="">ทุกปี</option></select></div>
         </div>
         <div class="tbl-wrap">
-          <table><thead><tr><th>วันที่</th><th>ชื่อวันหยุด</th><th>วันหยุดแทน</th><th>จัดการ</th></tr></thead>
-          <tbody id="holiday-tbody"><tr><td colspan="4" class="no-data">กำลังโหลด...</td></tr></tbody></table>
+          <table><thead><tr><th>วันที่</th><th>ชื่อวันหยุด</th><th>วัน</th><th>ประเภท</th><th>จัดการ</th></tr></thead>
+          <tbody id="holiday-tbody"><tr><td colspan="5" class="no-data">กำลังโหลด...</td></tr></tbody></table>
         </div>
       </div>
     </div>
@@ -3581,16 +3581,15 @@ async function loadHolidays() {
 function openHolidayModal() {
   document.getElementById('h-date').value = '';
   document.getElementById('h-name').value = '';
-  document.getElementById('h-year').value = document.getElementById('holiday-year').value;
   document.getElementById('h-sub').checked = false;
-  openModal('holiday-modal');
+  openModal('h-modal');
 }
 
 async function saveHoliday() {
   const date = document.getElementById('h-date').value;
   const name = document.getElementById('h-name').value.trim();
-  const year = parseInt(document.getElementById('h-year').value);
-  if (!date || !name) return toast('กรุณากรอกข้อมูลให้ครบ', 'error');
+  const year = date ? new Date(date).getFullYear() : null;
+  if (!date || !name || !year) return toast('กรุณากรอกข้อมูลให้ครบ', 'error');
   try {
     const res = await apiFetch(`${API}/api/holidays`, {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -3599,7 +3598,7 @@ async function saveHoliday() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     toast('เพิ่มวันหยุดสำเร็จ');
-    closeModal('holiday-modal');
+    closeModal('h-modal');
     loadHolidays();
   } catch(err) { toast(err.message, 'error'); }
 }
