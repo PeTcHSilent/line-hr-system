@@ -4220,7 +4220,7 @@ async function sendBroadcast() {
       toast(`✅ ส่งสำเร็จ ${sent}/${total} คน`);
     }
     document.getElementById('bc-title').value = '';
-    document.getElementById('bc-message').value = '';
+    document.getElementById('bc-msg').value = '';
     await loadBroadcastHistory();
   } catch(err) {
     toast(err.message, 'error');
