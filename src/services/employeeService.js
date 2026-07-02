@@ -135,23 +135,23 @@ async function getLeaveBalance(employeeId, sex) {
   );
   const quotaRules = quotaRes.rows;
 
-  // ดึง leave types + วันที่ใช้ไปปีนี้
+  // ดึง leave types + วันที่ใช้ไปปีนี้ (approved) + วันรออนุมัติ (pending)
   const result = await db.query(
     `SELECT lt.id, lt.name, lt.max_days, lt.gender_restriction,
-            COALESCE(SUM(lr.total_days) FILTER (WHERE lr.status = 'approved'), 0) AS used_days
+            COALESCE(SUM(lr.total_days) FILTER (WHERE lr.status = 'approved'), 0)::int AS used_days,
+            COALESCE(SUM(lr.total_days) FILTER (WHERE lr.status = 'pending'),  0)::int AS pending_days
      FROM leave_types lt
      LEFT JOIN leave_requests lr
        ON lr.leave_type_id = lt.id
        AND lr.employee_id = $1
        AND EXTRACT(YEAR FROM lr.start_date) = $2
-     WHERE lt.gender_restriction IS NULL
-        OR lt.gender_restriction = $3
+     WHERE (lt.gender_restriction IS NULL OR lt.gender_restriction = $3)
      GROUP BY lt.id, lt.name, lt.max_days, lt.gender_restriction
      ORDER BY lt.id`,
     [employeeId, year, sex || null]
   );
 
-  // รวม effective quota (quota rule > max_days fallback)
+  // รวม effective_quota จาก quota_rules (อายุงาน) หรือ max_days ถ้าไม่มีกฎ
   return result.rows.map(lt => {
     const matching = quotaRules
       .filter(r =>
@@ -160,8 +160,14 @@ async function getLeaveBalance(employeeId, sex) {
         (r.max_years === null || seniorityYears < parseFloat(r.max_years))
       )
       .sort((a, b) => parseFloat(b.min_years) - parseFloat(a.min_years));
-    const effectiveQuota = matching[0] ? matching[0].quota_days : lt.max_days;
-    return { ...lt, effective_quota: effectiveQuota, seniority_years: Math.round(seniorityYears * 10) / 10 };
+    const effectiveQuota = matching[0] ? Number(matching[0].quota_days) : (lt.max_days != null ? Number(lt.max_days) : null);
+    return {
+      ...lt,
+      used_days:       Number(lt.used_days),
+      pending_days:    Number(lt.pending_days),
+      effective_quota: effectiveQuota,
+      seniority_years: Math.round(seniorityYears * 10) / 10,
+    };
   });
 }
 

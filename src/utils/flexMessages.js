@@ -49,38 +49,82 @@ function menuRow(icon, label, postbackData) {
 
 /**
  * แสดงวันลาคงเหลือ
+ * balances: array จาก employeeService.getLeaveBalance()
+ *   fields: id, name, max_days, gender_restriction, used_days, effective_quota, seniority_years
  */
 function leaveBalance(employee, balances) {
-  const items = balances.map(b => ({
-    type: 'box', layout: 'horizontal',
-    contents: [
-      { type: 'text', text: b.name, size: 'sm', color: '#555555', flex: 3 },
-      {
-        type: 'text',
-        text: b.max_days ? `${b.max_days - b.used_days}/${b.max_days} วัน` : `ใช้ไป ${b.used_days} วัน`,
-        size: 'sm', color: '#111111', align: 'end', flex: 2
-      }
-    ]
-  }));
+  const year = new Date().getFullYear() + 543; // พ.ศ.
+
+  const items = balances.map(b => {
+    // ใช้ effective_quota (คำนวณจาก leave_quota_rules + อายุงาน)
+    // ถ้าไม่มี quota_rules ให้ fallback ไปที่ max_days
+    const quota = (b.effective_quota != null) ? Number(b.effective_quota) : (b.max_days != null ? Number(b.max_days) : null);
+    const used  = Number(b.used_days) || 0;
+    const remaining = quota != null ? quota - used : null;
+
+    // สีตามสถานะ: เขียว = ok, ส้ม = ≤ 3 วัน, แดง = หมด/เกิน
+    let valueColor = '#111111';
+    if (quota != null) {
+      if (remaining <= 0)       valueColor = '#E53935';
+      else if (remaining <= 3)  valueColor = '#F59E0B';
+      else                      valueColor = '#16a34a';
+    }
+
+    const pending = Number(b.pending_days) || 0;
+    const displayText = quota != null
+      ? `${remaining}/${quota} วัน`
+      : `ใช้ไป ${used} วัน`;
+    const pendingText = pending > 0 ? ` (รอ ${pending} วัน)` : '';
+
+    return {
+      type: 'box', layout: 'horizontal', margin: 'sm',
+      contents: [
+        { type: 'text', text: b.name, size: 'sm', color: '#555555', flex: 3, wrap: true },
+        {
+          type: 'box', layout: 'vertical', flex: 2, alignItems: 'flex-end',
+          contents: [
+            { type: 'text', text: displayText, size: 'sm', color: valueColor, align: 'end', weight: 'bold' },
+            ...(pending > 0 ? [{ type: 'text', text: pendingText, size: 'xxs', color: '#F59E0B', align: 'end' }] : [])
+          ]
+        }
+      ]
+    };
+  });
+
+  // แทรก separator ระหว่าง items
+  const bodyContents = [];
+  items.forEach((item, i) => {
+    bodyContents.push(item);
+    if (i < items.length - 1) bodyContents.push({ type: 'separator', margin: 'sm' });
+  });
 
   return {
     type: 'flex',
-    altText: 'วันลาคงเหลือ',
+    altText: `วันลาคงเหลือ ปี ${year} — ${employee.name}`,
     contents: {
       type: 'bubble',
       header: {
         type: 'box', layout: 'vertical', backgroundColor: '#27ACB2',
+        paddingAll: '16px',
         contents: [
           { type: 'text', text: '📊 วันลาคงเหลือ', color: '#ffffff', size: 'lg', weight: 'bold' },
-          { type: 'text', text: employee.name, color: '#ffffff', size: 'sm' }
+          { type: 'text', text: employee.name, color: '#ffffffCC', size: 'sm', margin: 'xs' },
+          { type: 'text', text: `ปี ${year} | อายุงาน ${b_seniority(balances)} ปี`, color: '#ffffffAA', size: 'xs', margin: 'xs' }
         ]
       },
       body: {
-        type: 'box', layout: 'vertical', spacing: 'md',
-        contents: items
+        type: 'box', layout: 'vertical', spacing: 'none', paddingAll: '16px',
+        contents: bodyContents.length ? bodyContents : [
+          { type: 'text', text: 'ไม่มีข้อมูลประเภทการลา', size: 'sm', color: '#999999', align: 'center' }
+        ]
       }
     }
   };
+}
+
+function b_seniority(balances) {
+  const sy = balances[0]?.seniority_years;
+  return sy != null ? sy : '-';
 }
 
 /**

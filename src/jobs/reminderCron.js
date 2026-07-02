@@ -4,93 +4,174 @@
  * ติดตั้ง: npm install node-cron
  * เรียกใช้จาก src/index.js:  require('./jobs/reminderCron');
  *
- * Schedule ที่ตั้งไว้:
- *   08:30 น. ทุกวันจันทร์-ศุกร์  — แจ้งเตือนเช็คอิน
- *   17:30 น. ทุกวันจันทร์-ศุกร์  — แจ้งเตือนเช็คเอาท์ (ถ้าลืม)
- *   09:00 น. ทุกวันจันทร์         — สรุปการลาสัปดาห์นี้ส่งหัวหน้า
+ * Schedule คำนวณจาก company_settings (work_start / work_end) + offset:
+ *   เช็คอิน  : work_start - reminder_checkin_offset  นาที  (default: 10 นาที)
+ *   เช็คเอาท์: work_end   - reminder_checkout_offset นาที  (default: 5  นาที)
+ *   สรุปการลา: 09:00 น. ทุกวันจันทร์
  */
 
 const cron = require('node-cron');
 const db = require('../db');
 const notifyService = require('../services/notificationService');
+const settingsService = require('../services/settingsService');
 const dayjs = require('dayjs');
 
-// ---- แจ้งเตือนเช็คอิน 08:30 จันทร์-ศุกร์ ----
-cron.schedule('30 8 * * 1-5', async () => {
-  console.log('[CRON] แจ้งเตือนเช็คอิน...');
+// ── helper: แปลง "HH:MM" ลบ N นาที → { h, m } ──────────
+function subtractMinutes(timeStr, minutes) {
+  const [h, m] = timeStr.split(':').map(Number);
+  const total = h * 60 + m - minutes;
+  return { h: Math.floor(((total % 1440) + 1440) % 1440 / 60),
+           m: ((total % 1440) + 1440) % 60 };
+}
+
+// ── helper: work_days (1-7) → cron day-of-week (0=Sun) ──
+function workDaysToCron(workDays) {
+  // work_days ใช้ 1=จันทร์ … 7=อาทิตย์  (ISO weekday)
+  // cron DOW: 0=Sun, 1=Mon … 6=Sat
+  const isoToCron = { 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:0 };
+  return workDays.map(d => isoToCron[d] ?? d).sort().join(',');
+}
+
+// ── ลงทะเบียน dynamic cron จาก settings ────────────────
+async function registerAttendanceCrons() {
   try {
-    const today = dayjs().format('YYYY-MM-DD');
+    const schedule = await settingsService.getWorkSchedule();
+    const checkinOffset  = parseInt(await settingsService.get('reminder_checkin_offset')  || '10');
+    const checkoutOffset = parseInt(await settingsService.get('reminder_checkout_offset') || '5');
 
-    // หาพนักงานที่ยังไม่เช็คอินวันนี้
-    const { rows } = await db.query(`
-      SELECT e.id, e.name, e.line_user_id, e.email
-      FROM employees e
-      WHERE e.is_active = TRUE
-        AND e.id NOT IN (
-          SELECT employee_id FROM attendance WHERE work_date = $1
-        )
-        AND e.id NOT IN (
-          SELECT employee_id FROM leave_requests
-          WHERE status = 'approved' AND $1 BETWEEN start_date AND end_date
-        )
-    `, [today]);
+    const cinTime  = subtractMinutes(schedule.work_start, checkinOffset);   // เช็คอิน
+    const coutTime = subtractMinutes(schedule.work_end,   checkoutOffset);  // เช็คเอาท์
+    const dowStr   = workDaysToCron(schedule.work_days);
 
-    console.log(`  → พบ ${rows.length} คนที่ยังไม่เช็คอิน`);
+    const cinCron  = `${cinTime.m}  ${cinTime.h}  * * ${dowStr}`;
+    const coutCron = `${coutTime.m} ${coutTime.h} * * ${dowStr}`;
 
-    for (const emp of rows) {
-      await notifyService.checkInReminder(emp).catch(err =>
-        console.error(`  ✗ ${emp.name}:`, err.message)
-      );
-    }
-  } catch (err) {
-    console.error('[CRON] เช็คอิน reminder error:', err.message);
-  }
-}, { timezone: 'Asia/Bangkok' });
+    const cinLabel  = `${String(cinTime.h).padStart(2,'0')}:${String(cinTime.m).padStart(2,'0')}`;
+    const coutLabel = `${String(coutTime.h).padStart(2,'0')}:${String(coutTime.m).padStart(2,'0')}`;
 
-// ---- แจ้งเตือนเช็คเอาท์ 17:30 จันทร์-ศุกร์ ----
-cron.schedule('30 17 * * 1-5', async () => {
-  console.log('[CRON] แจ้งเตือนเช็คเอาท์...');
-  try {
-    const today = dayjs().format('YYYY-MM-DD');
+    console.log(`[CRON] เช็คอิน  : ${cinLabel} น. (${checkinOffset} นาทีก่อน ${schedule.work_start})`);
+    console.log(`[CRON] เช็คเอาท์: ${coutLabel} น. (${checkoutOffset} นาทีก่อน ${schedule.work_end})`);
 
-    // หาพนักงานที่เช็คอินแล้วแต่ยังไม่เช็คเอาท์
-    const { rows } = await db.query(`
-      SELECT e.id, e.name, e.line_user_id, e.email
-      FROM employees e
-      JOIN attendance a ON a.employee_id = e.id
-      WHERE a.work_date = $1
-        AND a.check_in IS NOT NULL
-        AND a.check_out IS NULL
-        AND e.is_active = TRUE
-    `, [today]);
+    // ── แจ้งเตือนเช็คอิน ──────────────────────────────
+    cron.schedule(cinCron, async () => {
+      console.log('[CRON] แจ้งเตือนเช็คอิน...');
+      try {
+        const today = dayjs().format('YYYY-MM-DD');
+        const { rows } = await db.query(`
+          SELECT e.id, e.name, e.line_user_id, e.email
+          FROM employees e
+          WHERE e.is_active = TRUE
+            AND e.id NOT IN (
+              SELECT employee_id FROM attendance WHERE work_date = $1
+            )
+            AND e.id NOT IN (
+              SELECT employee_id FROM leave_requests
+              WHERE status = 'approved' AND $1 BETWEEN start_date AND end_date
+            )
+        `, [today]);
 
-    console.log(`  → พบ ${rows.length} คนที่ยังไม่เช็คเอาท์`);
-
-    const lineClient2 = new (require('@line/bot-sdk').messagingApi.MessagingApiClient)({
-      channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-    });
-
-    for (const emp of rows) {
-      // LINE push
-      if (emp.line_user_id) {
-        await lineClient2.pushMessage({
-          to: emp.line_user_id,
-          messages: [{ type: 'text', text: `🚪 คุณ${emp.name} อย่าลืมเช็คเอาท์ก่อนกลับบ้านนะครับ! \n👉 เปิด LINE HR แล้วกดปุ่มเช็คเอาท์ได้เลยครับ` }],
-        }).catch(() => {});
+        console.log(`  → พบ ${rows.length} คนที่ยังไม่เช็คอิน`);
+        for (const emp of rows) {
+          await notifyService.checkInReminder(emp).catch(err =>
+            console.error(`  ✗ ${emp.name}:`, err.message)
+          );
+        }
+      } catch (err) {
+        console.error('[CRON] เช็คอิน reminder error:', err.message);
       }
-      // Email
-      if (emp.email) {
-        await notifyService.sendEmail({
-          to: emp.email,
-          subject: '[HR] แจ้งเตือน: อย่าลืมเช็คเอาท์',
-          html: `<p>เรียน <b>${emp.name}</b>, กรุณาเช็คเอาท์ผ่าน LINE HR ก่อนออกจากที่ทำงานนะครับ</p>`,
-        }).catch(() => {});
+    }, { timezone: 'Asia/Bangkok' });
+
+    // ── แจ้งเตือนเช็คเอาท์ ────────────────────────────
+    cron.schedule(coutCron, async () => {
+      console.log('[CRON] แจ้งเตือนเช็คเอาท์...');
+      try {
+        const today = dayjs().format('YYYY-MM-DD');
+        const { rows } = await db.query(`
+          SELECT e.id, e.name, e.line_user_id, e.email
+          FROM employees e
+          JOIN attendance a ON a.employee_id = e.id
+          WHERE a.work_date = $1
+            AND a.check_in IS NOT NULL
+            AND a.check_out IS NULL
+            AND e.is_active = TRUE
+        `, [today]);
+
+        console.log(`  → พบ ${rows.length} คนที่ยังไม่เช็คเอาท์`);
+
+        const lineClient2 = new (require('@line/bot-sdk').messagingApi.MessagingApiClient)({
+          channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+        });
+
+        for (const emp of rows) {
+          if (emp.line_user_id) {
+            await lineClient2.pushMessage({
+              to: emp.line_user_id,
+              messages: [{ type: 'text', text: `🚪 คุณ${emp.name} อย่าลืมเช็คเอาท์ก่อนกลับบ้านนะครับ!\n👉 เปิด LINE HR แล้วกดปุ่มเช็คเอาท์ได้เลยครับ` }],
+            }).catch(() => {});
+          }
+          if (emp.email) {
+            await notifyService.sendEmail({
+              to: emp.email,
+              subject: '[HR] แจ้งเตือน: อย่าลืมเช็คเอาท์',
+              html: `<p>เรียน <b>${emp.name}</b>, กรุณาเช็คเอาท์ผ่าน LINE HR ก่อนออกจากที่ทำงานนะครับ</p>`,
+            }).catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.error('[CRON] เช็คเอาท์ reminder error:', err.message);
       }
-    }
+    }, { timezone: 'Asia/Bangkok' });
+
   } catch (err) {
-    console.error('[CRON] เช็คเอาท์ reminder error:', err.message);
+    console.error('[CRON] registerAttendanceCrons error:', err.message);
+    // fallback: ใช้ค่า default ถ้า DB ยังไม่พร้อม
+    console.warn('[CRON] fallback → เช็คอิน 08:50 / เช็คเอาท์ 17:55');
+    registerFallbackCrons();
   }
-}, { timezone: 'Asia/Bangkok' });
+}
+
+// ── fallback hardcode (ถ้า DB ยังไม่พร้อมตอน startup) ──
+function registerFallbackCrons() {
+  // 08:50 = 10 นาทีก่อน 09:00 | 17:55 = 5 นาทีก่อน 18:00
+  cron.schedule('50 8 * * 1-6', async () => {
+    console.log('[CRON-fallback] เช็คอิน reminder...');
+    try {
+      const today = dayjs().format('YYYY-MM-DD');
+      const { rows } = await db.query(`
+        SELECT e.id, e.name, e.line_user_id, e.email FROM employees e
+        WHERE e.is_active = TRUE
+          AND e.id NOT IN (SELECT employee_id FROM attendance WHERE work_date = $1)
+          AND e.id NOT IN (SELECT employee_id FROM leave_requests WHERE status='approved' AND $1 BETWEEN start_date AND end_date)
+      `, [today]);
+      for (const emp of rows) {
+        await notifyService.checkInReminder(emp).catch(() => {});
+      }
+    } catch (err) { console.error('[CRON-fallback] เช็คอิน:', err.message); }
+  }, { timezone: 'Asia/Bangkok' });
+
+  cron.schedule('55 17 * * 1-6', async () => {
+    console.log('[CRON-fallback] เช็คเอาท์ reminder...');
+    try {
+      const today = dayjs().format('YYYY-MM-DD');
+      const { rows } = await db.query(`
+        SELECT e.id, e.name, e.line_user_id FROM employees e
+        JOIN attendance a ON a.employee_id = e.id
+        WHERE a.work_date = $1 AND a.check_in IS NOT NULL AND a.check_out IS NULL AND e.is_active = TRUE
+      `, [today]);
+      const lc = new (require('@line/bot-sdk').messagingApi.MessagingApiClient)({
+        channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+      });
+      for (const emp of rows) {
+        if (emp.line_user_id) {
+          await lc.pushMessage({ to: emp.line_user_id, messages: [{ type:'text', text:`🚪 คุณ${emp.name} อย่าลืมเช็คเอาท์ก่อนกลับบ้านนะครับ!` }] }).catch(() => {});
+        }
+      }
+    } catch (err) { console.error('[CRON-fallback] เช็คเอาท์:', err.message); }
+  }, { timezone: 'Asia/Bangkok' });
+}
+
+// เรียก register ทันที (async — ใช้ DB settings)
+registerAttendanceCrons();
 
 // ---- สรุปการลาสัปดาห์ ส่งหัวหน้า 09:00 ทุกวันจันทร์ ----
 cron.schedule('0 9 * * 1', async () => {
@@ -327,4 +408,4 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' });
 }
 
-console.log('✅ Cron jobs registered: check-in 08:30 | check-out 17:30 | holiday reminder 18:00 | late/absent 19:00 | weekly summary Mon 09:00 | probation alert 09:00');
+console.log('✅ Cron jobs registered: check-in/out (dynamic from settings) | holiday reminder 18:00 | late/absent 19:00 | weekly summary Mon 09:00 | probation alert 09:00');
