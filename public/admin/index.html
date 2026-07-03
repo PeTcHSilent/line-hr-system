@@ -1639,19 +1639,19 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         </div>
 
         <!-- Filters -->
-        <div style="display:flex;flex-wrap:wrap;gap:10px;padding:0 0 16px;align-items:center;">
-          <div>
-            <label style="font-size:12px;color:#64748b;display:block;margin-bottom:3px;">ประเภท</label>
-            <select id="audit-type" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;" onchange="loadAuditLog()">
+        <div class="filter-row">
+          <div class="filter-group">
+            <div class="filter-label">ประเภท</div>
+            <select id="audit-type" onchange="loadAuditLog()">
               <option value="">ทั้งหมด</option>
               <option value="leave">ใบลา</option>
               <option value="ot">OT</option>
               <option value="expense">เบิกค่าใช้จ่าย</option>
             </select>
           </div>
-          <div>
-            <label style="font-size:12px;color:#64748b;display:block;margin-bottom:3px;">Action</label>
-            <select id="audit-action" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;" onchange="loadAuditLog()">
+          <div class="filter-group">
+            <div class="filter-label">การดำเนินการ</div>
+            <select id="audit-action" onchange="loadAuditLog()">
               <option value="">ทั้งหมด</option>
               <option value="approve_leave">อนุมัติใบลา</option>
               <option value="reject_leave">ไม่อนุมัติใบลา</option>
@@ -1661,16 +1661,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
               <option value="reject_expense">ไม่อนุมัติค่าใช้จ่าย</option>
             </select>
           </div>
-          <div>
-            <label style="font-size:12px;color:#64748b;display:block;margin-bottom:3px;">จากวันที่</label>
-            <input type="date" id="audit-start" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;" onchange="loadAuditLog()">
+          <div class="filter-group">
+            <div class="filter-label">จากวันที่</div>
+            <input type="date" id="audit-start" onchange="loadAuditLog()">
           </div>
-          <div>
-            <label style="font-size:12px;color:#64748b;display:block;margin-bottom:3px;">ถึงวันที่</label>
-            <input type="date" id="audit-end" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;" onchange="loadAuditLog()">
+          <div class="filter-group">
+            <div class="filter-label">ถึงวันที่</div>
+            <input type="date" id="audit-end" onchange="loadAuditLog()">
           </div>
-          <div style="margin-top:18px;">
-            <span id="audit-count" style="font-size:12px;color:#64748b;"></span>
+          <div class="filter-group" style="justify-content:flex-end;flex:1;">
+            <span id="audit-count" style="font-size:12px;color:#64748b;align-self:flex-end;padding-bottom:2px;"></span>
           </div>
         </div>
 
@@ -3572,7 +3572,7 @@ async function loadHolidays() {
       <td>${dateStr}</td>
       <td><strong>${h.name}</strong></td>
       <td>${dayName}</td>
-      <td>${h.is_substitute ? '<span class="badge badge-hr">ชดเชย</span>' : '<span class="badge badge-employee">ปกติ</span>'}</td>
+      <td>${h.is_substitute ? '<span class="badge badge-yellow">ชดเชย</span>' : '<span class="badge badge-green">ปกติ</span>'}</td>
       <td><button class="btn btn-danger btn-sm" onclick="deleteHoliday(${h.id}, '${h.name}')">ลบ</button></td>
     </tr>`;
   }).join('');
@@ -7210,14 +7210,15 @@ async function loadAuditLog(page = 0) {
       return `${d.getDate()} ${_thMo[d.getMonth()]} ${d.getFullYear()+543}<br><small style="color:#64748b;">${hh}:${mm}</small>`;
     };
 
+    const _isApprove = a => a && a.startsWith('approve');
     tbody.innerHTML = logs.map(l => {
       const label = _auditActionLabels[l.action] || l.action;
-      const color = _auditActionColors[l.action] || '#64748b';
+      const badgeCls = _isApprove(l.action) ? 'badge-green' : 'badge-red';
       return `<tr>
-        <td style="font-size:12px;">${_fmtDT(l.created_at)}</td>
+        <td style="font-size:12px;white-space:nowrap;">${_fmtDT(l.created_at)}</td>
         <td style="font-size:13px;font-weight:600;">${l.actor_name||'—'}</td>
-        <td><span style="font-size:11px;background:#f1f5f9;padding:2px 8px;border-radius:12px;">${l.actor_role||'—'}</span></td>
-        <td><span style="font-size:12px;font-weight:600;color:${color};">${label}</span></td>
+        <td><span class="badge badge-gray">${l.actor_role||'—'}</span></td>
+        <td><span class="badge ${badgeCls}">${label}</span></td>
         <td style="font-size:12px;color:#475569;">${l.description||'—'}</td>
       </tr>`;
     }).join('');
