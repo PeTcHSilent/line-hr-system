@@ -404,8 +404,189 @@ cron.schedule('0 9 * * *', async () => {
   }
 }, { timezone: 'Asia/Bangkok' });
 
+// ── สรุปการมาทำงานประจำวัน → admin LINE 19:30 ────────────────
+cron.schedule('30 19 * * *', async () => {
+  console.log('[CRON] สรุปการมาทำงานประจำวัน...');
+  try {
+    await sendDailyAttendanceSummary();
+  } catch (err) {
+    console.error('[CRON] attendance summary error:', err.message);
+  }
+}, { timezone: 'Asia/Bangkok' });
+
+async function sendDailyAttendanceSummary(dateStr) {
+  const today = dateStr || dayjs().format('YYYY-MM-DD');
+
+  // ตรวจว่าวันนี้เป็นวันทำงานหรือไม่
+  const schedule = await settingsService.getWorkSchedule();
+  const todayIso = dayjs(today).day(); // 0=Sun
+  const isoDay   = todayIso === 0 ? 7 : todayIso; // convert to ISO 1=Mon..7=Sun
+  if (!schedule.work_days.includes(isoDay)) {
+    console.log(`  → วันที่ ${today} ไม่ใช่วันทำงาน ข้ามการส่งสรุป`);
+    return;
+  }
+
+  const { rows: holidays } = await db.query(
+    `SELECT name FROM holidays WHERE date = $1 LIMIT 1`, [today]
+  );
+  if (holidays.length) {
+    console.log(`  → วันหยุด (${holidays[0].name}) ข้ามการส่งสรุป`);
+    return;
+  }
+
+  // ดึง admin LINE users
+  const { rows: admins } = await db.query('SELECT line_user_id FROM admin_line_users');
+  if (!admins.length) { console.log('  → ไม่มี admin_line_users'); return; }
+
+  // work_start สำหรับคำนวณสาย
+  const graceMinutes = parseInt(await settingsService.get('late_grace_minutes') || '15');
+  const [wh, wm]     = schedule.work_start.split(':').map(Number);
+  const thresholdMin = wh * 60 + wm + graceMinutes;
+
+  // รายชื่อพนักงานทั้งหมด
+  const { rows: allEmp } = await db.query(
+    `SELECT id, name FROM employees WHERE is_active = TRUE ORDER BY name`
+  );
+  const total = allEmp.length;
+
+  // attendance วันนี้
+  const { rows: attRows } = await db.query(
+    `SELECT a.employee_id, e.name, a.check_in, a.check_out
+     FROM attendance a
+     JOIN employees e ON a.employee_id = e.id
+     WHERE a.work_date = $1 AND e.is_active = TRUE
+     ORDER BY a.check_in`, [today]
+  );
+
+  // พนักงานที่ลาวันนี้
+  const { rows: leaveRows } = await db.query(
+    `SELECT e.name, lt.name AS leave_type
+     FROM leave_requests lr
+     JOIN employees e  ON lr.employee_id   = e.id
+     JOIN leave_types lt ON lr.leave_type_id = lt.id
+     WHERE lr.status = 'approved'
+       AND $1::date BETWEEN lr.start_date AND lr.end_date
+       AND e.is_active = TRUE
+     ORDER BY e.name`, [today]
+  );
+  const leaveSet = new Set(leaveRows.map(r => r.name));
+  const checkedSet = new Set(attRows.map(r => r.name));
+
+  // แยกกลุ่ม
+  const onTime = [], late = [], noCheckout = [];
+  for (const att of attRows) {
+    if (!att.check_in) continue;
+    const parts = String(att.check_in).split(':').map(Number);
+    const cinMin = parts[0] * 60 + parts[1];
+    const lateMin = cinMin - (wh * 60 + wm);
+    if (cinMin > thresholdMin) {
+      const lh = Math.floor(lateMin / 60), lm = lateMin % 60;
+      const lateStr = lh > 0 ? `${lh}ชม.${lm}น.` : `${lm}น.`;
+      late.push(`• ${att.name}  สาย ${lateStr} (เข้า ${parts[0].toString().padStart(2,'0')}:${parts[1].toString().padStart(2,'0')})`);
+    } else {
+      onTime.push(`• ${att.name}  ${parts[0].toString().padStart(2,'0')}:${parts[1].toString().padStart(2,'0')}`);
+    }
+    if (!att.check_out) noCheckout.push(att.name);
+  }
+
+  // ขาดงาน (ไม่เช็คอิน ไม่ได้ลา)
+  const absent = allEmp
+    .filter(e => !checkedSet.has(e.name) && !leaveSet.has(e.name))
+    .map(e => `• ${e.name}`);
+
+  const checkedCount  = attRows.length;
+  const onTimeCount   = onTime.length;
+  const lateCount     = late.length;
+  const leaveCount    = leaveRows.length;
+  const absentCount   = absent.length;
+
+  // วันที่ภาษาไทย
+  const todayTH = new Date(today + 'T00:00:00+07:00').toLocaleDateString('th-TH', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+
+  // ── สร้าง Flex Message ──────────────────────────────
+  const makeSection = (title, items) =>
+    items.length === 0 ? [] : [
+      { type: 'separator', margin: 'md' },
+      { type: 'text', text: title, weight: 'bold', size: 'sm', color: '#374151', margin: 'md' },
+      { type: 'text', text: items.join('\n'), size: 'xs', color: '#6b7280', wrap: true, margin: 'xs' },
+    ];
+
+  const flexMsg = {
+    type: 'flex',
+    altText: `📊 สรุปการมาทำงาน ${todayTH} — มา ${checkedCount}/${total} คน | สาย ${lateCount} | ขาด ${absentCount}`,
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box', layout: 'vertical', backgroundColor: '#1357B0', paddingAll: '16px',
+        contents: [
+          { type: 'text', text: '📊 สรุปการมาทำงานประจำวัน', color: '#ffffff', weight: 'bold', size: 'md' },
+          { type: 'text', text: todayTH, color: '#ffffffCC', size: 'xs', margin: 'xs' },
+        ],
+      },
+      body: {
+        type: 'box', layout: 'vertical', paddingAll: '16px', spacing: 'none',
+        contents: [
+          // KPI row
+          {
+            type: 'box', layout: 'horizontal', spacing: 'sm',
+            contents: [
+              kpiBox('✅ มาทำงาน', `${checkedCount}/${total}`, '#dcfce7', '#166534'),
+              kpiBox('⏰ สาย',     String(lateCount),         '#fef3c7', '#92400e'),
+              kpiBox('🏖️ ลา',      String(leaveCount),        '#dbeafe', '#1d4ed8'),
+              kpiBox('❌ ขาดงาน',  String(absentCount),       '#fee2e2', '#991b1b'),
+            ],
+          },
+          ...makeSection('✅ มาทำงาน (ตรงเวลา)', onTime),
+          ...makeSection('⏰ มาสาย', late),
+          ...makeSection('🏖️ ลา', leaveRows.map(r => `• ${r.name} — ${r.leave_type}`)),
+          ...makeSection('❌ ขาดงาน', absent),
+          ...(noCheckout.length > 0 ? [
+            { type: 'separator', margin: 'md' },
+            { type: 'text', text: `⚠️ ยังไม่เช็คเอาท์ ${noCheckout.length} คน`, size: 'xs', color: '#f59e0b', margin: 'md', wrap: true },
+          ] : []),
+        ],
+      },
+      footer: {
+        type: 'box', layout: 'vertical', paddingAll: '10px', backgroundColor: '#f8fafc',
+        contents: [
+          { type: 'text', text: 'ต่อกัน Insurance Broker HR', size: 'xs', color: '#9ca3af', align: 'center' },
+        ],
+      },
+      styles: { footer: { separator: true } },
+    },
+  };
+
+  const lineClient = new (require('@line/bot-sdk').messagingApi.MessagingApiClient)({
+    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+  });
+
+  await Promise.all(
+    admins.map(a =>
+      lineClient.pushMessage({ to: a.line_user_id, messages: [flexMsg] }).catch(err =>
+        console.error(`  ✗ push admin ${a.line_user_id}:`, err.message)
+      )
+    )
+  );
+  console.log(`  → ส่งสรุปการมาทำงาน: มา ${checkedCount}/${total} | สาย ${lateCount} | ลา ${leaveCount} | ขาด ${absentCount}`);
+}
+
+function kpiBox(label, value, bg, color) {
+  return {
+    type: 'box', layout: 'vertical', flex: 1,
+    backgroundColor: bg, cornerRadius: '8px', paddingAll: '8px',
+    contents: [
+      { type: 'text', text: value, size: 'lg', weight: 'bold', color, align: 'center' },
+      { type: 'text', text: label,  size: 'xxs', color, align: 'center', wrap: true },
+    ],
+  };
+}
+
 function fmtDate(d) {
   return new Date(d).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' });
 }
 
-console.log('✅ Cron jobs registered: check-in/out (dynamic from settings) | holiday reminder 18:00 | late/absent 19:00 | weekly summary Mon 09:00 | probation alert 09:00');
+module.exports = { sendDailyAttendanceSummary };
+
+console.log('✅ Cron jobs registered: check-in/out (dynamic from settings) | holiday reminder 18:00 | late/absent 19:00 | attendance summary 19:30 | weekly summary Mon 09:00 | probation alert 09:00');
