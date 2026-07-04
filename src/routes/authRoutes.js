@@ -3,6 +3,7 @@ const router  = express.Router();
 const jwt     = require('jsonwebtoken');
 const bcrypt  = require('bcryptjs');
 const db      = require('../db');
+const audit   = require('../services/auditService');
 
 const JWT_SECRET  = process.env.JWT_SECRET  || 'hr-system-secret-change-me';
 const ADMIN_USER  = process.env.ADMIN_USER  || 'admin';
@@ -35,6 +36,15 @@ router.post('/login', async (req, res) => {
         JWT_SECRET,
         { expiresIn: '8h' }
       );
+      audit.log({
+        actorName:  username,
+        actorRole:  'admin',
+        action:     'login',
+        targetType: 'auth',
+        targetId:   null,
+        description: 'Admin เข้าสู่ระบบ: ' + username,
+        meta:        { username, role: 'admin', ip: req.ip },
+      });
       return res.json({ success: true, token, expiresIn: 28800, is_master: true });
     }
 
@@ -58,6 +68,15 @@ router.post('/login', async (req, res) => {
       JWT_SECRET,
       { expiresIn: '8h' }
     );
+    audit.log({
+      actorName:  subAdmin.display_name || subAdmin.username,
+      actorRole:  'sub_admin',
+      action:     'login',
+      targetType: 'auth',
+      targetId:   subAdmin.id,
+      description: 'Sub-Admin เข้าสู่ระบบ: ' + (subAdmin.display_name || subAdmin.username),
+      meta:        { username: subAdmin.username, role_name: subAdmin.role_name, ip: req.ip },
+    });
     return res.json({
       success: true, token, expiresIn: 28800,
       is_master: false,

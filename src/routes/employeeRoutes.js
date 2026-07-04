@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const employeeService = require('../services/employeeService');
+const audit  = require('../services/auditService');
+const { requireAuth } = require('../middleware/authMiddleware');
 
 // GET /api/employee/me?line_user_id=xxx — LIFF ใช้ดึงข้อมูลตัวเอง
 router.get('/me', async (req, res) => {
@@ -51,7 +53,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/employee — เพิ่มพนักงานใหม่
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
     const { employee_code, name, sex, phone_no, email, department_id, role, manager_id, branch_id, hire_date } = req.body;
 
@@ -70,6 +72,15 @@ router.post('/', async (req, res) => {
       managerId: manager_id,
       branchId: branch_id || null,
       hireDate: hire_date || null,
+    });
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'create_employee',
+      targetType:  'employee',
+      targetId:    emp.id,
+      description: 'เพิ่มพนักงานใหม่: ' + emp.name + ' (' + emp.employee_code + ')',
+      meta:        { employee_code: emp.employee_code, name: emp.name, role: emp.role },
     });
     res.status(201).json(emp);
   } catch (err) {
@@ -117,21 +128,39 @@ router.get('/search', async (req, res) => {
 });
 
 // PATCH /api/employee/:id/unlink-line — Admin ยกเลิกการผูก LINE
-router.patch('/:id/unlink-line', async (req, res) => {
+router.patch('/:id/unlink-line', requireAuth, async (req, res) => {
   try {
     const result = await employeeService.unlinkLineAccount(req.params.id);
     if (!result) return res.status(404).json({ error: 'ไม่พบพนักงาน' });
-    res.json({ success: true, message: `ยกเลิกการผูก LINE ของ ${result.name} เรียบร้อยแล้ว`, employee: result });
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'unlink_line',
+      targetType:  'employee',
+      targetId:    result.id,
+      description: 'ยกเลิกการผูก LINE: ' + result.name,
+      meta:        { employee_name: result.name },
+    });
+    res.json({ success: true, message: 'ยกเลิกการผูก LINE ของ ' + result.name + ' เรียบร้อยแล้ว', employee: result });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
 
 // PATCH /api/employee/:id/set-line — Admin ตั้ง LINE User ID โดยตรง
-router.patch('/:id/set-line', async (req, res) => {
+router.patch('/:id/set-line', requireAuth, async (req, res) => {
   try {
     const { line_user_id } = req.body;
     const result = await employeeService.adminSetLineId(req.params.id, line_user_id);
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'set_line_id',
+      targetType:  'employee',
+      targetId:    result.id,
+      description: 'ตั้ง LINE User ID: ' + result.name,
+      meta:        { employee_name: result.name, line_user_id },
+    });
     res.json({ success: true, employee: result });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -150,7 +179,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // PUT /api/employee/:id — แก้ไขข้อมูลพนักงาน
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAuth, async (req, res) => {
   try {
     const {
       name, sex, phone_no, email, department_id, role, manager_id, salary, deduct_absent,
@@ -175,6 +204,15 @@ router.put('/:id', async (req, res) => {
       branch_id: branch_id !== undefined ? (branch_id || null) : undefined,
       hire_date: hire_date !== undefined ? (hire_date || null) : undefined,
     });
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'update_employee',
+      targetType:  'employee',
+      targetId:    emp.id,
+      description: 'แก้ไขข้อมูลพนักงาน: ' + emp.name + ' (' + emp.employee_code + ')',
+      meta:        { employee_name: emp.name, employee_code: emp.employee_code },
+    });
     res.json(emp);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -182,9 +220,18 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/employee/:id — ปิดใช้งานพนักงาน (soft delete)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const result = await employeeService.deactivateEmployee(req.params.id);
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'deactivate_employee',
+      targetType:  'employee',
+      targetId:    (result && result.id) || parseInt(req.params.id),
+      description: 'ปิดใช้งานพนักงาน: ' + (result && result.name || req.params.id),
+      meta:        { employee_name: result && result.name, employee_code: result && result.employee_code },
+    });
     res.json({ success: true, deactivated: result });
   } catch (err) {
     res.status(400).json({ error: err.message });

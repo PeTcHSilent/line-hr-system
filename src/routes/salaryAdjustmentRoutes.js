@@ -13,6 +13,7 @@
 const express = require('express');
 const router  = express.Router();
 const svc     = require('../services/salaryAdjustmentService');
+const audit   = require('../services/auditService');
 const { requireAuth } = require('../middleware/authMiddleware');
 
 // ── GET /api/salary-adjustment
@@ -62,6 +63,15 @@ router.post('/one', requireAuth, async (req, res) => {
       roundName: round_name || null,
       appliedBy: req.admin?.id || null,
     });
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'salary_adjustment_one',
+      targetType:  'employee',
+      targetId:    parseInt(employee_id),
+      description: 'ปรับเงินเดือนรายคน employee #' + employee_id + ' ' + adjustment_type + ' ' + adjustment_value,
+      meta:        { employee_id, adjustment_type, adjustment_value, effective_date, reason, round_name },
+    });
     res.json({ success: true, result });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
@@ -90,6 +100,15 @@ router.post('/bulk', requireAuth, async (req, res) => {
       employeeIds:     Array.isArray(employee_ids) ? employee_ids.map(Number) : undefined,
       appliedBy:       req.admin?.id || null,
     });
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'salary_adjustment_bulk',
+      targetType:  'employee',
+      targetId:    null,
+      description: 'ปรับเงินเดือน Bulk ' + adjustment_type + ' ' + adjustment_value + ' จำนวน ' + (result && result.count || 0) + ' คน',
+      meta:        { adjustment_type, adjustment_value, effective_date, round_name, count: result && result.count },
+    });
     res.json({ success: true, ...result });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
@@ -98,6 +117,15 @@ router.post('/bulk', requireAuth, async (req, res) => {
 router.delete('/:id/rollback', requireAuth, async (req, res) => {
   try {
     const result = await svc.rollback(parseInt(req.params.id));
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'salary_adjustment_rollback',
+      targetType:  'employee',
+      targetId:    null,
+      description: 'ยกเลิกการปรับเงินเดือน adjustment #' + req.params.id,
+      meta:        { adjustment_id: parseInt(req.params.id) },
+    });
     res.json({ success: true, ...result });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });

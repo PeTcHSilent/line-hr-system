@@ -4,6 +4,7 @@
 const express = require('express');
 const router  = express.Router();
 const db      = require('../db');
+const audit   = require('../services/auditService');
 const { requireAuth } = require('../middleware/authMiddleware');
 
 async function ensureTable() {
@@ -41,6 +42,15 @@ router.post('/', requireAuth, async (req, res) => {
        VALUES ($1, $2, $3) RETURNING *`,
       [line_user_id.trim(), name?.trim() || null, note?.trim() || null]
     );
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'add_admin_line_user',
+      targetType:  'admin_user',
+      targetId:    rows[0].id,
+      description: 'เพิ่ม Admin LINE: ' + (name || line_user_id),
+      meta:        { line_user_id: line_user_id.trim(), name: name && name.trim() },
+    });
     res.status(201).json(rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'LINE User ID นี้มีอยู่แล้ว' });
@@ -58,6 +68,15 @@ router.put('/:id', requireAuth, async (req, res) => {
       [req.params.id, name?.trim() || null, note?.trim() || null]
     );
     if (!rows[0]) return res.status(404).json({ error: 'ไม่พบรายการ' });
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'update_admin_line_user',
+      targetType:  'admin_user',
+      targetId:    rows[0].id,
+      description: 'แก้ไข Admin LINE: ' + (rows[0].name || rows[0].line_user_id),
+      meta:        { name: rows[0].name, note: rows[0].note },
+    });
     res.json(rows[0]);
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
@@ -66,8 +85,18 @@ router.put('/:id', requireAuth, async (req, res) => {
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
     await ensureTable();
+    const { rows: before } = await db.query('SELECT * FROM admin_line_users WHERE id=$1', [req.params.id]);
     const { rowCount } = await db.query('DELETE FROM admin_line_users WHERE id=$1', [req.params.id]);
     if (!rowCount) return res.status(404).json({ error: 'ไม่พบรายการ' });
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'remove_admin_line_user',
+      targetType:  'admin_user',
+      targetId:    parseInt(req.params.id),
+      description: 'ลบ Admin LINE: ' + (before[0] && (before[0].name || before[0].line_user_id) || req.params.id),
+      meta:        { line_user_id: before[0] && before[0].line_user_id, name: before[0] && before[0].name },
+    });
     res.json({ success: true });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });

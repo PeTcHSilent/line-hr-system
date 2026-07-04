@@ -1,6 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const settingsService = require('../services/settingsService');
+const audit   = require('../services/auditService');
 const { requireAuth } = require('../middleware/authMiddleware');
 
 // GET /api/settings  — ดึงทั้งหมด
@@ -37,6 +38,15 @@ router.put('/', requireAuth, async (req, res) => {
     for (const [key, value] of Object.entries(updates)) {
       await settingsService.set(key, value);
     }
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'update_settings',
+      targetType:  'settings',
+      targetId:    null,
+      description: 'แก้ไขการตั้งค่าระบบ: ' + Object.keys(updates).join(', '),
+      meta:        updates,
+    });
     res.json(await settingsService.getAll());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

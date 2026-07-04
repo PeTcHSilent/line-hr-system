@@ -3,6 +3,8 @@ const router  = express.Router();
 const db      = require('../db');
 const employeeService = require('../services/employeeService');
 const line    = require('@line/bot-sdk');
+const audit   = require('../services/auditService');
+const { requireAuth } = require('../middleware/authMiddleware');
 
 const client = new line.messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
@@ -161,7 +163,7 @@ router.get('/', async (req, res) => {
 });
 
 // ── PATCH /api/expense/:id/approve  (Admin) ──────────────────────
-router.patch('/:id/approve', async (req, res) => {
+router.patch('/:id/approve', requireAuth, async (req, res) => {
   try {
     await ensureExpenseTable();
     const { notes } = req.body;
@@ -190,12 +192,21 @@ router.patch('/:id/approve', async (req, res) => {
         }]
       }).catch(() => {});
     }
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'approve_expense',
+      targetType:  'expense',
+      targetId:    rows[0].id,
+      description: 'อนุมัติค่าใช้จ่าย #' + rows[0].id + ' จำนวน ' + rows[0].amount + ' บาท',
+      meta:        { expense_id: rows[0].id, amount: rows[0].amount, employee_id: rows[0].employee_id },
+    });
     res.json({ success: true, claim: rows[0] });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 // ── PATCH /api/expense/:id/reject  (Admin) ───────────────────────
-router.patch('/:id/reject', async (req, res) => {
+router.patch('/:id/reject', requireAuth, async (req, res) => {
   try {
     await ensureExpenseTable();
     const { reject_reason } = req.body;
@@ -221,12 +232,21 @@ router.patch('/:id/reject', async (req, res) => {
         }]
       }).catch(() => {});
     }
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'reject_expense',
+      targetType:  'expense',
+      targetId:    rows[0].id,
+      description: 'ปฏิเสธค่าใช้จ่าย #' + rows[0].id + ' เหตุผล: ' + (rows[0].reject_reason || ''),
+      meta:        { expense_id: rows[0].id, amount: rows[0].amount, reject_reason: rows[0].reject_reason },
+    });
     res.json({ success: true, claim: rows[0] });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 // ── PATCH /api/expense/:id/mark-paid  (Admin — จ่ายแล้ว) ─────────
-router.patch('/:id/mark-paid', async (req, res) => {
+router.patch('/:id/mark-paid', requireAuth, async (req, res) => {
   try {
     await ensureExpenseTable();
     const { payroll_year, payroll_month } = req.body;
@@ -237,6 +257,15 @@ router.patch('/:id/mark-paid', async (req, res) => {
       [req.params.id, payroll_year || null, payroll_month || null]
     );
     if (!rows[0]) return res.status(404).json({ error: 'ไม่พบคำขอ หรือสถานะไม่ใช่ approved' });
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'mark_expense_paid',
+      targetType:  'expense',
+      targetId:    rows[0].id,
+      description: 'ทำเครื่องหมายจ่ายแล้ว ค่าใช้จ่าย #' + rows[0].id + ' จำนวน ' + rows[0].amount + ' บาท',
+      meta:        { expense_id: rows[0].id, amount: rows[0].amount, payroll_year, payroll_month },
+    });
     res.json({ success: true, claim: rows[0] });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });

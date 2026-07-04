@@ -4,6 +4,7 @@ const db             = require('../db');
 const payrollService    = require('../services/payrollService');
 const lateAbsentService = require('../services/lateAbsentService');
 const employeeService   = require('../services/employeeService');
+const audit             = require('../services/auditService');
 const { requireAuth }   = require('../middleware/authMiddleware');
 
 // GET /api/payroll?year=&month=  — ดึง payroll records ทั้งเดือน (admin)
@@ -24,6 +25,15 @@ router.post('/generate', requireAuth, async (req, res) => {
     const month = parseInt(req.body.month) || new Date().getMonth() + 1;
     const force = req.body.force === true || req.body.force === 'true';
     const data  = await payrollService.generatePayroll(year, month, force);
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'generate_payroll',
+      targetType:  'payroll',
+      targetId:    null,
+      description: 'สร้าง Payroll เดือน ' + month + '/' + year + ' จำนวน ' + data.length + ' คน',
+      meta:        { year, month, force, count: data.length },
+    });
     res.json({ success: true, count: data.length, payroll: data });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -86,6 +96,15 @@ router.patch('/bulk-status', requireAuth, async (req, res) => {
       }
     }
 
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'payroll_bulk_' + status,
+      targetType:  'payroll',
+      targetId:    null,
+      description: 'เปลี่ยนสถานะ Payroll ' + month + '/' + year + ' เป็น ' + status + ' (' + updated + ' รายการ)',
+      meta:        { year, month, status, updated },
+    });
     res.json({ success: true, updated, status, lineResult });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
@@ -161,6 +180,15 @@ router.post('/send-payslips', requireAuth, async (req, res) => {
     const year  = parseInt(req.body.year)  || new Date().getFullYear();
     const month = parseInt(req.body.month) || new Date().getMonth() + 1;
     const result = await payrollService.sendPayslipsViaLine(year, month);
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'send_payslips',
+      targetType:  'payroll',
+      targetId:    null,
+      description: 'ส่ง Payslip ผ่าน LINE เดือน ' + month + '/' + year + ' สำเร็จ ' + (result.sent || 0) + ' คน',
+      meta:        { year, month, sent: result.sent, failed: result.failed },
+    });
     res.json({ success: true, ...result });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
