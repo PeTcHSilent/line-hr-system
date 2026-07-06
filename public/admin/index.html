@@ -231,6 +231,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         Audit Log
       </a>
+      <a class="nav-item" data-page="sales-leads" onclick="showPage('sales-leads')" href="#">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Sales Leads
+      </a>
       <a class="nav-item" data-page="settings" onclick="showPage('settings')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         ตั้งค่าบริษัท
@@ -1696,6 +1700,49 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
       </div>
     </div><!-- /page-audit-log -->
 
+    <!-- PAGE: Sales Leads                                         -->
+    <div id="page-sales-leads" class="page">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🚗 Sales Leads — ลูกค้าสนใจประกันรถ</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select id="sl-status-filter" onchange="loadSalesLeads(0)" style="padding:4px 8px;border-radius:6px;border:1px solid #e2e8f0;font-size:13px;">
+              <option value="">ทุกสถานะ</option>
+              <option value="new">🆕 ใหม่</option>
+              <option value="contacted">📞 ติดต่อแล้ว</option>
+              <option value="quoted">📋 เสนอราคาแล้ว</option>
+              <option value="closed">✅ ปิดการขาย</option>
+              <option value="lost">❌ ไม่สำเร็จ</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="loadSalesLeads(0)">🔄 รีเฟรช</button>
+            <span id="sl-count" style="font-size:12px;color:#64748b;"></span>
+          </div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>LINE / ชื่อ</th>
+                <th>เบอร์โทร</th>
+                <th>รถ</th>
+                <th>ประเภทประกัน</th>
+                <th>ความสนใจ</th>
+                <th>สถานะ</th>
+                <th>วันที่</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="sl-tbody">
+              <tr><td colspan="9" class="no-data">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="sl-pagination" style="display:flex;justify-content:center;gap:8px;padding:12px 0 4px;"></div>
+      </div>
+    </div><!-- /page-sales-leads -->
+
+
   </div>
 </main>
   </div>
@@ -2061,6 +2108,7 @@ function showPage(name) {
     'org-chart':'Org Chart — โครงสร้างองค์กร', 'admin-users':'Admin LINE Users',
     'role-management':'จัดการ Role & สิทธิ์',
     'audit-log':'Audit Log — ประวัติการดำเนินการ',
+    'sales-leads':'Sales Leads — ลูกค้าสนใจประกันรถ',
     'salary-adjustment':'ขึ้นเงินเดือนประจำปี',
   };
   document.getElementById('page-title').textContent = titles[name] || name;
@@ -2090,6 +2138,7 @@ function showPage(name) {
   if (name === 'role-management') initRoleManagement();
   if (name === 'tax-report')     initTaxReport();
   if (name === 'audit-log')        loadAuditLog(0);
+  if (name === 'sales-leads')    loadSalesLeads(0);
   if (name === 'salary-adjustment') initSalaryAdj();
 }
 
@@ -2126,6 +2175,7 @@ const MENU_DEFS = [
   { key:'org-chart',          label:'🌐 Org Chart' },
   { key:'admin-users',        label:'🛡️ Admin LINE' },
   { key:'audit-log',          label:'📋 Audit Log' },
+  { key:'sales-leads',       label:'🚗 Sales Leads' },
   { key:'settings',           label:'⚙️ ตั้งค่า' },
 ];
 
@@ -7239,6 +7289,96 @@ async function loadAuditLog(page = 0) {
 }
 
 // ══════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════
+// SALES LEADS
+// ══════════════════════════════════════════════════════════════
+const SL_STATUS_LABEL = {
+  new:'🆕 ใหม่', contacted:'📞 ติดต่อแล้ว', quoted:'📋 เสนอราคา',
+  closed:'✅ ปิดการขาย', lost:'❌ ไม่สำเร็จ',
+};
+const SL_INTEREST_LABEL = { hot:'🔥 ร้อน', warm:'😊 อุ่น', cold:'❄️ เย็น' };
+
+async function loadSalesLeads(page = 0) {
+  const tbody  = document.getElementById('sl-tbody');
+  const status = document.getElementById('sl-status-filter')?.value || '';
+  const limit  = 25;
+  const offset = page * limit;
+  tbody.innerHTML = '<tr><td colspan="9" class="no-data">กำลังโหลด...</td></tr>';
+  try {
+    const qs  = new URLSearchParams({ limit, offset, ...(status && { status }) }).toString();
+    const res = await apiFetch(`/api/sales-leads?${qs}`);
+    const { leads, total } = res;
+
+    document.getElementById('sl-count').textContent = `ทั้งหมด ${total} รายการ`;
+
+    if (!leads.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="no-data">ยังไม่มี Lead</td></tr>';
+      document.getElementById('sl-pagination').innerHTML = '';
+      return;
+    }
+
+    tbody.innerHTML = leads.map((l, idx) => `
+      <tr>
+        <td>${offset + idx + 1}</td>
+        <td>
+          <div style="font-weight:500">${escHtml(l.line_display_name || '-')}</div>
+          ${l.customer_name ? `<div style="font-size:11px;color:#64748b">${escHtml(l.customer_name)}</div>` : ''}
+        </td>
+        <td>${l.phone ? `<a href="tel:${l.phone}">${escHtml(l.phone)}</a>` : '-'}</td>
+        <td style="font-size:12px">
+          ${[l.car_brand, l.car_model, l.car_year].filter(Boolean).join(' ') || '-'}
+        </td>
+        <td>${l.insurance_type ? escHtml(l.insurance_type) : '-'}</td>
+        <td>${SL_INTEREST_LABEL[l.interest_level] || l.interest_level || '-'}</td>
+        <td>
+          <select onchange="updateSalesLead(${l.id}, {status:this.value})"
+            style="font-size:12px;padding:2px 6px;border-radius:4px;border:1px solid #e2e8f0">
+            ${Object.entries(SL_STATUS_LABEL).map(([v,lbl]) =>
+              `<option value="${v}"${l.status===v?' selected':''}>${lbl}</option>`
+            ).join('')}
+          </select>
+        </td>
+        <td style="font-size:11px;white-space:nowrap">${new Date(l.created_at).toLocaleDateString('th-TH')}</td>
+        <td>
+          <button class="btn btn-secondary btn-sm" onclick="openLeadDetail(${JSON.stringify(l).replace(/"/g,'&quot;')})">
+            ✏️ แก้ไข
+          </button>
+        </td>
+      </tr>
+    `).join('');
+
+    // Pagination
+    const totalPages = Math.ceil(total / limit);
+    let btns = '';
+    if (page > 0)            btns += `<button class="btn btn-secondary btn-sm" onclick="loadSalesLeads(${page-1})">← ก่อนหน้า</button>`;
+    btns += `<span style="padding:6px 12px;font-size:13px">${page+1}/${Math.max(totalPages,1)}</span>`;
+    if (page < totalPages-1) btns += `<button class="btn btn-secondary btn-sm" onclick="loadSalesLeads(${page+1})">ถัดไป →</button>`;
+    document.getElementById('sl-pagination').innerHTML = btns;
+
+  } catch (e) {
+    console.error('loadSalesLeads error:', e);
+    tbody.innerHTML = '<tr><td colspan="9" class="no-data">เกิดข้อผิดพลาด</td></tr>';
+  }
+}
+
+async function updateSalesLead(id, fields) {
+  try {
+    await apiFetch(`/api/sales-leads/${id}`, { method:'PATCH', body: JSON.stringify(fields) });
+    showToast('อัปเดตสำเร็จ');
+  } catch (e) { alert('เกิดข้อผิดพลาด: ' + e.message); }
+}
+
+function openLeadDetail(lead) {
+  const name    = prompt('ชื่อลูกค้า', lead.customer_name || '');
+  if (name === null) return;
+  const phone   = prompt('เบอร์โทรศัพท์', lead.phone || '');
+  if (phone === null) return;
+  const notes   = prompt('หมายเหตุ', lead.notes || '');
+  if (notes === null) return;
+  updateSalesLead(lead.id, { customer_name: name, phone, notes }).then(() => loadSalesLeads(0));
+}
+
 // EXCEL EXPORT HELPERS
 // ══════════════════════════════════════════════════════════════
 async function _exportPrompt(type, defaultMonth) {

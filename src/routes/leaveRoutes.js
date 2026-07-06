@@ -41,19 +41,26 @@ router.post('/', async (req, res) => {
       halfDayPeriod,
     });
 
-    // แจ้งหัวหน้า หรือ HR/Admin ผ่าน LINE
+    // แจ้งหัวหน้า + Admin ผ่าน LINE (ทุกครั้ง)
     const targets = [];
+
+    // 1. หัวหน้าของพนักงาน (ถ้ามี)
     if (employee.manager_id) {
       const manager = await employeeService.findById(employee.manager_id);
       if (manager?.line_user_id) targets.push(manager.line_user_id);
     }
+
+    // 2. Admin LINE ทุกคนที่ผูกไว้ (แจ้งเสมอ ไม่ว่าจะมีหัวหน้าหรือไม่)
+    const db = require('../db');
+    const adminRows = await db.query('SELECT line_user_id FROM admin_line_users');
+    adminRows.rows.forEach(r => {
+      if (r.line_user_id && !targets.includes(r.line_user_id)) targets.push(r.line_user_id);
+    });
+
+    // 3. fallback: ถ้ายังไม่มีใครเลย → หา HR/Admin จากตารางพนักงาน
     if (targets.length === 0) {
       const admins = await employeeService.findByRole(['hr', 'admin']);
       admins.forEach(a => { if (a.line_user_id) targets.push(a.line_user_id); });
-      // push ไปยัง admin LINE ทุกคนที่ผูกไว้ (multi-admin)
-      const db = require('../db');
-      const adminRows = await db.query('SELECT line_user_id FROM admin_line_users');
-      adminRows.rows.forEach(r => { if (!targets.includes(r.line_user_id)) targets.push(r.line_user_id); });
     }
     const msg = flexMessages.leaveApprovalRequest(leave, employee);
     await Promise.all(targets.map(lineId =>

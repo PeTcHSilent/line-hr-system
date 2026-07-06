@@ -113,6 +113,7 @@ app.use('/api/tax',            require('./routes/taxRoutes'));
 app.use('/api/audit-logs',        require('./routes/auditRoutes'));
 app.use('/api/export',            require('./routes/exportRoutes'));
 app.use('/api/salary-adjustment', require('./routes/salaryAdjustmentRoutes'));
+app.use('/api/sales-leads',       require('./routes/salesLeadRoutes'));
 
 // ---- LIFF Payslip ----
 app.get('/liff/payslip', (req, res) => {

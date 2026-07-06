@@ -32,6 +32,14 @@ function workDaysToCron(workDays) {
   return workDays.map(d => isoToCron[d] ?? d).sort().join(',');
 }
 
+// ── helper: ตรวจสอบวันหยุดนักขัตฤกษ์ ─────────────────────
+async function isHoliday(dateStr) {
+  const { rows } = await db.query(
+    `SELECT name FROM holidays WHERE date = $1 LIMIT 1`, [dateStr]
+  );
+  return rows.length > 0 ? rows[0].name : null;
+}
+
 // ── ลงทะเบียน dynamic cron จาก settings ────────────────
 async function registerAttendanceCrons() {
   try {
@@ -57,6 +65,11 @@ async function registerAttendanceCrons() {
       console.log('[CRON] แจ้งเตือนเช็คอิน...');
       try {
         const today = dayjs().format('YYYY-MM-DD');
+        const holidayName = await isHoliday(today);
+        if (holidayName) {
+          console.log(`  → วันหยุดนักขัตฤกษ์ (${holidayName}) ข้ามการแจ้งเตือนเช็คอิน`);
+          return;
+        }
         const { rows } = await db.query(`
           SELECT e.id, e.name, e.line_user_id, e.email
           FROM employees e
@@ -86,6 +99,11 @@ async function registerAttendanceCrons() {
       console.log('[CRON] แจ้งเตือนเช็คเอาท์...');
       try {
         const today = dayjs().format('YYYY-MM-DD');
+        const holidayName = await isHoliday(today);
+        if (holidayName) {
+          console.log(`  → วันหยุดนักขัตฤกษ์ (${holidayName}) ข้ามการแจ้งเตือนเช็คเอาท์`);
+          return;
+        }
         const { rows } = await db.query(`
           SELECT e.id, e.name, e.line_user_id, e.email
           FROM employees e
@@ -137,6 +155,11 @@ function registerFallbackCrons() {
     console.log('[CRON-fallback] เช็คอิน reminder...');
     try {
       const today = dayjs().format('YYYY-MM-DD');
+      const holidayName = await isHoliday(today);
+      if (holidayName) {
+        console.log(`  → วันหยุดนักขัตฤกษ์ (${holidayName}) ข้ามเช็คอิน`);
+        return;
+      }
       const { rows } = await db.query(`
         SELECT e.id, e.name, e.line_user_id, e.email FROM employees e
         WHERE e.is_active = TRUE
@@ -153,6 +176,11 @@ function registerFallbackCrons() {
     console.log('[CRON-fallback] เช็คเอาท์ reminder...');
     try {
       const today = dayjs().format('YYYY-MM-DD');
+      const holidayName = await isHoliday(today);
+      if (holidayName) {
+        console.log(`  → วันหยุดนักขัตฤกษ์ (${holidayName}) ข้ามเช็คเอาท์`);
+        return;
+      }
       const { rows } = await db.query(`
         SELECT e.id, e.name, e.line_user_id FROM employees e
         JOIN attendance a ON a.employee_id = e.id

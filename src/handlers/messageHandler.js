@@ -1,4 +1,5 @@
 const employeeService = require('../services/employeeService');
+const salesBotService  = require('../services/salesBotService');
 const attendanceService = require('../services/attendanceService');
 const flexMessages = require('../utils/flexMessages');
 
@@ -306,10 +307,20 @@ async function handleUnregistered(client, event, lineUserId) {
     }
   }
 
-  return reply(client, event.replyToken, {
-    type: 'text',
-    text: '👋 ยังไม่พบข้อมูลของคุณในระบบ\n\nกรุณาพิมพ์รหัสพนักงานเพื่อลงทะเบียน\nตัวอย่าง: TK001'
-  });
+
+  // ── ไม่ใช่พนักงาน → Sales Bot ──
+  if (event.type === 'message' && event.message?.type === 'text' && text) {
+    try {
+      let displayName = 'ลูกค้า';
+      try { const p = await client.getProfile(lineUserId); displayName = p.displayName || 'ลูกค้า'; } catch {}
+      const botReply = await salesBotService.handleMessage(lineUserId, displayName, text);
+      return reply(client, event.replyToken, { type: 'text', text: botReply });
+    } catch (err) {
+      console.error('[salesBot] error:', err.message);
+      return reply(client, event.replyToken, { type: 'text', text: 'ขออภัยค่ะ ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง' });
+    }
+  }
+  return null;
 }
 
 async function handleFollow(client, event) {
