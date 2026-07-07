@@ -304,7 +304,7 @@ cron.schedule('0 18 * * *', async () => {
       channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
     });
 
-    const tomorrowTH = dayjs(tomorrow).toDate().toLocaleDateString('th-TH', {
+    const tomorrowTH = new Date(tomorrow + 'T12:00:00+07:00').toLocaleDateString('th-TH', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Bangkok',
     });
 
@@ -542,8 +542,10 @@ async function sendDailyAttendanceSummary(dateStr) {
   const absentCount   = absent.length;
 
   // วันที่ภาษาไทย
-  const todayTH = new Date(today + 'T00:00:00+07:00').toLocaleDateString('th-TH', {
+  // ใช้ T12:00:00+07:00 (เที่ยงวัน Bangkok) เพื่อให้วันที่ถูกต้องใน UTC server
+  const todayTH = new Date(today + 'T12:00:00+07:00').toLocaleDateString('th-TH', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    timeZone: 'Asia/Bangkok',
   });
 
   // ── สร้าง Flex Message ──────────────────────────────
@@ -625,7 +627,7 @@ function kpiBox(label, value, bg, color) {
 }
 
 function fmtDate(d) {
-  return new Date(d).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' });
+  return new Date(String(d) + 'T12:00:00+07:00').toLocaleDateString('th-TH', { month: 'short', day: 'numeric', timeZone: 'Asia/Bangkok' });
 }
 
 module.exports = { sendDailyAttendanceSummary };

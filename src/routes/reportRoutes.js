@@ -31,4 +31,17 @@ router.get('/calendar', async (req, res) => {
   }
 });
 
+// POST /api/report/send-daily-summary?date=YYYY-MM-DD  (Admin only — ส่งสรุปทันที)
+router.post('/send-daily-summary', async (req, res) => {
+  try {
+    const { sendDailyAttendanceSummary } = require('../jobs/reminderCron');
+    const date = req.query.date || req.body.date || null;  // optional date override
+    await sendDailyAttendanceSummary(date);
+    res.json({ success: true, message: `ส่งสรุปการมาทำงาน${date ? ' (' + date + ')' : ''}สำเร็จ` });
+  } catch (err) {
+    console.error('[API] send-daily-summary error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
