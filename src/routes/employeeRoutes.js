@@ -182,7 +182,7 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', requireAuth, async (req, res) => {
   try {
     const {
-      name, sex, phone_no, email, department_id, role, manager_id, salary, deduct_absent,
+      name, sex, phone_no, email, department_id, role, manager_id, salary, base_salary, deduct_absent,
       bank_name, bank_branch, bank_account_no, bank_account_name,
       probation_start_date, probation_end_date, probation_status, branch_id, hire_date,
     } = req.body;
@@ -196,6 +196,7 @@ router.put('/:id', requireAuth, async (req, res) => {
     const emp = await employeeService.updateEmployee(req.params.id, {
       name, sex, phone_no, email, department_id, role, manager_id,
       salary: salary !== undefined ? (parseFloat(salary) || 0) : undefined,
+      base_salary: base_salary !== undefined ? (parseFloat(base_salary) || 0) : undefined,
       deduct_absent: deduct_absent !== undefined ? Boolean(deduct_absent) : undefined,
       bank_name, bank_branch, bank_account_no, bank_account_name,
       probation_start_date: probation_start_date || undefined,

@@ -189,6 +189,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
         ขึ้นเงินเดือนประจำปี
       </a>
+      <a class="nav-item" data-page="employee-salary" onclick="showPage('employee-salary')" href="#">
+        <span class="nav-icon">💰</span>
+        <span>เงินเดือนพนักงาน</span>
+      </a>
       <a class="nav-item" data-page="warnings" onclick="showPage('warnings')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         สาย / ขาดงาน
@@ -1280,6 +1284,105 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
       </div>
     </div>
 
+    
+    <!-- ========== เงินเดือนพนักงาน ========== -->
+    <div id="page-employee-salary" class="page">
+      <div class="page-header">
+        <h2 class="page-title">เงินเดือนพนักงาน</h2>
+      </div>
+
+      <!-- Filters -->
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+        <input type="text" id="es-search" placeholder="🔍 ค้นหาชื่อ / รหัส..."
+               style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;width:220px;"
+               oninput="filterEmpSalaryTable()">
+        <select id="es-dept" onchange="filterEmpSalaryTable()"
+                style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;">
+          <option value="">— ทุกแผนก —</option>
+        </select>
+        <button class="btn btn-sm" onclick="loadEmployeeSalary()"
+                style="background:#f1f5f9;color:#374151;border:1px solid #e2e8f0;">🔄 รีเฟรช</button>
+        <span id="es-count" style="margin-left:auto;font-size:13px;color:#6b7280;"></span>
+      </div>
+
+      <!-- Table -->
+      <div class="card" style="overflow:auto;">
+        <table class="table" id="es-table">
+          <thead>
+            <tr>
+              <th>รหัส</th>
+              <th>ชื่อพนักงาน</th>
+              <th>แผนก</th>
+              <th class="num">เงินเดือนเริ่มต้น</th>
+              <th class="num">เงินเดือนปัจจุบัน</th>
+              <th class="num">เพิ่มขึ้นรวม</th>
+              <th>ปรับล่าสุด</th>
+              <th>จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="es-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Modal: แก้ไขเงินเดือน -->
+    <div id="modal-emp-salary-edit" class="modal" onclick="if(event.target===this)closeEmpSalaryModal()">
+      <div class="modal-box" style="max-width:480px;">
+        <div class="modal-header">
+          <h3 class="modal-title">💰 แก้ไขเงินเดือน</h3>
+          <button class="modal-close" onclick="closeEmpSalaryModal()">×</button>
+        </div>
+        <input type="hidden" id="esm-emp-id">
+        <div style="background:#f8fafc;border-radius:8px;padding:12px 16px;margin-bottom:16px;">
+          <div style="font-size:12px;color:#64748b;" id="esm-emp-dept"></div>
+          <div style="font-size:17px;font-weight:700;color:#0f172a;margin-top:2px;" id="esm-emp-name"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">💼 เงินเดือนเริ่มต้น (฿) <span style="font-size:11px;color:#94a3b8;">— เงินเดือนแรกเข้า ไม่เปลี่ยนตามขึ้นเงินเดือนปกติ</span></label>
+          <input type="number" id="esm-base-salary" class="form-control" placeholder="0" min="0" step="100"
+                 oninput="previewEmpSalaryDiff()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">📈 เงินเดือนปัจจุบัน (฿)</label>
+          <input type="number" id="esm-current-salary" class="form-control" placeholder="0" min="0" step="100"
+                 oninput="previewEmpSalaryDiff()">
+        </div>
+        <div id="esm-diff-preview" style="display:none;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+          <button class="btn" style="background:#f1f5f9;color:#374151;" onclick="closeEmpSalaryModal()">ยกเลิก</button>
+          <button class="btn" onclick="saveEmpSalary()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: ประวัติเงินเดือน -->
+    <div id="modal-salary-history" class="modal" onclick="if(event.target===this)closeSalaryHistoryModal()">
+      <div class="modal-box" style="max-width:620px;">
+        <div class="modal-header">
+          <h3 class="modal-title">📋 ประวัติการปรับเงินเดือน</h3>
+          <button class="modal-close" onclick="closeSalaryHistoryModal()">×</button>
+        </div>
+        <div style="font-size:14px;font-weight:600;color:#1e293b;margin-bottom:12px;" id="sh-emp-name"></div>
+        <!-- Salary summary -->
+        <div id="sh-summary" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;"></div>
+        <div style="overflow:auto;max-height:380px;">
+          <table class="table" style="min-width:500px;">
+            <thead>
+              <tr>
+                <th>วันที่มีผล</th>
+                <th>รอบ / เหตุผล</th>
+                <th class="num">เงินเดือนเดิม</th>
+                <th class="num">ปรับ</th>
+                <th class="num">เงินเดือนใหม่</th>
+              </tr>
+            </thead>
+            <tbody id="sh-tbody"></tbody>
+          </table>
+          <div id="sh-empty" style="display:none;text-align:center;padding:24px;color:#94a3b8;font-size:14px;">ยังไม่มีประวัติการปรับเงินเดือน</div>
+        </div>
+      </div>
+    </div>
+
     <!-- ========== ขึ้นเงินเดือนประจำปี ========== -->
     <div id="page-salary-adjustment" class="page">
       <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
@@ -2110,6 +2213,7 @@ function showPage(name) {
     'audit-log':'Audit Log — ประวัติการดำเนินการ',
     'sales-leads':'Sales Leads — ลูกค้าสนใจประกันรถ',
     'salary-adjustment':'ขึ้นเงินเดือนประจำปี',
+    'employee-salary':'เงินเดือนพนักงาน',
   };
   document.getElementById('page-title').textContent = titles[name] || name;
   if (name === 'employees')   loadEmployees();
@@ -2140,6 +2244,7 @@ function showPage(name) {
   if (name === 'audit-log')        loadAuditLog(0);
   if (name === 'sales-leads')    loadSalesLeads(0);
   if (name === 'salary-adjustment') initSalaryAdj();
+  if (name === 'employee-salary') loadEmployeeSalary();
 }
 
 function updateClock() {
@@ -2167,6 +2272,7 @@ const MENU_DEFS = [
   { key:'payroll',            label:'💰 Payroll' },
   { key:'tax-report',         label:'🧾 รายงานภาษี (ภ.ง.ด.)' },
   { key:'salary-adjustment',  label:'📈 ขึ้นเงินเดือนประจำปี' },
+  { key:'employee-salary',     label:'💰 เงินเดือนพนักงาน' },
   { key:'warnings',           label:'⚠️ สาย/ขาดงาน' },
   { key:'expense',            label:'🧾 เบิกค่าใช้จ่าย' },
   { key:'probation',          label:'📝 ทดลองงาน' },
@@ -7716,6 +7822,264 @@ function openSalaryAdjForEmp(empId) {
   showPage('salary-adjustment');
   setTimeout(() => openSalaryOneModal(empId), 300);
 }
+
+
+  // ═══════════════════════════════════════════════════════
+  // เงินเดือนพนักงาน (Employee Salary)
+  // ═══════════════════════════════════════════════════════
+  let _empSalaryData = [];
+
+  async function loadEmployeeSalary() {
+    const tbody = document.getElementById('es-tbody');
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#94a3b8;">⏳ กำลังโหลด...</td></tr>';
+
+    try {
+      // โหลดพนักงานทั้งหมดพร้อมข้อมูลเงินเดือน
+      const res = await fetch('/api/employees?limit=9999', { headers: authHeaders() });
+      const emps = await res.json();
+
+      // โหลด departments เพื่อ populate dropdown
+      const deptSel = document.getElementById('es-dept');
+      const deptRes = await fetch('/api/departments', { headers: authHeaders() });
+      const depts = await deptRes.json();
+      const existingOpts = [...deptSel.options].map(o => o.value);
+      depts.forEach(d => {
+        if (!existingOpts.includes(String(d.id))) {
+          const opt = document.createElement('option');
+          opt.value = d.id; opt.textContent = d.name;
+          deptSel.appendChild(opt);
+        }
+      });
+
+      // โหลดประวัติการปรับเงินเดือนล่าสุด (สำหรับ column ปรับล่าสุด)
+      let lastAdjMap = {};
+      try {
+        const adjRes = await fetch('/api/salary-adjustments?limit=9999', { headers: authHeaders() });
+        if (adjRes.ok) {
+          const adjData = await adjRes.json();
+          const adjs = Array.isArray(adjData) ? adjData : (adjData.adjustments || adjData.data || []);
+          adjs.forEach(a => {
+            const eid = a.employee_id;
+            if (!lastAdjMap[eid] || new Date(a.effective_date) > new Date(lastAdjMap[eid].effective_date)) {
+              lastAdjMap[eid] = a;
+            }
+          });
+        }
+      } catch(e) {}
+
+      _empSalaryData = (Array.isArray(emps) ? emps : (emps.employees || emps.data || [])).map(e => ({
+        ...e,
+        lastAdj: lastAdjMap[e.id] || null,
+      }));
+
+      renderEmpSalaryTable(_empSalaryData);
+    } catch(err) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#ef4444;padding:24px;">${err.message}</td></tr>`;
+    }
+  }
+
+  function renderEmpSalaryTable(data) {
+    const tbody = document.getElementById('es-tbody');
+    const fmt = n => Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#94a3b8;">ไม่พบข้อมูล</td></tr>';
+      document.getElementById('es-count').textContent = '';
+      return;
+    }
+
+    tbody.innerHTML = data.map(e => {
+      const base    = parseFloat(e.base_salary || 0);
+      const current = parseFloat(e.salary || 0);
+      const diff    = current - base;
+      const diffPct = base > 0 ? ((diff / base) * 100).toFixed(1) : '—';
+      const diffColor = diff > 0 ? '#16a34a' : diff < 0 ? '#dc2626' : '#6b7280';
+      const diffLabel = diff === 0 ? '—' : (diff > 0 ? '+' : '') + fmt(diff) + (base > 0 ? ` (${diffPct}%)` : '');
+
+      const lastDate = e.lastAdj
+        ? new Date(e.lastAdj.effective_date).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'Asia/Bangkok' })
+        : '—';
+
+      return `<tr>
+        <td style="font-family:monospace;font-size:12px;color:#64748b;">${e.employee_code || e.id}</td>
+        <td style="font-weight:600;">${e.name || ''}</td>
+        <td style="font-size:13px;color:#64748b;">${e.department_name || e.department || ''}</td>
+        <td class="num" style="color:#1e40af;">฿${fmt(base)}</td>
+        <td class="num" style="color:#0f172a;font-weight:600;">฿${fmt(current)}</td>
+        <td class="num" style="color:${diffColor};">${diffLabel}</td>
+        <td style="font-size:12px;color:#64748b;">${lastDate}</td>
+        <td>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm" style="font-size:11px;padding:4px 10px;"
+                    onclick="openEmpSalaryModal(${e.id})">✏️ แก้ไข</button>
+            <button class="btn btn-sm" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#374151;"
+                    onclick="openSalaryHistoryModal(${e.id})">📋 ประวัติ</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('es-count').textContent = `แสดง ${data.length} คน`;
+  }
+
+  function filterEmpSalaryTable() {
+    const q    = (document.getElementById('es-search').value || '').toLowerCase().trim();
+    const dept = document.getElementById('es-dept').value;
+    const filtered = _empSalaryData.filter(e => {
+      const matchQ = !q || (e.name || '').toLowerCase().includes(q)
+                        || String(e.employee_code || '').toLowerCase().includes(q)
+                        || String(e.id).includes(q);
+      const matchD = !dept || String(e.department_id) === String(dept);
+      return matchQ && matchD;
+    });
+    renderEmpSalaryTable(filtered);
+  }
+
+  async function openEmpSalaryModal(empId) {
+    const emp = _empSalaryData.find(e => e.id === empId);
+    if (!emp) return;
+
+    document.getElementById('esm-emp-id').value    = empId;
+    document.getElementById('esm-emp-name').textContent = emp.name || '';
+    document.getElementById('esm-emp-dept').textContent  = emp.department_name || emp.department || '';
+    document.getElementById('esm-base-salary').value    = parseFloat(emp.base_salary || 0) || '';
+    document.getElementById('esm-current-salary').value = parseFloat(emp.salary || 0) || '';
+
+    document.getElementById('esm-diff-preview').style.display = 'none';
+    previewEmpSalaryDiff();
+    document.getElementById('modal-emp-salary-edit').style.display = 'flex';
+  }
+
+  function closeEmpSalaryModal() {
+    document.getElementById('modal-emp-salary-edit').style.display = 'none';
+  }
+
+  function previewEmpSalaryDiff() {
+    const base = parseFloat(document.getElementById('esm-base-salary').value) || 0;
+    const cur  = parseFloat(document.getElementById('esm-current-salary').value) || 0;
+    const div  = document.getElementById('esm-diff-preview');
+    if (!base && !cur) { div.style.display = 'none'; return; }
+
+    const diff    = cur - base;
+    const diffPct = base > 0 ? ((diff / base) * 100).toFixed(1) : null;
+    const fmt     = n => Number(n).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const color   = diff > 0 ? '#dcfce7' : diff < 0 ? '#fee2e2' : '#f1f5f9';
+    const textCol = diff > 0 ? '#166534' : diff < 0 ? '#991b1b' : '#374151';
+
+    div.style.display = 'block';
+    div.style.background = color;
+    div.style.color = textCol;
+    div.innerHTML = [
+      `<strong>เงินเดือนเริ่มต้น:</strong> ฿${fmt(base)}`,
+      `<strong>เงินเดือนปัจจุบัน:</strong> ฿${fmt(cur)}`,
+      diff !== 0 ? `<strong>เพิ่มขึ้นรวม:</strong> ${diff > 0 ? '+' : ''}฿${fmt(diff)}${diffPct ? ` (${diffPct}%)` : ''}` : '<strong>ยังไม่มีการปรับ</strong>',
+    ].join(' &nbsp;|&nbsp; ');
+  }
+
+  async function saveEmpSalary() {
+    const empId      = parseInt(document.getElementById('esm-emp-id').value);
+    const baseSalary = parseFloat(document.getElementById('esm-base-salary').value) || 0;
+    const salary     = parseFloat(document.getElementById('esm-current-salary').value) || 0;
+    const emp        = _empSalaryData.find(e => e.id === empId);
+    if (!emp) return;
+
+    const oldSalary = parseFloat(emp.salary || 0);
+    const salaryChanged = Math.abs(salary - oldSalary) >= 0.01;
+
+    try {
+      // อัพเดต base_salary + salary
+      const res = await fetch(`/api/employees/${empId}`, {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base_salary: baseSalary, salary: salary }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'เกิดข้อผิดพลาด');
+
+      // ถ้าเงินเดือนปัจจุบันเปลี่ยน → บันทึก salary_adjustment
+      if (salaryChanged) {
+        const today = new Date().toISOString().split('T')[0];
+        const adjRes = await fetch('/api/salary-adjustments', {
+          method: 'POST',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            employee_id:    empId,
+            old_salary:     oldSalary,
+            new_salary:     salary,
+            adjustment_type: salary > oldSalary ? 'increment' : 'decrement',
+            effective_date:  today,
+            note: salary > oldSalary ? 'ปรับขึ้นเงินเดือน' : 'ปรับลดเงินเดือน',
+          }),
+        });
+        // ไม่ throw ถ้า adjustment ไม่สำเร็จ (endpoint อาจต่างกัน)
+      }
+
+      closeEmpSalaryModal();
+      showToast('บันทึกข้อมูลเงินเดือนสำเร็จ');
+      loadEmployeeSalary();
+    } catch(err) {
+      alert('เกิดข้อผิดพลาด: ' + err.message);
+    }
+  }
+
+  async function openSalaryHistoryModal(empId) {
+    const emp = _empSalaryData.find(e => e.id === empId);
+    if (!emp) return;
+
+    document.getElementById('sh-emp-name').textContent = `${emp.name || ''}  (${emp.department_name || emp.department || ''})`;
+    document.getElementById('sh-tbody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:#94a3b8;">⏳ กำลังโหลด...</td></tr>';
+    document.getElementById('sh-summary').innerHTML = '';
+    document.getElementById('sh-empty').style.display = 'none';
+    document.getElementById('modal-salary-history').style.display = 'flex';
+
+    try {
+      const res = await fetch(`/api/salary-adjustments?employee_id=${empId}`, { headers: authHeaders() });
+      const data = await res.json();
+      const rows = Array.isArray(data) ? data : (data.adjustments || data.data || []);
+      rows.sort((a, b) => new Date(b.effective_date) - new Date(a.effective_date));
+
+      const fmt = n => Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const fmtDate = d => new Date(String(d) + 'T12:00:00+07:00').toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'Asia/Bangkok' });
+
+      if (!rows.length) {
+        document.getElementById('sh-tbody').innerHTML = '';
+        document.getElementById('sh-empty').style.display = 'block';
+      } else {
+        document.getElementById('sh-empty').style.display = 'none';
+        document.getElementById('sh-tbody').innerHTML = rows.map(r => {
+          const diff = (parseFloat(r.new_salary) - parseFloat(r.old_salary));
+          const diffColor = diff > 0 ? '#16a34a' : '#dc2626';
+          const diffLabel = (diff > 0 ? '+' : '') + fmt(diff);
+          return `<tr>
+            <td>${fmtDate(r.effective_date)}</td>
+            <td style="font-size:12px;">${r.note || r.adjustment_type || '—'}</td>
+            <td class="num">฿${fmt(r.old_salary)}</td>
+            <td class="num" style="color:${diffColor};font-weight:600;">${diffLabel}</td>
+            <td class="num" style="font-weight:700;">฿${fmt(r.new_salary)}</td>
+          </tr>`;
+        }).join('');
+      }
+
+      // Summary chips
+      const base    = parseFloat(emp.base_salary || 0);
+      const current = parseFloat(emp.salary || 0);
+      const total   = current - base;
+      const summDiv = document.getElementById('sh-summary');
+      const chip = (label, val, color) => `<div style="background:${color};border-radius:8px;padding:8px 14px;font-size:13px;"><div style="color:#64748b;font-size:11px;">${label}</div><div style="font-weight:700;color:#0f172a;">฿${fmt(val)}</div></div>`;
+      summDiv.innerHTML = [
+        chip('เงินเดือนเริ่มต้น', base, '#f0f9ff'),
+        chip('เงินเดือนปัจจุบัน', current, '#f0fdf4'),
+        chip('เพิ่มขึ้นรวม', total, total > 0 ? '#dcfce7' : '#fee2e2'),
+        `<div style="background:#fefce8;border-radius:8px;padding:8px 14px;font-size:13px;"><div style="color:#64748b;font-size:11px;">ครั้งที่ปรับ</div><div style="font-weight:700;color:#0f172a;">${rows.length} ครั้ง</div></div>`,
+      ].join('');
+
+    } catch(err) {
+      document.getElementById('sh-tbody').innerHTML = `<tr><td colspan="5" style="color:#ef4444;padding:16px;">${err.message}</td></tr>`;
+    }
+  }
+
+  function closeSalaryHistoryModal() {
+    document.getElementById('modal-salary-history').style.display = 'none';
+  }
 
 </script>
 
