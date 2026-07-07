@@ -10,22 +10,30 @@ const client = new line.messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN
 });
 
-// helper: push แจ้งหัวหน้า/HR เมื่อมี OT ใหม่
+// helper: push แจ้งหัวหน้า/HR/Admin เมื่อมี OT ใหม่
 async function notifyApprovers(ot, employee) {
   try {
+    const db = require('../db');
     const targets = [];
+
+    // 1. หัวหน้า (ถ้ามี)
     if (employee.manager_id) {
       const manager = await employeeService.findById(employee.manager_id);
       if (manager && manager.line_user_id) targets.push(manager.line_user_id);
     }
+
+    // 2. Admin LINE ทุกคน (เสมอ — ไม่ขึ้นกับว่ามีหัวหน้าหรือไม่)
+    const adminRows = await db.query('SELECT line_user_id FROM admin_line_users');
+    adminRows.rows.forEach(r => {
+      if (r.line_user_id && !targets.includes(r.line_user_id)) targets.push(r.line_user_id);
+    });
+
+    // 3. fallback: ถ้ายังไม่มีใครเลย → หา hr/admin จาก employees
     if (targets.length === 0) {
       const admins = await employeeService.findByRole(['hr', 'admin']);
       admins.forEach(a => { if (a.line_user_id) targets.push(a.line_user_id); });
-      // push ไปยัง admin LINE ทุกคนที่ผูกไว้ (multi-admin)
-      const db = require('../db');
-      const adminRows = await db.query('SELECT line_user_id FROM admin_line_users');
-      adminRows.rows.forEach(r => { if (!targets.includes(r.line_user_id)) targets.push(r.line_user_id); });
     }
+
     const msg = flexMessages.otApprovalRequest(ot, employee);
     await Promise.all(targets.map(lineId =>
       client.pushMessage({ to: lineId, messages: [msg] }).catch(() => {})
