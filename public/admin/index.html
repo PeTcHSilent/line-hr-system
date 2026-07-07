@@ -7471,7 +7471,7 @@ async function loadSalesLeads(page = 0) {
 async function updateSalesLead(id, fields) {
   try {
     await apiFetch(`/api/sales-leads/${id}`, { method:'PATCH', body: JSON.stringify(fields) });
-    showToast('อัปเดตสำเร็จ');
+    toast('อัปเดตสำเร็จ');
   } catch (e) { alert('เกิดข้อผิดพลาด: ' + e.message); }
 }
 
@@ -7854,7 +7854,7 @@ function openSalaryAdjForEmp(empId) {
       // โหลดประวัติการปรับเงินเดือนล่าสุด (สำหรับ column ปรับล่าสุด)
       let lastAdjMap = {};
       try {
-        const adjRes = await fetch('/api/salary-adjustments?limit=9999', { headers: authHeaders() });
+        const adjRes = await fetch('/api/salary-adjustment?limit=9999', { headers: authHeaders() });
         if (adjRes.ok) {
           const adjData = await adjRes.json();
           const adjs = Array.isArray(adjData) ? adjData : (adjData.adjustments || adjData.data || []);
@@ -7998,7 +7998,7 @@ function openSalaryAdjForEmp(empId) {
       // ถ้าเงินเดือนปัจจุบันเปลี่ยน → บันทึก salary_adjustment
       if (salaryChanged) {
         const today = new Date().toISOString().split('T')[0];
-        const adjRes = await fetch('/api/salary-adjustments', {
+        const adjRes = await fetch('/api/salary-adjustment', {
           method: 'POST',
           headers: { ...authHeaders(), 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -8014,7 +8014,7 @@ function openSalaryAdjForEmp(empId) {
       }
 
       closeEmpSalaryModal();
-      showToast('บันทึกข้อมูลเงินเดือนสำเร็จ');
+      toast('บันทึกข้อมูลเงินเดือนสำเร็จ');
       loadEmployeeSalary();
     } catch(err) {
       alert('เกิดข้อผิดพลาด: ' + err.message);
@@ -8032,7 +8032,7 @@ function openSalaryAdjForEmp(empId) {
     document.getElementById('modal-salary-history').style.display = 'flex';
 
     try {
-      const res = await fetch(`/api/salary-adjustments?employee_id=${empId}`, { headers: authHeaders() });
+      const res = await fetch(`/api/salary-adjustment?employee_id=${empId}`, { headers: authHeaders() });
       const data = await res.json();
       const rows = Array.isArray(data) ? data : (data.adjustments || data.data || []);
       rows.sort((a, b) => new Date(b.effective_date) - new Date(a.effective_date));
