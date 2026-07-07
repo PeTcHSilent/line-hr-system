@@ -7835,12 +7835,12 @@ function openSalaryAdjForEmp(empId) {
 
     try {
       // โหลดพนักงานทั้งหมดพร้อมข้อมูลเงินเดือน
-      const res = await fetch('/api/employees?limit=9999', { headers: authHeaders() });
+      const res = await fetch('/api/employee', { headers: authHeaders() });
       const emps = await res.json();
 
       // โหลด departments เพื่อ populate dropdown
       const deptSel = document.getElementById('es-dept');
-      const deptRes = await fetch('/api/departments', { headers: authHeaders() });
+      const deptRes = await fetch('/api/department', { headers: authHeaders() });
       const depts = await deptRes.json();
       const existingOpts = [...deptSel.options].map(o => o.value);
       depts.forEach(d => {
@@ -7988,7 +7988,7 @@ function openSalaryAdjForEmp(empId) {
 
     try {
       // อัพเดต base_salary + salary
-      const res = await fetch(`/api/employees/${empId}`, {
+      const res = await fetch(`/api/employee/${empId}`, {
         method: 'PUT',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ base_salary: baseSalary, salary: salary }),
