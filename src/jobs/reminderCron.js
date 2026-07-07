@@ -504,15 +504,28 @@ async function sendDailyAttendanceSummary(dateStr) {
   const onTime = [], late = [], noCheckout = [];
   for (const att of attRows) {
     if (!att.check_in) continue;
-    const parts = String(att.check_in).split(':').map(Number);
-    const cinMin = parts[0] * 60 + parts[1];
-    const lateMin = cinMin - (wh * 60 + wm);
+    // ── parse check_in: รองรับ TIME string "HH:MM:SS" และ Timestamp/Date object ──
+    let cinH, cinM;
+    const _cinStr = String(att.check_in);
+    const _timeMatch = _cinStr.match(/^(\d{1,2}):(\d{2})/);
+    if (_timeMatch) {
+      // TIME type → "08:52:00"
+      cinH = +_timeMatch[1]; cinM = +_timeMatch[2];
+    } else {
+      // TIMESTAMP type → Date object → แปลงเป็น Bangkok time (UTC+7)
+      const _d = new Date(att.check_in);
+      const _bk = new Date(_d.getTime() + 7 * 3600000);
+      cinH = _bk.getUTCHours(); cinM = _bk.getUTCMinutes();
+    }
+    const cinMin   = cinH * 60 + cinM;
+    const cinLabel = `${String(cinH).padStart(2,'0')}:${String(cinM).padStart(2,'0')}`;
+    const lateMin  = cinMin - (wh * 60 + wm);
     if (cinMin > thresholdMin) {
       const lh = Math.floor(lateMin / 60), lm = lateMin % 60;
       const lateStr = lh > 0 ? `${lh}ชม.${lm}น.` : `${lm}น.`;
-      late.push(`• ${att.name}  สาย ${lateStr} (เข้า ${parts[0].toString().padStart(2,'0')}:${parts[1].toString().padStart(2,'0')})`);
+      late.push(`• ${att.name}  สาย ${lateStr} (เข้า ${cinLabel})`);
     } else {
-      onTime.push(`• ${att.name}  ${parts[0].toString().padStart(2,'0')}:${parts[1].toString().padStart(2,'0')}`);
+      onTime.push(`• ${att.name}  ${cinLabel}`);
     }
     if (!att.check_out) noCheckout.push(att.name);
   }
