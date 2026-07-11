@@ -167,6 +167,30 @@ router.patch('/:id/set-line', requireAuth, async (req, res) => {
   }
 });
 
+// ── GET /api/employee/notify-targets ── สำหรับ Sales Bot sync ──
+// คืนรายชื่อพนักงานแผนก Sales + Admin (ใช้ X-Sync-Key ป้องกัน)
+// ⚠️ ต้องอยู่ก่อน /:id ไม่งั้น Express จะจับ notify-targets เป็น id
+router.get('/notify-targets', async (req, res) => {
+  try {
+    const secret = process.env.HR_SYNC_SECRET;
+    if (secret && req.headers['x-sync-key'] !== secret) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const db = require('../db');
+    const r = await db.query(`
+      SELECT e.employee_code, e.name, e.line_user_id, e.is_active,
+             d.name AS department_name
+      FROM   employees e
+      LEFT JOIN departments d ON e.department_id = d.id
+      WHERE  d.name IN ('Sales', 'Admin')
+      ORDER  BY d.name, e.employee_code
+    `);
+    res.json({ employees: r.rows, total: r.rows.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/employee/:id — ดึงพนักงานรายเดียว
 router.get('/:id', async (req, res) => {
   try {
