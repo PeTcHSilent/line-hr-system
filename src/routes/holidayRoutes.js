@@ -5,14 +5,16 @@ const audit   = require('../services/auditService');
 const { requireAuth } = require('../middleware/authMiddleware');
 
 // -----------------------------------------------
-// GET /api/holidays?year=2026
+// GET /api/holidays?year=2026&type=company
 // ดึงวันหยุดทั้งหมดของปีที่ระบุ (ค.ศ.)
+// ?type=public|company — กรองตามประเภท (ถ้าไม่ระบุ = ทุกประเภท)
 // ถ้าไม่ระบุ year → ใช้ปีปัจจุบัน
 // -----------------------------------------------
 router.get('/', async (req, res) => {
   try {
     const year = parseInt(req.query.year) || new Date().getFullYear();
-    const holidays = await holidayService.getHolidaysByYear(year);
+    const type = ['public', 'company'].includes(req.query.type) ? req.query.type : undefined;
+    const holidays = await holidayService.getHolidaysByYear(year, type);
     res.json({
       year,
       be_year: year + 543,
@@ -40,11 +42,12 @@ router.get('/years', async (req, res) => {
 // -----------------------------------------------
 // POST /api/holidays
 // เพิ่มวันหยุดใหม่ (admin)
-// body: { date, name, year, is_substitute }
+// body: { date, name, year, is_substitute, holiday_type }
+//   holiday_type: 'public' (ราชการ, default) | 'company' (บริษัทกำหนด)
 // -----------------------------------------------
 router.post('/', requireAuth, async (req, res) => {
   try {
-    const { date, name, year, is_substitute } = req.body;
+    const { date, name, year, is_substitute, holiday_type } = req.body;
     if (!date || !name || !year) {
       return res.status(400).json({ error: 'กรุณาระบุ date, name, year' });
     }
@@ -53,6 +56,7 @@ router.post('/', requireAuth, async (req, res) => {
       name,
       year: parseInt(year),
       isSubstitute: is_substitute || false,
+      holidayType: holiday_type || 'public',
     });
     audit.log({
       actorName:   req.admin.display_name || req.admin.username,
@@ -60,8 +64,8 @@ router.post('/', requireAuth, async (req, res) => {
       action:      'create_holiday',
       targetType:  'holiday',
       targetId:    holiday.id,
-      description: 'เพิ่มวันหยุด: ' + holiday.name + ' (' + holiday.date + ')',
-      meta:        { date: holiday.date, name: holiday.name, year: holiday.year },
+      description: 'เพิ่มวันหยุด: ' + holiday.name + ' (' + holiday.date + ') [' + (holiday.holiday_type || 'public') + ']',
+      meta:        { date: holiday.date, name: holiday.name, year: holiday.year, holiday_type: holiday.holiday_type },
     });
     res.status(201).json(holiday);
   } catch (err) {
@@ -76,15 +80,16 @@ router.post('/', requireAuth, async (req, res) => {
 // -----------------------------------------------
 // PUT /api/holidays/:id
 // แก้ไขวันหยุด (admin)
-// body: { date?, name?, is_substitute? }
+// body: { date?, name?, is_substitute?, holiday_type? }
 // -----------------------------------------------
 router.put('/:id', requireAuth, async (req, res) => {
   try {
-    const { date, name, is_substitute } = req.body;
+    const { date, name, is_substitute, holiday_type } = req.body;
     const holiday = await holidayService.updateHoliday(req.params.id, {
       date,
       name,
       isSubstitute: is_substitute,
+      holidayType: holiday_type,
     });
     audit.log({
       actorName:   req.admin.display_name || req.admin.username,

@@ -5,15 +5,22 @@
  *
  * ENV required:
  *   ANTHROPIC_API_KEY   — Anthropic API key
+ *   LINE_CHANNEL_ACCESS_TOKEN
  *
  * Functions:
  *   handleMessage(lineUserId, displayName, text)  -> replyText
  *   getLeads(filters)
- *   updateLeadStatus(id, status, notes)
+ *   updateLead(id, fields)
+ *   resetConversation(lineUserId)
  */
 
 const axios = require('axios');
 const db    = require('../db');
+const line  = require('@line/bot-sdk');
+
+const lineClient = new line.messagingApi.MessagingApiClient({
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+});
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL             = 'claude-haiku-4-5-20251001';
@@ -78,8 +85,146 @@ function extractPhone(text) {
 }
 
 function looksLikeName(text) {
-  // ชื่อภาษาไทย หรืออังกฤษ ความยาว 2-30 ตัว ไม่มีตัวเลข
   return /^[ก-๙a-zA-Z\s.]{2,30}$/.test(text.trim()) && !/\d/.test(text);
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Admin LINE Notification — แจ้งเมื่อมี Lead ใหม่
+// ─────────────────────────────────────────────────────────────────
+async function notifyAdminNewLead(lead) {
+  try {
+    const adminRows = await db.query('SELECT line_user_id FROM admin_line_users WHERE line_user_id IS NOT NULL');
+    if (!adminRows.rows.length) return;
+
+    const insuranceLabel = {
+      type1: 'ชั้น 1', type2: 'ชั้น 2', 'type2+': 'ชั้น 2+',
+      type3: 'ชั้น 3', 'type3+': 'ชั้น 3+', compulsory: 'พ.ร.บ.',
+    };
+
+    const flexMsg = {
+      type: 'flex',
+      altText: `🔔 Lead ใหม่! ${lead.customer_name || lead.line_display_name || 'ลูกค้าใหม่'}`,
+      contents: {
+        type: 'bubble',
+        size: 'kilo',
+        header: {
+          type: 'box', layout: 'vertical',
+          backgroundColor: '#1a56db', paddingAll: '14px',
+          contents: [{
+            type: 'text', text: '🔔 Lead ใหม่จาก Sales Bot',
+            color: '#ffffff', weight: 'bold', size: 'md',
+          }],
+        },
+        body: {
+          type: 'box', layout: 'vertical', spacing: 'sm', paddingAll: '14px',
+          contents: [
+            {
+              type: 'box', layout: 'baseline', spacing: 'sm',
+              contents: [
+                { type: 'text', text: 'ชื่อ', color: '#6b7280', size: 'sm', flex: 2 },
+                { type: 'text', text: lead.customer_name || lead.line_display_name || '—', weight: 'bold', size: 'sm', flex: 5, wrap: true },
+              ],
+            },
+            {
+              type: 'box', layout: 'baseline', spacing: 'sm',
+              contents: [
+                { type: 'text', text: 'เบอร์', color: '#6b7280', size: 'sm', flex: 2 },
+                { type: 'text', text: lead.phone || '—', weight: 'bold', size: 'sm', flex: 5, color: '#1a56db' },
+              ],
+            },
+            lead.car_brand ? {
+              type: 'box', layout: 'baseline', spacing: 'sm',
+              contents: [
+                { type: 'text', text: 'รถ', color: '#6b7280', size: 'sm', flex: 2 },
+                { type: 'text', text: `${lead.car_brand} ${lead.car_model || ''} ${lead.car_year || ''}`.trim(), size: 'sm', flex: 5, wrap: true },
+              ],
+            } : null,
+            lead.insurance_type ? {
+              type: 'box', layout: 'baseline', spacing: 'sm',
+              contents: [
+                { type: 'text', text: 'ประกัน', color: '#6b7280', size: 'sm', flex: 2 },
+                { type: 'text', text: insuranceLabel[lead.insurance_type] || lead.insurance_type, size: 'sm', flex: 5, color: '#059669', weight: 'bold' },
+              ],
+            } : null,
+            {
+              type: 'separator', margin: 'md',
+            },
+            {
+              type: 'text',
+              text: `ความสนใจ: ${lead.interest_level === 'hot' ? '🔥 ร้อนแรง' : lead.interest_level === 'warm' ? '✨ ปานกลาง' : '❄️ เย็น'}`,
+              size: 'xs', color: '#374151', margin: 'sm',
+            },
+          ].filter(Boolean),
+        },
+        footer: {
+          type: 'box', layout: 'vertical', paddingAll: '10px',
+          contents: [{
+            type: 'text',
+            text: '→ ดูรายละเอียดใน Admin Panel',
+            size: 'xs', color: '#9ca3af', align: 'center',
+          }],
+        },
+      },
+    };
+
+    await Promise.all(
+      adminRows.rows.map(r =>
+        lineClient.pushMessage({ to: r.line_user_id, messages: [flexMsg] }).catch(e =>
+          console.error('[salesBot] notifyAdmin error:', e.message)
+        )
+      )
+    );
+  } catch (e) {
+    console.error('[salesBot] notifyAdminNewLead error:', e.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Auto-extract lead fields จากบทสนทนาด้วย Claude
+// ─────────────────────────────────────────────────────────────────
+async function extractLeadFields(history) {
+  if (!ANTHROPIC_API_KEY || history.length < 4) return null;
+  try {
+    const resp = await axios.post('https://api.anthropic.com/v1/messages', {
+      model:      MODEL,
+      max_tokens: 200,
+      system: `วิเคราะห์บทสนทนาและตอบด้วย JSON เท่านั้น (ไม่มีข้อความอื่น):
+{
+  "customer_name": "ชื่อลูกค้า หรือ null",
+  "car_brand": "ยี่ห้อรถ เช่น Toyota, Honda หรือ null",
+  "car_model": "รุ่นรถ เช่น Camry, Civic หรือ null",
+  "car_year": "ปีจดทะเบียน เช่น 2020 หรือ null",
+  "insurance_type": "type1|type2|type2+|type3|type3+|compulsory หรือ null",
+  "interest_level": "hot|warm|cold"
+}
+ตอบ null ถ้าข้อมูลยังไม่มีในบทสนทนา`,
+      messages: [
+        {
+          role: 'user',
+          content: 'บทสนทนา:\n' + history.map(m => `${m.role === 'user' ? 'ลูกค้า' : 'บอท'}: ${m.content}`).join('\n'),
+        },
+      ],
+    }, {
+      headers: {
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      timeout: 8000,
+    });
+
+    const raw = resp.data.content[0]?.text || '{}';
+    const json = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || '{}');
+    // กรองเฉพาะ field ที่มีค่า
+    const fields = {};
+    for (const [k, v] of Object.entries(json)) {
+      if (v && v !== 'null') fields[k] = v;
+    }
+    return Object.keys(fields).length ? fields : null;
+  } catch (e) {
+    console.error('[salesBot] extractLeadFields error:', e.message);
+    return null;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -167,13 +312,35 @@ async function handleMessage(lineUserId, displayName, text) {
 
   trimmed.push({ role: 'assistant', content: assistantText });
 
-  // ── Auto-detect phone number → save lead ──
+  // ── Auto-detect phone number → save lead + notify admin ──
   let newLeadCaptured = leadCaptured;
   const phone = extractPhone(text);
   if (phone && !leadCaptured) {
     await upsertLead(lineUserId, displayName, { phone, status: 'new', interest_level: 'hot' });
     newLeadCaptured = true;
     console.log(`[salesBot] Lead captured: ${displayName} (${phone})`);
+
+    // แจ้ง Admin ทันที (async — ไม่ block reply)
+    notifyAdminNewLead({ line_display_name: displayName, phone, interest_level: 'hot' }).catch(() => {});
+  }
+
+  // ── Auto-extract lead fields ทุก 4 ข้อความ ──
+  const msgCount = count + 1;
+  if (msgCount % 4 === 0 || newLeadCaptured) {
+    const extracted = await extractLeadFields(trimmed);
+    if (extracted) {
+      await upsertLead(lineUserId, displayName, extracted);
+      console.log(`[salesBot] Lead fields extracted for ${displayName}:`, extracted);
+
+      // ถ้า extract ได้ชื่อ/รถ → notify admin อีกครั้งพร้อมข้อมูลครบ
+      if (newLeadCaptured && (extracted.car_brand || extracted.customer_name)) {
+        notifyAdminNewLead({
+          line_display_name: displayName,
+          phone: phone || undefined,
+          ...extracted,
+        }).catch(() => {});
+      }
+    }
   }
 
   // ── Save conversation ──

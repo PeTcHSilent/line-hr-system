@@ -604,7 +604,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
     <div id="page-holidays" class="page">
       <div class="card">
         <div class="card-header">
-          <div class="card-title">🎌 วันหยุดนักขัตฤกษ์</div>
+          <div class="card-title">🎌 จัดการวันหยุด</div>
           <div style="display:flex;gap:8px;">
             <button class="btn btn-secondary btn-sm" onclick="copyHolidays()">📋 Copy ปีถัดไป</button>
             <button class="btn btn-primary btn-sm" onclick="openHolidayModal()">+ เพิ่มวันหยุด</button>
@@ -613,10 +613,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         <div class="filter-row">
           <div class="filter-group"><div class="filter-label">ปี</div>
             <select id="holiday-year" style="width:140px;" onchange="loadHolidays()"><option value="">ทุกปี</option></select></div>
+          <div class="filter-group"><div class="filter-label">ประเภท</div>
+            <select id="holiday-type-filter" style="width:180px;" onchange="loadHolidays()">
+              <option value="">ทั้งหมด</option>
+              <option value="public">🏛️ วันหยุดราชการ</option>
+              <option value="company">🏢 วันหยุดบริษัท</option>
+            </select></div>
         </div>
         <div class="tbl-wrap">
-          <table><thead><tr><th>วันที่</th><th>ชื่อวันหยุด</th><th>วัน</th><th>ประเภท</th><th>จัดการ</th></tr></thead>
-          <tbody id="holiday-tbody"><tr><td colspan="5" class="no-data">กำลังโหลด...</td></tr></tbody></table>
+          <table><thead><tr><th>วันที่</th><th>ชื่อวันหยุด</th><th>วัน</th><th>ประเภทวันหยุด</th><th>หมายเหตุ</th><th>จัดการ</th></tr></thead>
+          <tbody id="holiday-tbody"><tr><td colspan="6" class="no-data">กำลังโหลด...</td></tr></tbody></table>
         </div>
       </div>
     </div>
@@ -2044,9 +2050,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         <label class="form-label">ชื่อวันหยุด *</label>
         <input type="text" id="h-name" placeholder="ชื่อวันหยุด">
       </div>
+      <div class="form-group">
+        <label class="form-label">ประเภทวันหยุด *</label>
+        <select id="h-type">
+          <option value="public">🏛️ วันหยุดราชการ (Public Holiday)</option>
+          <option value="company">🏢 วันหยุดบริษัท (Company Holiday)</option>
+        </select>
+      </div>
       <div class="form-group" style="flex-direction:row;align-items:center;gap:10px;">
         <input type="checkbox" id="h-sub" style="width:auto;">
-        <label class="form-label" style="margin:0;">วันหยุดแทน (Substitute)</label>
+        <label class="form-label" style="margin:0;">วันหยุดชดเชย (Substitute)</label>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal('h-modal')">ยกเลิก</button>
@@ -3668,20 +3681,31 @@ async function loadLeaveBalance() {
 // ---- HOLIDAYS ----
 async function loadHolidays() {
   const year = document.getElementById('holiday-year').value;
-  const res = await apiFetch(`${API}/api/holidays?year=${year}`);
+  const typeFilter = document.getElementById('holiday-type-filter')?.value || '';
+  let url = `${API}/api/holidays?year=${year}`;
+  if (typeFilter) url += `&type=${typeFilter}`;
+  const res = await apiFetch(url);
   const data = await res.json();
   const days = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์'];
   const tbody = document.getElementById('holiday-tbody');
-  if (!data.holidays.length) { tbody.innerHTML = '<tr><td colspan="5" class="no-data">ไม่มีข้อมูลวันหยุด</td></tr>'; return; }
+  if (!data.holidays.length) { tbody.innerHTML = '<tr><td colspan="6" class="no-data">ไม่มีข้อมูลวันหยุด</td></tr>'; return; }
   tbody.innerHTML = data.holidays.map(h => {
     const d = new Date(h.date);
     const dateStr = d.toLocaleDateString('th-TH', { day:'2-digit', month:'long', year:'numeric' });
     const dayName = days[d.getDay()];
+    const hType = h.holiday_type || 'public';
+    const typeBadge = hType === 'company'
+      ? '<span class="badge" style="background:#ede9fe;color:#6d28d9;">🏢 บริษัท</span>'
+      : '<span class="badge" style="background:#dbeafe;color:#1d4ed8;">🏛️ ราชการ</span>';
+    const subBadge = h.is_substitute
+      ? ' <span class="badge badge-yellow">ชดเชย</span>'
+      : '';
     return `<tr>
       <td>${dateStr}</td>
       <td><strong>${h.name}</strong></td>
       <td>${dayName}</td>
-      <td>${h.is_substitute ? '<span class="badge badge-yellow">ชดเชย</span>' : '<span class="badge badge-green">ปกติ</span>'}</td>
+      <td>${typeBadge}</td>
+      <td>${subBadge || '<span style="color:#94a3b8;font-size:12px;">—</span>'}</td>
       <td><button class="btn btn-danger btn-sm" onclick="deleteHoliday(${h.id}, '${h.name}')">ลบ</button></td>
     </tr>`;
   }).join('');
@@ -3690,6 +3714,7 @@ async function loadHolidays() {
 function openHolidayModal() {
   document.getElementById('h-date').value = '';
   document.getElementById('h-name').value = '';
+  document.getElementById('h-type').value = 'public';
   document.getElementById('h-sub').checked = false;
   openModal('h-modal');
 }
@@ -3698,11 +3723,12 @@ async function saveHoliday() {
   const date = document.getElementById('h-date').value;
   const name = document.getElementById('h-name').value.trim();
   const year = date ? new Date(date).getFullYear() : null;
+  const holiday_type = document.getElementById('h-type').value;
   if (!date || !name || !year) return toast('กรุณากรอกข้อมูลให้ครบ', 'error');
   try {
     const res = await apiFetch(`${API}/api/holidays`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ date, name, year, is_substitute: document.getElementById('h-sub').checked })
+      body: JSON.stringify({ date, name, year, is_substitute: document.getElementById('h-sub').checked, holiday_type })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);

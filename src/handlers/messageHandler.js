@@ -324,10 +324,77 @@ async function handleUnregistered(client, event, lineUserId) {
 }
 
 async function handleFollow(client, event) {
-  return reply(client, event.replyToken, {
-    type: 'text',
-    text: '🎉 ยินดีต้อนรับสู่ระบบ HR ต่อกัน!\n\nกรุณาพิมพ์รหัสพนักงานเพื่อเริ่มต้นใช้งาน\nตัวอย่าง: TK001'
-  });
+  const lineUserId = event.source?.userId;
+
+  // ตรวจว่าเป็นพนักงานหรือไม่
+  let isEmployee = false;
+  try {
+    const emp = lineUserId ? await employeeService.findByLineId(lineUserId) : null;
+    if (emp) isEmployee = true;
+  } catch {}
+
+  if (isEmployee) {
+    // ข้อความต้อนรับพนักงาน
+    return reply(client, event.replyToken, {
+      type: 'text',
+      text: '🎉 ยินดีต้อนรับสู่ระบบ HR ต่อกัน!\n\nกรุณาพิมพ์รหัสพนักงานเพื่อเริ่มต้นใช้งาน\nตัวอย่าง: TK001',
+    });
+  }
+
+  // ข้อความต้อนรับลูกค้า (Sales Bot)
+  let displayName = 'ลูกค้า';
+  try { const p = await client.getProfile(lineUserId); displayName = p.displayName || 'ลูกค้า'; } catch {}
+
+  const welcomeMsg = {
+    type: 'flex',
+    altText: '👋 ยินดีต้อนรับสู่ต่อกัน ประกันภัย!',
+    contents: {
+      type: 'bubble',
+      size: 'kilo',
+      header: {
+        type: 'box', layout: 'vertical',
+        backgroundColor: '#1a56db', paddingAll: '16px',
+        contents: [
+          { type: 'text', text: '🚗 ต่อกัน ประกันภัย', color: '#ffffff', weight: 'bold', size: 'lg' },
+          { type: 'text', text: 'ประกันรถยนต์ครบทุกประเภท', color: '#bfdbfe', size: 'sm', margin: 'xs' },
+        ],
+      },
+      body: {
+        type: 'box', layout: 'vertical', spacing: 'md', paddingAll: '16px',
+        contents: [
+          { type: 'text', text: `สวัสดีคุณ${displayName} 👋`, weight: 'bold', size: 'md' },
+          { type: 'text', text: 'น้องต่อพร้อมให้คำปรึกษาประกันรถยนต์แบบ 1:1 ทันที!', wrap: true, size: 'sm', color: '#374151' },
+          { type: 'separator', margin: 'md' },
+          {
+            type: 'box', layout: 'vertical', spacing: 'sm', margin: 'md',
+            contents: [
+              { type: 'text', text: '✅ ประกันชั้น 1, 2+, 3+', size: 'sm', color: '#374151' },
+              { type: 'text', text: '✅ เปรียบเทียบราคาหลายบริษัท', size: 'sm', color: '#374151' },
+              { type: 'text', text: '✅ ต่ออายุ / ซื้อใหม่ รวดเร็ว', size: 'sm', color: '#374151' },
+              { type: 'text', text: '✅ มีทีมงานดูแลตลอด 24 ชม.', size: 'sm', color: '#374151' },
+            ],
+          },
+        ],
+      },
+      footer: {
+        type: 'box', layout: 'vertical', spacing: 'sm', paddingAll: '14px',
+        contents: [
+          {
+            type: 'button',
+            style: 'primary', color: '#1a56db',
+            action: { type: 'message', label: '💬 ขอคำแนะนำประกัน', text: 'ต้องการคำแนะนำประกันรถยนต์' },
+          },
+          {
+            type: 'button',
+            style: 'secondary',
+            action: { type: 'message', label: '💰 เช็คราคาเบี้ย', text: 'ต้องการเช็คราคาเบี้ยประกัน' },
+          },
+        ],
+      },
+    },
+  };
+
+  return reply(client, event.replyToken, welcomeMsg);
 }
 
 async function handleCheckIn(client, event, employee) {

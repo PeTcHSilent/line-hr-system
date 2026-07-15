@@ -14,6 +14,7 @@ const cron = require('node-cron');
 const db = require('../db');
 const notifyService = require('../services/notificationService');
 const settingsService = require('../services/settingsService');
+const holidayService = require('../services/holidayService');
 const dayjs = require('dayjs');
 
 // ── helper: แปลง "HH:MM" ลบ N นาที → { h, m } ──────────
@@ -32,12 +33,15 @@ function workDaysToCron(workDays) {
   return workDays.map(d => isoToCron[d] ?? d).sort().join(',');
 }
 
-// ── helper: ตรวจสอบวันหยุดนักขัตฤกษ์ ─────────────────────
+// ── helper: ตรวจสอบวันหยุด (ทั้ง public และ company) ──────
+// คืน { name, type } หรือ null ถ้าไม่ใช่วันหยุด
 async function isHoliday(dateStr) {
-  const { rows } = await db.query(
-    `SELECT name FROM holidays WHERE date = $1 LIMIT 1`, [dateStr]
-  );
-  return rows.length > 0 ? rows[0].name : null;
+  return holidayService.isHoliday(dateStr);
+}
+
+// แปลง holiday type เป็นข้อความไทย
+function holidayTypeLabel(type) {
+  return type === 'company' ? 'วันหยุดบริษัท' : 'วันหยุดนักขัตฤกษ์';
 }
 
 // ── ลงทะเบียน dynamic cron จาก settings ────────────────
@@ -65,9 +69,9 @@ async function registerAttendanceCrons() {
       console.log('[CRON] แจ้งเตือนเช็คอิน...');
       try {
         const today = dayjs().format('YYYY-MM-DD');
-        const holidayName = await isHoliday(today);
-        if (holidayName) {
-          console.log(`  → วันหยุดนักขัตฤกษ์ (${holidayName}) ข้ามการแจ้งเตือนเช็คอิน`);
+        const holiday = await isHoliday(today);
+        if (holiday) {
+          console.log(`  → ${holidayTypeLabel(holiday.type)} (${holiday.name}) ข้ามการแจ้งเตือนเช็คอิน`);
           return;
         }
         const { rows } = await db.query(`
@@ -99,9 +103,9 @@ async function registerAttendanceCrons() {
       console.log('[CRON] แจ้งเตือนเช็คเอาท์...');
       try {
         const today = dayjs().format('YYYY-MM-DD');
-        const holidayName = await isHoliday(today);
-        if (holidayName) {
-          console.log(`  → วันหยุดนักขัตฤกษ์ (${holidayName}) ข้ามการแจ้งเตือนเช็คเอาท์`);
+        const holiday = await isHoliday(today);
+        if (holiday) {
+          console.log(`  → ${holidayTypeLabel(holiday.type)} (${holiday.name}) ข้ามการแจ้งเตือนเช็คเอาท์`);
           return;
         }
         const { rows } = await db.query(`
@@ -155,9 +159,9 @@ function registerFallbackCrons() {
     console.log('[CRON-fallback] เช็คอิน reminder...');
     try {
       const today = dayjs().format('YYYY-MM-DD');
-      const holidayName = await isHoliday(today);
-      if (holidayName) {
-        console.log(`  → วันหยุดนักขัตฤกษ์ (${holidayName}) ข้ามเช็คอิน`);
+      const holiday = await isHoliday(today);
+      if (holiday) {
+        console.log(`  → ${holidayTypeLabel(holiday.type)} (${holiday.name}) ข้ามเช็คอิน`);
         return;
       }
       const { rows } = await db.query(`
@@ -176,9 +180,9 @@ function registerFallbackCrons() {
     console.log('[CRON-fallback] เช็คเอาท์ reminder...');
     try {
       const today = dayjs().format('YYYY-MM-DD');
-      const holidayName = await isHoliday(today);
-      if (holidayName) {
-        console.log(`  → วันหยุดนักขัตฤกษ์ (${holidayName}) ข้ามเช็คเอาท์`);
+      const holiday = await isHoliday(today);
+      if (holiday) {
+        console.log(`  → ${holidayTypeLabel(holiday.type)} (${holiday.name}) ข้ามเช็คเอาท์`);
         return;
       }
       const { rows } = await db.query(`

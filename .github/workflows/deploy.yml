@@ -1,0 +1,84 @@
+name: 🚀 Deploy — line-hr-system
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:   # รัน manual ได้จาก GitHub Actions tab
+
+jobs:
+  # ─────────────────────────────────────────────────────────
+  # Job 1: ตรวจสอบ code (ไม่มี test จริง → แค่ syntax check)
+  # ─────────────────────────────────────────────────────────
+  lint:
+    name: 🔍 Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --omit=dev
+
+      - name: Check JS syntax (node --check)
+        run: |
+          find src -name "*.js" | xargs -I{} node --check {}
+          find database -name "*.js" | xargs -I{} node --check {}
+          echo "✅ Syntax OK"
+
+  # ─────────────────────────────────────────────────────────
+  # Job 2: รัน DB migrations บน Railway PostgreSQL
+  # ─────────────────────────────────────────────────────────
+  migrate:
+    name: 🗄️ DB Migration
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --omit=dev
+
+      - name: Show migration status (before)
+        run: node database/migrate.js --status
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Run pending migrations
+        run: node database/migrate.js
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  # ─────────────────────────────────────────────────────────
+  # Job 3: Trigger Railway redeploy ผ่าน Railway CLI
+  # (Railway จะ auto-deploy จาก push อยู่แล้ว แต่ job นี้
+  #  ทำให้ deploy หลัง migrate เสร็จแน่นอน)
+  # ─────────────────────────────────────────────────────────
+  deploy:
+    name: 🚂 Deploy to Railway
+    needs: migrate
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy
+        run: railway up --service line-hr-system --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: ✅ Deploy triggered
+        run: echo "Deploy triggered — ดู logs ได้ที่ https://railway.app"
