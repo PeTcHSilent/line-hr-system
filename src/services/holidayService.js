@@ -150,16 +150,29 @@ async function copyHolidaysToYear(sourceYear, targetYear) {
 
 /**
  * ตรวจว่าวันที่ระบุเป็นวันหยุดหรือไม่ (ทั้ง public และ company)
- * คืน name ของวันหยุด หรือ null ถ้าไม่ใช่วันหยุด
+ * คืน { name, type } หรือ null ถ้าไม่ใช่วันหยุด
+ *
+ * Resilient: ถ้า column holiday_type ยังไม่มี (migration ยังไม่ run)
+ * จะ fallback เป็น query แบบเก่าและ return type = 'public' เสมอ
  */
 async function isHoliday(dateStr) {
-  const { rows } = await db.query(
-    `SELECT name, COALESCE(holiday_type, 'public') AS holiday_type
-     FROM holidays WHERE date = $1 LIMIT 1`,
-    [dateStr]
-  );
-  if (!rows.length) return null;
-  return { name: rows[0].name, type: rows[0].holiday_type };
+  try {
+    const { rows } = await db.query(
+      `SELECT name, COALESCE(holiday_type, 'public') AS holiday_type
+       FROM holidays WHERE date = $1 LIMIT 1`,
+      [dateStr]
+    );
+    if (!rows.length) return null;
+    return { name: rows[0].name, type: rows[0].holiday_type };
+  } catch (e) {
+    // fallback: holiday_type column ยังไม่มี — query แบบเก่า
+    const { rows } = await db.query(
+      `SELECT name FROM holidays WHERE date = $1 LIMIT 1`,
+      [dateStr]
+    );
+    if (!rows.length) return null;
+    return { name: rows[0].name, type: 'public' };
+  }
 }
 
 module.exports = {

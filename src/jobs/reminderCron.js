@@ -44,6 +44,32 @@ function holidayTypeLabel(type) {
   return type === 'company' ? 'วันหยุดบริษัท' : 'วันหยุดนักขัตฤกษ์';
 }
 
+// ── Auto-migration: เพิ่ม holiday_type ถ้ายังไม่มี ──────────
+// ป้องกัน isHoliday() โยน error "column holiday_type does not exist"
+// ซึ่งทำให้ cron ทุกตัว catch error และข้ามการส่งแจ้งเตือน
+async function ensureMigrationsAndRegister() {
+  try {
+    await db.query(`
+      ALTER TABLE holidays
+        ADD COLUMN IF NOT EXISTS holiday_type VARCHAR(20) NOT NULL DEFAULT 'public'
+          CHECK (holiday_type IN ('public', 'company'))
+    `);
+    console.log('[reminderCron] schema OK — holiday_type column ready');
+  } catch (e) {
+    // ALTER TABLE ... CHECK constraint อาจล้มเหลวถ้า column มีอยู่แล้วและมี constraint ต่างกัน
+    // ลองเพิ่มแบบไม่มี CHECK เพื่อความปลอดภัย
+    try {
+      await db.query(`ALTER TABLE holidays ADD COLUMN IF NOT EXISTS holiday_type VARCHAR(20) DEFAULT 'public'`);
+      console.log('[reminderCron] schema OK (no-check fallback)');
+    } catch (e2) {
+      console.warn('[reminderCron] holiday_type migration warning (อาจมีอยู่แล้ว):', e2.message);
+    }
+  }
+  // สร้าง index ถ้ายังไม่มี
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_holidays_type ON holidays(holiday_type)`).catch(() => {});
+  await registerAttendanceCrons();
+}
+
 // ── ลงทะเบียน dynamic cron จาก settings ────────────────
 async function registerAttendanceCrons() {
   try {
@@ -203,7 +229,7 @@ function registerFallbackCrons() {
 }
 
 // เรียก register ทันที (async — ใช้ DB settings)
-registerAttendanceCrons();
+ensureMigrationsAndRegister();
 
 // ---- สรุปการลาสัปดาห์ ส่งหัวหน้า 09:00 ทุกวันจันทร์ ----
 cron.schedule('0 9 * * 1', async () => {
