@@ -25,6 +25,14 @@ function subtractMinutes(timeStr, minutes) {
            m: ((total % 1440) + 1440) % 60 };
 }
 
+// ── helper: แปลง "HH:MM" บวก N นาที → { h, m } ──────────
+function addMinutes(timeStr, minutes) {
+  const [h, m] = timeStr.split(':').map(Number);
+  const total = h * 60 + m + minutes;
+  return { h: Math.floor(((total % 1440) + 1440) % 1440 / 60),
+           m: ((total % 1440) + 1440) % 60 };
+}
+
 // ── helper: work_days (1-7) → cron day-of-week (0=Sun) ──
 function workDaysToCron(workDays) {
   // work_days ใช้ 1=จันทร์ … 7=อาทิตย์  (ISO weekday)
@@ -74,21 +82,22 @@ async function ensureMigrationsAndRegister() {
 async function registerAttendanceCrons() {
   try {
     const schedule = await settingsService.getWorkSchedule();
-    const checkinOffset  = parseInt(await settingsService.get('reminder_checkin_offset')  || '10');
-    const checkoutOffset = parseInt(await settingsService.get('reminder_checkout_offset') || '5');
+    // แจ้งเตือนหลังเวลาเข้า/ออกงาน N นาที (เฉพาะคนที่ยังไม่ได้เช็ค)
+    const lateCheckinOffset  = parseInt(await settingsService.get('late_checkin_offset')  || '10');
+    const lateCheckoutOffset = parseInt(await settingsService.get('late_checkout_offset') || '10');
 
-    const cinTime  = subtractMinutes(schedule.work_start, checkinOffset);   // เช็คอิน
-    const coutTime = subtractMinutes(schedule.work_end,   checkoutOffset);  // เช็คเอาท์
+    const cinTime  = addMinutes(schedule.work_start, lateCheckinOffset);   // หลังเวลาเข้างาน
+    const coutTime = addMinutes(schedule.work_end,   lateCheckoutOffset);  // หลังเวลาออกงาน
     const dowStr   = workDaysToCron(schedule.work_days);
 
-    const cinCron  = `${cinTime.m}  ${cinTime.h}  * * ${dowStr}`;
+    const cinCron  = `${cinTime.m} ${cinTime.h} * * ${dowStr}`;
     const coutCron = `${coutTime.m} ${coutTime.h} * * ${dowStr}`;
 
     const cinLabel  = `${String(cinTime.h).padStart(2,'0')}:${String(cinTime.m).padStart(2,'0')}`;
     const coutLabel = `${String(coutTime.h).padStart(2,'0')}:${String(coutTime.m).padStart(2,'0')}`;
 
-    console.log(`[CRON] เช็คอิน  : ${cinLabel} น. (${checkinOffset} นาทีก่อน ${schedule.work_start})`);
-    console.log(`[CRON] เช็คเอาท์: ${coutLabel} น. (${checkoutOffset} นาทีก่อน ${schedule.work_end})`);
+    console.log(`[CRON] เช็คอิน  : ${cinLabel} น. (${lateCheckinOffset} นาทีหลัง ${schedule.work_start} — แจ้งคนที่ยังไม่เช็คอิน)`);
+    console.log(`[CRON] เช็คเอาท์: ${coutLabel} น. (${lateCheckoutOffset} นาทีหลัง ${schedule.work_end} — แจ้งคนที่ยังไม่เช็คเอาท์)`);
 
     // ── แจ้งเตือนเช็คอิน ──────────────────────────────
     cron.schedule(cinCron, async () => {
@@ -181,8 +190,9 @@ async function registerAttendanceCrons() {
 // ── fallback hardcode (ถ้า DB ยังไม่พร้อมตอน startup) ──
 function registerFallbackCrons() {
   // 08:50 = 10 นาทีก่อน 09:00 | 17:55 = 5 นาทีก่อน 18:00
-  cron.schedule('50 8 * * 1-6', async () => {
-    console.log('[CRON-fallback] เช็คอิน reminder...');
+  // fallback: 10 นาทีหลัง 09:00 = 09:10 | 10 นาทีหลัง 18:00 = 18:10
+  cron.schedule('10 9 * * 1-6', async () => {
+    console.log('[CRON-fallback] เช็คอิน (หลังเวลาเข้างาน 09:10)...');
     try {
       const today = dayjs().format('YYYY-MM-DD');
       const holiday = await isHoliday(today);
@@ -202,8 +212,8 @@ function registerFallbackCrons() {
     } catch (err) { console.error('[CRON-fallback] เช็คอิน:', err.message); }
   }, { timezone: 'Asia/Bangkok' });
 
-  cron.schedule('55 17 * * 1-6', async () => {
-    console.log('[CRON-fallback] เช็คเอาท์ reminder...');
+  cron.schedule('10 18 * * 1-6', async () => {
+    console.log('[CRON-fallback] เช็คเอาท์ (หลังเวลาออกงาน 18:10)...');
     try {
       const today = dayjs().format('YYYY-MM-DD');
       const holiday = await isHoliday(today);

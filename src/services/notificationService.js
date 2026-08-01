@@ -118,7 +118,7 @@ async function leaveDecision(leave, employee, status) {
  * ใช้กับ cron job เช้า/เย็น
  */
 async function checkInReminder(employee) {
-  const msg = '⏰ อย่าลืมเช็คอินวันนี้นะครับ!';
+  const msg = `⚠️ คุณ${employee.name} ยังไม่พบการเช็คอินวันนี้ครับ!\n👉 เปิด LINE HR แล้วกดเช็คอินได้เลยครับ`;
 
   await Promise.allSettled([
     employee.line_user_id
