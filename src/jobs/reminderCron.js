@@ -407,6 +407,23 @@ cron.schedule('0 19 * * *', async () => {
   console.log('[CRON] ตรวจสาย/ขาดงาน...');
   try {
     const today = dayjs().format('YYYY-MM-DD');
+
+    // ① เช็ควันทำงาน
+    const schedule = await settingsService.getWorkSchedule();
+    const todayIso = dayjs(today).day(); // 0=Sun
+    const isoDay   = todayIso === 0 ? 7 : todayIso; // 1=Mon…7=Sun
+    if (!schedule.work_days.includes(isoDay)) {
+      console.log(`  → ${today} ไม่ใช่วันทำงาน ข้ามการตรวจขาดงาน`);
+      return;
+    }
+
+    // ② เช็ควันหยุด
+    const holiday = await isHoliday(today);
+    if (holiday) {
+      console.log(`  → ${holidayTypeLabel(holiday.type)} (${holiday.name}) ข้ามการตรวจขาดงาน`);
+      return;
+    }
+
     const lateAbsentService = require('../services/lateAbsentService');
     const result = await lateAbsentService.checkLateAbsent(today);
     if (!result.skipped) {
