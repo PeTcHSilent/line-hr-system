@@ -208,7 +208,7 @@ router.put('/:id', requireAuth, async (req, res) => {
     const {
       name, sex, phone_no, email, department_id, role, manager_id, salary, base_salary, deduct_absent,
       bank_name, bank_branch, bank_account_no, bank_account_name,
-      probation_start_date, probation_end_date, probation_status, branch_id, hire_date,
+      probation_start_date, probation_end_date, probation_status, branch_id, hire_date, is_active,
     } = req.body;
     if (sex && !['M', 'W'].includes(sex)) {
       return res.status(400).json({ error: 'sex ต้องเป็น M หรือ W' });
@@ -228,6 +228,7 @@ router.put('/:id', requireAuth, async (req, res) => {
       probation_status: probation_status || undefined,
       branch_id: branch_id !== undefined ? (branch_id || null) : undefined,
       hire_date: hire_date !== undefined ? (hire_date || null) : undefined,
+      is_active: is_active !== undefined ? Boolean(is_active) : undefined,
     });
     audit.log({
       actorName:   req.admin.display_name || req.admin.username,
