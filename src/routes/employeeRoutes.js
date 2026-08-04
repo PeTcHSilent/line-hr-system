@@ -41,10 +41,11 @@ router.get('/leave-types', async (req, res) => {
   res.json(rows);
 });
 
-// GET /api/employee — ดึงพนักงานทั้งหมด (admin)
+// GET /api/employee?include_inactive=true — ดึงพนักงานทั้งหมด (admin)
 router.get('/', async (req, res) => {
   try {
-    const employees = await employeeService.getAllEmployees();
+    const includeInactive = req.query.include_inactive === 'true';
+    const employees = await employeeService.getAllEmployees({ includeInactive });
     res.json(employees);
   } catch (err) {
     console.error('[GET /api/employee/]', err.message);
@@ -111,15 +112,16 @@ router.get('/:id/balance', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET /api/employee/search?keyword=xxx&department_id=1&role=employee&branch_id=1
+// GET /api/employee/search?keyword=xxx&department_id=1&role=employee&branch_id=1&include_inactive=true
 router.get('/search', async (req, res) => {
   try {
-    const { keyword, department_id, role, branch_id } = req.query;
+    const { keyword, department_id, role, branch_id, include_inactive } = req.query;
     const employees = await employeeService.searchEmployees({
       keyword,
       departmentId: department_id ? parseInt(department_id) : undefined,
       role,
       branchId: branch_id ? parseInt(branch_id) : undefined,
+      includeInactive: include_inactive === 'true',
     });
     res.json(employees);
   } catch (err) {

@@ -209,6 +209,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.88 9.75 19.79 19.79 0 0 1 1.84 1.12 2 2 0 0 1 3.82 0h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 7.91A16 16 0 0 0 16 15.91l.97-.97a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
         Broadcast
       </a>
+      <a class="nav-item" data-page="sales" onclick="showPage('sales')" href="#">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+        Sales Bot — ลูกค้า
+      </a>
       <div class="nav-section">การบริหาร</div>
       <a class="nav-item" data-page="shift" onclick="showPage('shift')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -374,7 +378,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
             <select id="emp-branch-filter" style="width:150px;" onchange="filterTable()"><option value="">ทุกสาขา</option></select></div>
           <div class="filter-group"><div class="filter-label">สถานะ</div>
             <select id="emp-status-filter" style="width:120px;" onchange="filterTable()">
-              <option value="">ทั้งหมด</option><option value="active" selected>ทำงาน</option><option value="inactive">ออก</option>
+              <option value="" selected>ทั้งหมด</option><option value="active">ทำงาน</option><option value="inactive">ออก</option>
             </select></div>
         </div>
         <div class="tbl-wrap">
@@ -806,6 +810,90 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         </div>
       </div>
     </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <!-- SALES BOT PAGE                                         -->
+    <!-- ════════════════════════════════════════════════════════ -->
+    <div id="page-sales" class="page">
+
+      <!-- Tab Bar -->
+      <div class="tab-bar" style="margin-bottom:16px;">
+        <button class="tab-btn active" id="sales-tab-leads"   onclick="switchSalesTab('leads')">📋 Leads ลูกค้า</button>
+        <button class="tab-btn"        id="sales-tab-staff"   onclick="switchSalesTab('staff')">👥 กลุ่มพนักงาน</button>
+      </div>
+
+      <!-- ── Tab: Leads ── -->
+      <div id="sales-section-leads">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📋 รายชื่อลูกค้า (Leads)</div>
+          </div>
+          <div class="filter-row">
+            <select id="sl-filter-status" onchange="loadSalesLeads()">
+              <option value="">ทุกสถานะ</option>
+              <option value="new">ใหม่</option>
+              <option value="contacted">ติดต่อแล้ว</option>
+              <option value="quoted">เสนอราคาแล้ว</option>
+              <option value="closed">ปิดการขาย</option>
+              <option value="lost">เสียลูกค้า</option>
+            </select>
+            <select id="sl-filter-type" onchange="loadSalesLeads()">
+              <option value="">ทุกประเภทงาน</option>
+              <option value="new">🆕 งานใหม่</option>
+              <option value="renewal">🔄 ต่ออายุ</option>
+            </select>
+            <button class="btn btn-sm" onclick="loadSalesLeads()" style="margin-left:auto;">🔄 รีเฟรช</button>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th>ชื่อ</th><th>ประเภทงาน</th><th>เบอร์โทร</th>
+                <th>รถ</th><th>ประกัน</th><th>ความสนใจ</th><th>สถานะ</th><th>จัดการ</th>
+              </tr></thead>
+              <tbody id="sl-tbody"><tr><td colspan="8" class="no-data">กำลังโหลด...</td></tr></tbody>
+            </table>
+          </div>
+          <div id="sl-pagination" style="padding:12px 20px;display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);"></div>
+        </div>
+      </div>
+
+      <!-- ── Tab: Staff Groups ── -->
+      <div id="sales-section-staff" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">👥 กลุ่มพนักงาน Sales</div>
+          </div>
+          <div style="padding:14px 20px;font-size:13px;color:var(--muted);">
+            กำหนดว่าพนักงานแต่ละคนรับแจ้งเตือนงานประเภทใดผ่าน LINE
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>ชื่อพนักงาน</th><th>LINE User ID</th><th>ประเภทงานที่รับ</th><th>บันทึก</th></tr></thead>
+              <tbody id="sl-staff-tbody"><tr><td colspan="4" class="no-data">กำลังโหลด...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <div class="card-header"><div class="card-title" style="font-size:13px;color:var(--muted);">คำอธิบายประเภทงาน</div></div>
+          <div style="padding:16px 20px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:13px;">
+            <div style="padding:12px;border-radius:8px;background:#dbeafe;">
+              <div style="font-weight:700;color:#1d4ed8;margin-bottom:6px;">🆕 งานใหม่</div>
+              <div style="color:#374151;">ลูกค้าใหม่ที่ยังไม่เคยทำประกันกับเรา เพิ่งสอบถามครั้งแรก</div>
+            </div>
+            <div style="padding:12px;border-radius:8px;background:#ede9fe;">
+              <div style="font-weight:700;color:#6d28d9;margin-bottom:6px;">🔄 ต่ออายุ</div>
+              <div style="color:#374151;">ลูกค้าเก่าที่ต้องการต่ออายุประกัน หรือต่อปีใหม่</div>
+            </div>
+            <div style="padding:12px;border-radius:8px;background:#f0fdf4;">
+              <div style="font-weight:700;color:#15803d;margin-bottom:6px;">📋 ทั้งสองประเภท</div>
+              <div style="color:#374151;">รับแจ้งเตือนทั้งงานใหม่และงานต่ออายุ</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end page-sales -->
 
     <div id="page-settings" class="page">
       <!-- Work Settings -->
@@ -2172,7 +2260,7 @@ function showPage(name) {
     attendance:'Attendance', 'leave-records':'Leave Records',
     leaves:'Leave Types', holidays:'Holiday Management',
     ot:'OT Management', report:'Summary Report', calendar:'Calendar',
-    broadcast:'Broadcast — ส่งประกาศ', settings:'ตั้งค่าบริษัท',
+    broadcast:'Broadcast — ส่งประกาศ', sales:'Sales Bot — Leads & กลุ่มพนักงาน', settings:'ตั้งค่าบริษัท',
     payroll:'Payroll & Payslip', warnings:'สาย / ขาดงาน',
     expense:'เบิกค่าใช้จ่าย', probation:'ติดตามทดลองงาน',
     'attendance-report':'รายงานการลงเวลา',
@@ -2212,12 +2300,158 @@ function showPage(name) {
   if (name === 'audit-log')        loadAuditLog(0);
   if (name === 'salary-adjustment') initSalaryAdj();
   if (name === 'employee-salary') loadEmployeeSalary();
+  if (name === 'sales') initSalesBot();
 }
 
 function updateClock() {
   document.getElementById('current-time').textContent = new Date().toLocaleString('th-TH', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'short' });
 }
 setInterval(updateClock, 1000); updateClock();
+
+// ════════════════════════════════════════════════════════════════
+// SALES BOT — Leads & Staff Groups
+// ════════════════════════════════════════════════════════════════
+const JOB_TYPE_LABEL = {
+  new_business: '🆕 งานใหม่',
+  renewal:      '🔄 ต่ออายุ',
+  both:         '📋 ทั้งสองประเภท',
+};
+const LEAD_TYPE_BADGE = {
+  new:     '<span style="background:#dbeafe;color:#1d4ed8;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;">🆕 งานใหม่</span>',
+  renewal: '<span style="background:#ede9fe;color:#6d28d9;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;">🔄 ต่ออายุ</span>',
+};
+const STATUS_LABEL = {
+  new:'ใหม่', contacted:'ติดต่อแล้ว', quoted:'เสนอราคา', closed:'ปิดการขาย', lost:'เสียลูกค้า',
+};
+const INTEREST_BADGE = {
+  hot:  '<span style="color:#ef4444;font-weight:700;">🔥 ร้อนแรง</span>',
+  warm: '<span style="color:#f59e0b;font-weight:700;">✨ ปานกลาง</span>',
+  cold: '<span style="color:#94a3b8;">❄️ เย็น</span>',
+};
+
+let _slPage = 0;
+const _slPageSize = 20;
+
+function initSalesBot() {
+  switchSalesTab('leads');
+  loadSalesLeads();
+}
+
+function switchSalesTab(tab) {
+  document.getElementById('sales-section-leads').style.display = tab === 'leads' ? '' : 'none';
+  document.getElementById('sales-section-staff').style.display = tab === 'staff' ? '' : 'none';
+  document.getElementById('sales-tab-leads').classList.toggle('active', tab === 'leads');
+  document.getElementById('sales-tab-staff').classList.toggle('active', tab === 'staff');
+  if (tab === 'staff') loadSalesStaff();
+}
+
+// ── Leads ─────────────────────────────────────────────────────
+async function loadSalesLeads(page = 0) {
+  _slPage = page;
+  const status    = document.getElementById('sl-filter-status').value;
+  const lead_type = document.getElementById('sl-filter-type').value;
+  const params    = new URLSearchParams({ limit: _slPageSize, offset: page * _slPageSize });
+  if (status)    params.set('status', status);
+  if (lead_type) params.set('lead_type', lead_type);
+
+  const tbody = document.getElementById('sl-tbody');
+  tbody.innerHTML = '<tr><td colspan="8" class="no-data">กำลังโหลด...</td></tr>';
+
+  try {
+    const r    = await api(`/api/sales-leads?${params}`);
+    const data = await r.json();
+    if (!data.leads.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="no-data">ไม่พบข้อมูล</td></tr>';
+      document.getElementById('sl-pagination').innerHTML = '';
+      return;
+    }
+    const insLabel = { type1:'ชั้น 1', type2:'ชั้น 2', 'type2+':'ชั้น 2+', type3:'ชั้น 3', 'type3+':'ชั้น 3+', compulsory:'พ.ร.บ.' };
+    tbody.innerHTML = data.leads.map(l => `
+      <tr>
+        <td><div style="font-weight:600;">${l.customer_name || l.line_display_name || '—'}</div><div style="font-size:11px;color:var(--muted);">${l.phone || ''}</div></td>
+        <td>${LEAD_TYPE_BADGE[l.lead_type] || LEAD_TYPE_BADGE.new}</td>
+        <td>${l.phone || '—'}</td>
+        <td style="font-size:12px;">${[l.car_brand, l.car_model, l.car_year].filter(Boolean).join(' ') || '—'}</td>
+        <td>${insLabel[l.insurance_type] || l.insurance_type || '—'}</td>
+        <td>${INTEREST_BADGE[l.interest_level] || '—'}</td>
+        <td>
+          <select onchange="updateLeadStatus(${l.id}, this.value)" style="font-size:12px;padding:3px 6px;">
+            ${Object.entries(STATUS_LABEL).map(([v,k]) => `<option value="${v}" ${l.status===v?'selected':''}>${k}</option>`).join('')}
+          </select>
+        </td>
+        <td><button class="btn btn-sm" onclick="resetSalesConv('${l.line_user_id}')">🗑 รีเซ็ต</button></td>
+      </tr>
+    `).join('');
+
+    // pagination
+    const total = data.total;
+    const pages = Math.ceil(total / _slPageSize);
+    const pg    = document.getElementById('sl-pagination');
+    pg.innerHTML = total
+      ? `<span>รวม ${total} รายการ หน้า ${page+1}/${pages}</span>
+         <button class="btn btn-sm" onclick="loadSalesLeads(${page-1})" ${page===0?'disabled':''}>◀</button>
+         <button class="btn btn-sm" onclick="loadSalesLeads(${page+1})" ${page>=pages-1?'disabled':''}>▶</button>`
+      : '';
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="8" class="no-data">${e.message}</td></tr>`;
+  }
+}
+
+async function updateLeadStatus(id, status) {
+  try {
+    await api(`/api/sales-leads/${id}`, { method:'PATCH', body: JSON.stringify({ status }) });
+    showToast('อัปเดตสถานะแล้ว');
+  } catch(e) { showToast(e.message, true); }
+}
+
+async function resetSalesConv(lineUserId) {
+  if (!confirm('รีเซ็ตประวัติสนทนากับลูกค้าคนนี้?')) return;
+  try {
+    await api(`/api/sales-leads/conversation/${lineUserId}`, { method:'DELETE' });
+    showToast('รีเซ็ตสำเร็จ');
+    loadSalesLeads(_slPage);
+  } catch(e) { showToast(e.message, true); }
+}
+
+// ── Staff Groups ──────────────────────────────────────────────
+async function loadSalesStaff() {
+  const tbody = document.getElementById('sl-staff-tbody');
+  tbody.innerHTML = '<tr><td colspan="4" class="no-data">กำลังโหลด...</td></tr>';
+  try {
+    const r    = await api('/api/sales-leads/staff');
+    const data = await r.json();
+    if (!data.staff.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="no-data">ยังไม่มีพนักงาน LINE ในระบบ</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.staff.map(s => `
+      <tr>
+        <td style="font-weight:600;">${s.display_name}</td>
+        <td style="font-size:12px;color:var(--muted);">${s.line_user_id}</td>
+        <td>
+          <select id="jt-${s.id}" style="padding:5px 8px;border-radius:6px;border:1px solid var(--border);">
+            <option value="new_business" ${s.job_type==='new_business'?'selected':''}>🆕 งานใหม่เท่านั้น</option>
+            <option value="renewal"      ${s.job_type==='renewal'?'selected':''}>🔄 ต่ออายุเท่านั้น</option>
+            <option value="both"         ${s.job_type==='both'?'selected':''}>📋 ทั้งสองประเภท</option>
+          </select>
+        </td>
+        <td>
+          <button class="btn btn-sm btn-primary" onclick="saveStaffJobType(${s.id})">💾 บันทึก</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="4" class="no-data">${e.message}</td></tr>`;
+  }
+}
+
+async function saveStaffJobType(id) {
+  const job_type = document.getElementById(`jt-${id}`).value;
+  try {
+    await api(`/api/sales-leads/staff/${id}`, { method:'PATCH', body: JSON.stringify({ job_type }) });
+    showToast(`บันทึกแล้ว — ${JOB_TYPE_LABEL[job_type]}`);
+  } catch(e) { showToast(e.message, true); }
+}
 
 // ════════════════════════════════════════════════════════════════
 // ROLE MANAGEMENT
@@ -2650,7 +2884,7 @@ async function loadDashboard() {
 async function loadEmployees() {
   const tbody = document.getElementById('emp-tbody');
   try {
-    const res = await apiFetch(`${API}/api/employee/`);
+    const res = await apiFetch(`${API}/api/employee/?include_inactive=true`);
     if (!res.ok) {
       const errText = await res.text();
       throw new Error(`HTTP ${res.status}: ${errText.substring(0,100)}`);
@@ -2658,7 +2892,7 @@ async function loadEmployees() {
     allEmployees = await res.json();
     if (!Array.isArray(allEmployees)) allEmployees = [];
     renderTable(allEmployees);
-    updateStats(allEmployees);
+    updateStats(allEmployees.filter(e => e.is_active !== false));
     populateDeptFilter();
     populateManagerSelect();
     if (!allBranches.length) await loadBranches();

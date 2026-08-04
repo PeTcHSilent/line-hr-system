@@ -237,8 +237,8 @@ async function deactivateEmployee(id) {
 /**
  * ค้นหาพนักงานด้วย keyword (ชื่อ / รหัส) + filter แผนก / สาขา
  */
-async function searchEmployees({ keyword, departmentId, role, branchId } = {}) {
-  const conditions = ['e.is_active = TRUE'];
+async function searchEmployees({ keyword, departmentId, role, branchId, includeInactive = false } = {}) {
+  const conditions = includeInactive ? [] : ['e.is_active = TRUE'];
   const values = [];
   let idx = 1;
 
@@ -294,15 +294,18 @@ async function createEmployee({ employeeCode, name, sex, phoneNo, email, departm
 
 /**
  * ดึงพนักงานทั้งหมด
+ * @param {object} opts
+ * @param {boolean} [opts.includeInactive=false] - ถ้า true จะรวมพนักงานที่สถานะ "ออก" ด้วย
  */
-async function getAllEmployees() {
+async function getAllEmployees({ includeInactive = false } = {}) {
+  const where = includeInactive ? '' : 'WHERE e.is_active = TRUE';
   const result = await db.query(
     `SELECT e.*, d.name AS department_name, b.name AS branch_name
      FROM employees e
      LEFT JOIN departments d ON e.department_id = d.id
      LEFT JOIN branches b ON e.branch_id = b.id
-     WHERE e.is_active = TRUE
-     ORDER BY e.employee_code`
+     ${where}
+     ORDER BY e.is_active DESC, e.employee_code`
   );
   return result.rows;
 }
