@@ -8107,31 +8107,33 @@ function openSalaryAdjForEmp(empId) {
     const salaryChanged = Math.abs(salary - oldSalary) >= 0.01;
 
     try {
-      // อัพเดต base_salary + salary
-      const res = await fetch(`/api/employee/${empId}`, {
-        method: 'PUT',
-        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ base_salary: baseSalary, salary: salary }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error || 'เกิดข้อผิดพลาด');
-
-      // ถ้าเงินเดือนปัจจุบันเปลี่ยน → บันทึก salary_adjustment
+      // ถ้าเงินเดือนปัจจุบันเปลี่ยน → ต้องผ่าน salary-adjustment/one เท่านั้น
+      // (endpoint นี้จะอ่านเงินเดือนปัจจุบันจาก DB เอง แล้วอัปเดต employees.salary +
+      //  บันทึกประวัติให้ครบ ต้องเรียก "ก่อน" ที่จะ PUT เงินเดือนไปที่ /api/employee
+      //  ไม่งั้นเงินเดือนเก่าที่อ่านได้จะกลายเป็นค่าใหม่ไปแล้ว)
       if (salaryChanged) {
         const today = new Date().toISOString().split('T')[0];
-        const adjRes = await fetch('/api/salary-adjustment', {
+        const adjRes = await fetch('/api/salary-adjustment/one', {
           method: 'POST',
           headers: { ...authHeaders(), 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            employee_id:    empId,
-            old_salary:     oldSalary,
-            new_salary:     salary,
-            adjustment_type: salary > oldSalary ? 'increment' : 'decrement',
-            effective_date:  today,
-            note: salary > oldSalary ? 'ปรับขึ้นเงินเดือน' : 'ปรับลดเงินเดือน',
+            employee_id:      empId,
+            adjustment_type:  'amount',
+            adjustment_value: salary - oldSalary,
+            effective_date:   today,
+            reason:           'แก้ไขเงินเดือนโดยตรง (หน้าเงินเดือนพนักงาน)',
           }),
         });
-        // ไม่ throw ถ้า adjustment ไม่สำเร็จ (endpoint อาจต่างกัน)
+        if (!adjRes.ok) throw new Error((await adjRes.json()).error || 'บันทึกประวัติการปรับเงินเดือนไม่สำเร็จ');
       }
+
+      // เงินเดือนเริ่มต้น (base_salary) เป็นข้อมูลอ้างอิง ไม่ผูกกับประวัติการปรับ — PUT แยกต่างหาก
+      const res = await fetch(`/api/employee/${empId}`, {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base_salary: baseSalary }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'เกิดข้อผิดพลาด');
 
       closeEmpSalaryModal();
       toast('บันทึกข้อมูลเงินเดือนสำเร็จ');
