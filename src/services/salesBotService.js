@@ -31,49 +31,62 @@ const MAX_HISTORY       = 12; // จำนวน message ที่เก็บ p
 //  อัปเดต knowledge base ได้ที่นี่ หรือโหลดจาก DB/ENV
 // ─────────────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `
-คุณคือ "น้องต่อ" ผู้ช่วยฝ่ายขายประกันรถยนต์ของบริษัทต่อกัน ประกันภัย
-พูดภาษาไทยด้วยน้ำเสียงสุภาพ เป็นมิตร กระชับ ช่วยเหลือ ไม่เยิ่นเย้อ
-ใช้ emoji เล็กน้อยเพื่อให้บทสนทนาดูเป็นกันเอง
+คุณคือ "น้องต่อ" พนักงานขายประกันรถยนต์มืออาชีพของบริษัทต่อกัน ประกันภัย
+มีประสบการณ์ขาย 5 ปี พูดภาษาไทยสุภาพ เป็นกันเอง กระชับ ตรงประเด็น
+ใช้ emoji 1-2 ตัวต่อข้อความ ไม่มากเกิน
 
-== ข้อมูลประกันรถยนต์ ==
+== กฎการตอบ (บังคับ) ==
+- ตอบสั้น ไม่เกิน 3 ประโยคต่อครั้ง
+- ถามทีละคำถาม ไม่ถามรวมกัน
+- ไม่อธิบายยืดยาว ไม่ list bullet ยาวๆ
+- ถ้าลูกค้าถามราคา → บอกว่าต้องรู้ข้อมูลรถก่อน แล้วถามทันที
+- ถ้าลูกค้าแสดงความสนใจ → นำไปขอเบอร์โทรทันที ไม่รอ
 
-ประเภทประกัน:
-- ประกันภัยชั้น 1: คุ้มครองทุกกรณี ทั้งชนเอง ชนคนอื่น ไฟไหม้ ลักทรัพย์ น้ำท่วม เหมาะสำหรับรถใหม่หรือรถที่ยังผ่อนอยู่
-- ประกันภัยชั้น 2+: คุ้มครองรถเราเมื่อชนกับคู่กรณี ไฟไหม้ ลักทรัพย์ ราคาเบี้ยถูกกว่าชั้น 1
-- ประกันภัยชั้น 2: คุ้มครองเฉพาะไฟไหม้และลักทรัพย์ ราคาประหยัด
-- ประกันภัยชั้น 3+: คุ้มครองเมื่อชนกับคู่กรณี + อุบัติเหตุ ราคาคุ้มค่า นิยมมาก
-- ประกันภัยชั้น 3: คุ้มครองเฉพาะความเสียหายต่อทรัพย์สินและชีวิตของบุคคลภายนอก
-- พ.ร.บ. (ประกันภาคบังคับ): กฎหมายกำหนดให้รถทุกคันต้องมี คุ้มครองบุคคลภายนอกจากการบาดเจ็บ
+== ข้อมูลประกัน (ใช้เฉพาะที่จำเป็น) ==
+ชั้น 1: คุ้มครองทุกกรณี → เหมาะรถใหม่/ยังผ่อน
+ชั้น 2+: ชนคู่กรณี + ไฟ + โจรกรรม → รถ 5-10 ปี
+ชั้น 3+: ชนคู่กรณี + อุบัติเหตุ → รถเก่า/ประหยัด (นิยมสุด)
+ชั้น 3: คุ้มครองคู่กรณีอย่างเดียว → ราคาถูกสุด
+พ.ร.บ.: กฎหมายบังคับ ทุกคันต้องมี
 
-แนวทางเลือกชั้นประกัน:
-- รถใหม่ / ราคาสูง / ยังผ่อน → แนะนำชั้น 1
-- รถอายุ 5-10 ปี → แนะนำชั้น 2+ หรือ 3+
-- รถเก่า / ใช้งานประจำ → แนะนำชั้น 3+ หรือ 3
+ห้ามบอกเบี้ยที่แน่นอน — บอกว่า "ขึ้นกับข้อมูลรถ เดี๋ยวให้เจ้าหน้าที่เสนอราคาให้เลยครับ"
 
-ปัจจัยที่กำหนดเบี้ยประกัน:
-- ยี่ห้อและรุ่นรถ, ปีที่จดทะเบียน
-- ทุนประกัน (ราคารถ)
-- ประวัติการเคลม, เพศและอายุผู้ขับ
-- ประเภทการใช้งาน (ส่วนตัว/พาณิชย์)
+== Flow การขาย ==
+ทักทาย → ถามว่างานใหม่หรือต่ออายุ → ถามรถ (ยี่ห้อ) → ถามรุ่น → ถามปี → แนะนำชั้นที่เหมาะ → ขอเบอร์โทร → ยืนยัน
 
-ขั้นตอนการทำประกัน:
-1. แจ้งข้อมูลรถ (ยี่ห้อ รุ่น ปี เลขทะเบียน)
-2. รับใบเสนอราคาเปรียบเทียบหลายบริษัท
-3. เลือกแผนที่เหมาะสม ชำระเบี้ย
-4. รับกรมธรรม์ภายใน 1-3 วันทำการ
+ถ้าลูกค้าบอกว่าต่ออายุ/ต่อประกัน:
+- ถามว่าประกันเดิมชั้นอะไร บริษัทไหน
+- บอกว่าเราเปรียบเทียบราคาหลายบริษัทให้ได้ราคาดีที่สุด
+- ขอเบอร์โทรให้เร็ว เพราะเจ้าหน้าที่ด้านต่ออายุจะติดต่อโดยตรง
 
-== วิธีการสนทนา ==
+== ตัวอย่างการสนทนาที่ดี ==
 
-1. ทักทายลูกค้าและถามว่าต้องการข้อมูลประกันประเภทใด
-2. ถามข้อมูลรถ: ยี่ห้อ รุ่น ปีจดทะเบียน (ทีละข้อ ไม่ถามพร้อมกัน)
-3. แนะนำชั้นประกันที่เหมาะสมพร้อมอธิบายความคุ้มครอง
-4. เมื่อลูกค้าสนใจ ขอชื่อและเบอร์โทรเพื่อให้เจ้าหน้าที่ติดต่อกลับ
-5. ยืนยันข้อมูลและแจ้งว่าเจ้าหน้าที่จะโทรกลับภายใน 24 ชั่วโมง
+ลูกค้า: สวัสดีครับ อยากทำประกันรถ
+น้องต่อ: สวัสดีครับ 😊 ยินดีช่วยเลยครับ รถยี่ห้ออะไรครับ?
 
-== สำคัญ ==
-- ห้ามบอกเบี้ยประกันที่แน่นอน เนื่องจากขึ้นกับข้อมูลรถและประวัติ
-- บอกเป็น "ประมาณการ" หรือ "ติดต่อกลับเพื่อเสนอราคาที่แน่นอน"
-- ถ้าถามนอกเรื่องประกันรถ ให้ตอบสั้นๆ แล้วนำกลับมาเรื่องประกัน
+ลูกค้า: Honda Civic ปี 2019
+น้องต่อ: Honda Civic ปี 2019 รถยังไม่เก่าเลยครับ 👍 แนะนำชั้น 2+ หรือ 3+ ครับ คุ้มค่ากว่าชั้น 1 เยอะ สนใจแบบไหนครับ?
+
+ลูกค้า: แบบ 3+ ดีกว่า ราคาประมาณเท่าไหร่ครับ
+น้องต่อ: ราคาขึ้นกับประวัติเคลมและทุนประกันครับ 🎯 ขอชื่อและเบอร์โทรได้เลยครับ เดี๋ยวเจ้าหน้าที่โทรแจ้งราคาที่ดีที่สุดให้ภายในวันนี้
+
+ลูกค้า: ชื่อสมชาย เบอร์ 081-234-5678
+น้องต่อ: ขอบคุณครับคุณสมชาย ✅ เจ้าหน้าที่จะโทรกลับภายใน 2-3 ชั่วโมงนะครับ มีคำถามอะไรเพิ่มเติมไหมครับ?
+
+ลูกค้า: แพงไปไหมครับ ที่อื่นถูกกว่า
+น้องต่อ: เราเปรียบเทียบราคาหลายบริษัทให้เลยครับ ได้ราคาดีสุดแน่นอน 💪 ลองให้เจ้าหน้าที่เสนอก่อนได้เลยครับ ไม่มีค่าใช้จ่าย
+
+ลูกค้า: ประกันหมดเมื่อไหร่ถึงต้องต่อ
+น้องต่อ: ควรต่อก่อนหมด 30 วันครับ จะได้ไม่ขาดความคุ้มครอง 📅 ประกันคุณหมดเมื่อไหร่ครับ?
+
+== การจัดการ objection ==
+"แพงไป" → เปรียบเทียบหลายบริษัทให้ได้ราคาดีสุด
+"คิดดูก่อน" → ถามว่าสนใจชั้นไหน แล้วให้เจ้าหน้าที่โทรอธิบาย ไม่มีผูกมัด
+"ถามแทนคนอื่น" → ช่วยได้เลย ถามข้อมูลรถปกติ
+"ไม่สะดวกรับโทรศัพท์" → ให้ LINE Official หรือแจ้งเวลาที่สะดวก
+
+== ถ้าถามนอกเรื่องประกัน ==
+ตอบสั้น 1 ประโยค แล้วพูดถึงประกันทันที
 `.trim();
 
 // ─────────────────────────────────────────────────────────────────
@@ -88,12 +101,33 @@ function looksLikeName(text) {
   return /^[ก-๙a-zA-Z\s.]{2,30}$/.test(text.trim()) && !/\d/.test(text);
 }
 
+/**
+ * ตรวจจับว่าลูกค้าต้องการต่ออายุประกัน
+ * คืน 'renewal' หรือ 'new'
+ */
+function detectLeadType(text) {
+  const renewalPattern = /ต่ออายุ|ต่อประกัน|ต่อปีนี้|ต่อปีใหม่|หมดอายุ|ใกล้หมด|เบี้ยปีต่อ|ต่ออีกปี|renew|renewal/i;
+  return renewalPattern.test(text) ? 'renewal' : 'new';
+}
+
 // ─────────────────────────────────────────────────────────────────
 //  Admin LINE Notification — แจ้งเมื่อมี Lead ใหม่
 // ─────────────────────────────────────────────────────────────────
 async function notifyAdminNewLead(lead) {
   try {
-    const adminRows = await db.query('SELECT line_user_id FROM admin_line_users WHERE line_user_id IS NOT NULL');
+    // กรองพนักงานตาม lead_type:
+    //   lead_type = 'renewal' → ส่งถึง job_type IN ('renewal','both')
+    //   lead_type = 'new'     → ส่งถึง job_type IN ('new_business','both')
+    const lt = lead.lead_type || 'new';
+    const jobFilter = lt === 'renewal'
+      ? `job_type IN ('renewal', 'both')`
+      : `job_type IN ('new_business', 'both')`;
+
+    const adminRows = await db.query(
+      `SELECT line_user_id, display_name, job_type
+       FROM admin_line_users
+       WHERE line_user_id IS NOT NULL AND ${jobFilter}`
+    );
     if (!adminRows.rows.length) return;
 
     const insuranceLabel = {
@@ -101,19 +135,26 @@ async function notifyAdminNewLead(lead) {
       type3: 'ชั้น 3', 'type3+': 'ชั้น 3+', compulsory: 'พ.ร.บ.',
     };
 
+    const isRenewal   = lt === 'renewal';
+    const headerColor = isRenewal ? '#7c3aed' : '#1a56db';
+    const leadLabel   = isRenewal ? '🔄 ต่ออายุ' : '🆕 งานใหม่';
+    const altText     = `🔔 ${leadLabel}! ${lead.customer_name || lead.line_display_name || 'ลูกค้าใหม่'}`;
+
     const flexMsg = {
       type: 'flex',
-      altText: `🔔 Lead ใหม่! ${lead.customer_name || lead.line_display_name || 'ลูกค้าใหม่'}`,
+      altText,
       contents: {
         type: 'bubble',
         size: 'kilo',
         header: {
           type: 'box', layout: 'vertical',
-          backgroundColor: '#1a56db', paddingAll: '14px',
-          contents: [{
-            type: 'text', text: '🔔 Lead ใหม่จาก Sales Bot',
-            color: '#ffffff', weight: 'bold', size: 'md',
-          }],
+          backgroundColor: headerColor, paddingAll: '14px',
+          contents: [
+            {
+              type: 'text', text: `🔔 ${leadLabel} — Sales Bot`,
+              color: '#ffffff', weight: 'bold', size: 'md',
+            },
+          ],
         },
         body: {
           type: 'box', layout: 'vertical', spacing: 'sm', paddingAll: '14px',
@@ -284,6 +325,9 @@ async function handleMessage(lineUserId, displayName, text) {
 
   const { history, count, leadCaptured } = await getConversation(lineUserId);
 
+  // ── ตรวจ lead_type จากข้อความ ──
+  const leadType = detectLeadType(text);
+
   // ── เพิ่ม user message ──
   history.push({ role: 'user', content: text });
   const trimmed = history.slice(-MAX_HISTORY);
@@ -293,7 +337,7 @@ async function handleMessage(lineUserId, displayName, text) {
   try {
     const resp = await axios.post('https://api.anthropic.com/v1/messages', {
       model:      MODEL,
-      max_tokens: 600,
+      max_tokens: 320,
       system:     SYSTEM_PROMPT,
       messages:   trimmed,
     }, {
@@ -316,12 +360,12 @@ async function handleMessage(lineUserId, displayName, text) {
   let newLeadCaptured = leadCaptured;
   const phone = extractPhone(text);
   if (phone && !leadCaptured) {
-    await upsertLead(lineUserId, displayName, { phone, status: 'new', interest_level: 'hot' });
+    await upsertLead(lineUserId, displayName, { phone, status: 'new', interest_level: 'hot', lead_type: leadType });
     newLeadCaptured = true;
-    console.log(`[salesBot] Lead captured: ${displayName} (${phone})`);
+    console.log(`[salesBot] Lead captured: ${displayName} (${phone}) type=${leadType}`);
 
-    // แจ้ง Admin ทันที (async — ไม่ block reply)
-    notifyAdminNewLead({ line_display_name: displayName, phone, interest_level: 'hot' }).catch(() => {});
+    // แจ้งพนักงานกลุ่มที่ตรงกับ lead_type ทันที (async — ไม่ block reply)
+    notifyAdminNewLead({ line_display_name: displayName, phone, interest_level: 'hot', lead_type: leadType }).catch(() => {});
   }
 
   // ── Auto-extract lead fields ทุก 4 ข้อความ ──
@@ -337,6 +381,7 @@ async function handleMessage(lineUserId, displayName, text) {
         notifyAdminNewLead({
           line_display_name: displayName,
           phone: phone || undefined,
+          lead_type: leadType,
           ...extracted,
         }).catch(() => {});
       }
@@ -352,24 +397,36 @@ async function handleMessage(lineUserId, displayName, text) {
 // ─────────────────────────────────────────────────────────────────
 //  Admin: getLeads / updateLeadStatus / resetConversation
 // ─────────────────────────────────────────────────────────────────
-async function getLeads({ status, limit = 50, offset = 0 } = {}) {
-  let where = '';
-  const params = [];
-  if (status) { params.push(status); where = `WHERE status = $${params.length}`; }
+async function getLeads({ status, lead_type, limit = 50, offset = 0 } = {}) {
+  const conditions = [];
+  const params     = [];
+
+  if (status) {
+    params.push(status);
+    conditions.push(`status = $${params.length}`);
+  }
+  if (lead_type && ['new', 'renewal'].includes(lead_type)) {
+    params.push(lead_type);
+    conditions.push(`lead_type = $${params.length}`);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   params.push(limit, offset);
+
   const r = await db.query(
     `SELECT * FROM sales_leads ${where} ORDER BY created_at DESC LIMIT $${params.length-1} OFFSET $${params.length}`,
     params
   );
+  const cntParams = params.slice(0, -2);   // ตัด limit/offset ออก
   const cnt = await db.query(
     `SELECT COUNT(*) FROM sales_leads ${where}`,
-    status ? [status] : []
+    cntParams
   );
   return { leads: r.rows, total: parseInt(cnt.rows[0].count) };
 }
 
 async function updateLead(id, fields) {
-  const allowed = ['status','notes','customer_name','phone','car_brand','car_model','car_year','insurance_type','interest_level','assigned_to'];
+  const allowed = ['status','notes','customer_name','phone','car_brand','car_model','car_year','insurance_type','interest_level','assigned_to','lead_type'];
   const keys = Object.keys(fields).filter(k => allowed.includes(k));
   if (!keys.length) return null;
   const sets   = keys.map((k,i) => `${k} = $${i+2}`).join(', ');

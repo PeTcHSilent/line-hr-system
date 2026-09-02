@@ -209,10 +209,6 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.88 9.75 19.79 19.79 0 0 1 1.84 1.12 2 2 0 0 1 3.82 0h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 7.91A16 16 0 0 0 16 15.91l.97-.97a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
         Broadcast
       </a>
-      <a class="nav-item" data-page="sales" onclick="showPage('sales')" href="#">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
-        Sales Bot — ลูกค้า
-      </a>
       <div class="nav-section">การบริหาร</div>
       <a class="nav-item" data-page="shift" onclick="showPage('shift')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -586,8 +582,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
           <div id="lr-balance-result" style="display:none;flex-wrap:wrap;gap:8px;margin-top:4px;width:100%;"></div>
         </div>
         <div class="tbl-wrap">
-          <table><thead><tr><th>พนักงาน</th><th>แผนก</th><th>ประเภทการลา</th><th>วันที่เริ่ม</th><th>วันที่สิ้นสุด</th><th>จำนวนวัน</th><th>สถานะ</th><th>หมายเหตุ</th><th>จัดการ</th></tr></thead>
-          <tbody id="lr-tbody"><tr><td colspan="9" class="no-data">กำลังโหลด...</td></tr></tbody></table>
+          <table><thead><tr><th>รหัส</th><th>พนักงาน</th><th>แผนก</th><th>ประเภทการลา</th><th>วันที่</th><th>จำนวนวัน</th><th>สถานะ</th><th>อนุมัติโดย</th><th>วันที่ทำรายการ</th><th>จัดการ</th></tr></thead>
+          <tbody id="lr-tbody"><tr><td colspan="10" class="no-data">กำลังโหลด...</td></tr></tbody></table>
         </div>
       </div>
     </div>
@@ -599,8 +595,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
           <button class="btn btn-primary btn-sm" onclick="openLeaveTypeModal()">+ เพิ่มประเภทการลา</button>
         </div>
         <div class="tbl-wrap">
-          <table><thead><tr><th>ชื่อประเภทการลา</th><th>จำนวนวันสูงสุด/ปี</th><th>มีค่าจ้าง</th><th>จัดการ</th></tr></thead>
-          <tbody id="leave-tbody"><tr><td colspan="4" class="no-data">กำลังโหลด...</td></tr></tbody></table>
+          <table><thead><tr><th>รหัส</th><th>ชื่อประเภทการลา</th><th>จำนวนวันสูงสุด/ปี</th><th>เพศ</th><th>มีค่าจ้าง</th><th>จัดการ</th></tr></thead>
+          <tbody id="leave-tbody"><tr><td colspan="6" class="no-data">กำลังโหลด...</td></tr></tbody></table>
         </div>
       </div>
     </div>
@@ -678,7 +674,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
             </select></div>
         </div>
         <div class="tbl-wrap">
-          <table><thead><tr><th>พนักงาน</th><th>แผนก</th><th>วันที่</th><th>เวลาเริ่ม</th><th>เวลาสิ้นสุด</th><th>ชั่วโมง</th><th>สาเหตุ</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+          <table><thead><tr><th>รหัส</th><th>พนักงาน</th><th>แผนก</th><th>วันที่</th><th>เวลา</th><th>ชั่วโมง</th><th>สาเหตุ</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
           <tbody id="ot-tbody"><tr><td colspan="9" class="no-data">กำลังโหลด...</td></tr></tbody></table>
         </div>
       </div>
@@ -1365,7 +1361,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         </div>
         <div class="tbl-wrap">
           <table><thead><tr>
-            <th>รหัส</th><th>ชื่อพนักงาน</th><th>แผนก</th>
+            <th>รหัส</th><th>ชื่อพนักงาน / แผนก</th><th>ตำแหน่ง</th>
             <th>วันเริ่มทดลองงาน</th><th>วันสิ้นสุด</th><th>เหลือ (วัน)</th>
             <th>สถานะ</th><th>ผลประเมิน</th><th></th>
           </tr></thead>
