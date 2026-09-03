@@ -1,5 +1,6 @@
 const db = require('../db');
 const settingsService = require('./settingsService');
+const payrollDeductionService = require('./payrollDeductionService');
 const line = require('@line/bot-sdk');
 
 const lineClient = new line.messagingApi.MessagingApiClient({
@@ -137,6 +138,9 @@ async function calculatePayslip(employeeId, year, month) {
   const specialAllowance     = parseFloat(bonusRes.rows[0]?.special_allowance || 0);
   const specialAllowanceNote = bonusRes.rows[0]?.special_allowance_note || '';
 
+  // รายการหักเงินเพิ่มเติม (หลายรายการ แยกตามหมวดหมู่) จาก payroll_deductions
+  const otherDeduction = await payrollDeductionService.getMonthlyTotal(employeeId, year, month);
+
   // คำนวณ
   const cfg = await getPayrollSettings();
   const grossIncome    = salary + otPay + bonus + specialAllowance;
@@ -153,7 +157,7 @@ async function calculatePayslip(employeeId, year, month) {
   const absentDeduction = deductAbsent
     ? Math.round(absentDays * (salary / 30) * 100) / 100
     : 0;
-  const totalDeduction = socialSecurity + providentFund + taxWithholding + lateDeduction + absentDeduction;
+  const totalDeduction = socialSecurity + providentFund + taxWithholding + lateDeduction + absentDeduction + otherDeduction;
   const netIncome      = grossIncome - totalDeduction;
 
   const round = n => Math.round(n * 100) / 100;
@@ -178,6 +182,7 @@ async function calculatePayslip(employeeId, year, month) {
     tax_withholding: round(taxWithholding),
     late_deduction:   round(lateDeduction),
     absent_deduction: round(absentDeduction),
+    other_deduction:  round(otherDeduction),
     total_deduction:  round(totalDeduction),
     net_income:       round(netIncome),
     late_days:        lateDays,
@@ -214,19 +219,20 @@ async function generatePayroll(year, month, force = false) {
         'INSERT INTO payroll_records' +
         ' (employee_id, year, month, salary, ot_pay, ot_hours, bonus, gross_income,' +
         '  social_security, provident_fund, tax_withholding, late_deduction, absent_deduction, total_deduction, net_income,' +
-        '  late_days, absent_days, weekday_ot_hours, weekend_ot_hours, holiday_ot_hours, status, updated_at)' +
-        ' VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW())' +
+        '  late_days, absent_days, weekday_ot_hours, weekend_ot_hours, holiday_ot_hours, status, other_deduction, updated_at)' +
+        ' VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NOW())' +
         ' ON CONFLICT (employee_id, year, month) DO UPDATE SET' +
         '  salary=$4, ot_pay=$5, ot_hours=$6, bonus=$7, gross_income=$8,' +
         '  social_security=$9, provident_fund=$10, tax_withholding=$11,' +
         '  late_deduction=$12, absent_deduction=$13, total_deduction=$14, net_income=$15,' +
-        '  late_days=$16, absent_days=$17, weekday_ot_hours=$18, weekend_ot_hours=$19, holiday_ot_hours=$20, status=\'draft\', updated_at=NOW()',
+        '  late_days=$16, absent_days=$17, weekday_ot_hours=$18, weekend_ot_hours=$19, holiday_ot_hours=$20, status=\'draft\', other_deduction=$22, updated_at=NOW()',
         [
           p.employee_id, year, month,
           p.salary, p.ot_pay, p.ot_hours, p.bonus, p.gross_income,
           p.social_security, p.provident_fund, p.tax_withholding,
           p.late_deduction, p.absent_deduction, p.total_deduction, p.net_income,
           p.late_days, p.absent_days, p.weekday_ot_hours, p.weekend_ot_hours, p.holiday_ot_hours, 'draft',
+          p.other_deduction,
         ]
       );
     } else {
@@ -235,13 +241,13 @@ async function generatePayroll(year, month, force = false) {
       'INSERT INTO payroll_records' +
       ' (employee_id, year, month, salary, ot_pay, ot_hours, bonus, gross_income,' +
       '  social_security, provident_fund, tax_withholding, late_deduction, absent_deduction, total_deduction, net_income,' +
-      '  late_days, absent_days, weekday_ot_hours, weekend_ot_hours, holiday_ot_hours, status, updated_at)' +
-      ' VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW())' +
+      '  late_days, absent_days, weekday_ot_hours, weekend_ot_hours, holiday_ot_hours, status, other_deduction, updated_at)' +
+      ' VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NOW())' +
       ' ON CONFLICT (employee_id, year, month) DO UPDATE SET' +
       '  salary=$4, ot_pay=$5, ot_hours=$6, bonus=$7, gross_income=$8,' +
       '  social_security=$9, provident_fund=$10, tax_withholding=$11,' +
       '  late_deduction=$12, absent_deduction=$13, total_deduction=$14, net_income=$15,' +
-      '  late_days=$16, absent_days=$17, weekday_ot_hours=$18, weekend_ot_hours=$19, holiday_ot_hours=$20, updated_at=NOW()' +
+      '  late_days=$16, absent_days=$17, weekday_ot_hours=$18, weekend_ot_hours=$19, holiday_ot_hours=$20, other_deduction=$22, updated_at=NOW()' +
       ' WHERE payroll_records.status = \'draft\'',
       [
         p.employee_id, year, month,
@@ -249,6 +255,7 @@ async function generatePayroll(year, month, force = false) {
         p.social_security, p.provident_fund, p.tax_withholding,
         p.late_deduction, p.absent_deduction, p.total_deduction, p.net_income,
         p.late_days, p.absent_days, p.weekday_ot_hours, p.weekend_ot_hours, p.holiday_ot_hours, 'draft',
+        p.other_deduction,
       ]
     );
     } // end else
