@@ -103,6 +103,8 @@ app.use('/api/broadcast',   require('./routes/broadcastRoutes'));
 app.use('/api/settings',    require('./routes/settingsRoutes'));
 app.use('/api/payroll',     require('./routes/payrollRoutes'));
 app.use('/api/payroll-deduction', require('./routes/payrollDeductionRoutes'));
+app.use('/api/document', require('./routes/documentRoutes'));
+app.use('/api/asset',    require('./routes/assetRoutes'));
 app.use('/api/expense',     require('./routes/expenseRoutes'));
 app.use('/api/admin-users', require('./routes/adminUserRoutes'));
 app.use('/api/shift',          require('./routes/shiftRoutes'));

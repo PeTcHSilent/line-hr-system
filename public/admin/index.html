@@ -222,6 +222,14 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><rect x="1" y="16" width="6" height="4" rx="1"/><rect x="9" y="16" width="6" height="4" rx="1"/><rect x="17" y="16" width="6" height="4" rx="1"/><path d="M4 16v-4h16v4M12 6v6"/></svg>
         Org Chart
       </a>
+      <a class="nav-item" data-page="documents" onclick="showPage('documents')" href="#">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        เอกสาร / ใบอนุญาต
+      </a>
+      <a class="nav-item" data-page="assets" onclick="showPage('assets')" href="#">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="14" rx="2"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="6" y1="14" x2="10" y2="14"/></svg>
+        ทรัพย์สิน / อุปกรณ์
+      </a>
       <a class="nav-item" data-page="admin-users" onclick="showPage('admin-users')" href="#">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         Admin LINE Users
@@ -430,6 +438,246 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
             <thead><tr><th>ชื่อสาขา</th><th>ที่อยู่</th><th>พิกัด GPS</th><th>รัศมี (ม.)</th><th>พนักงาน</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
             <tbody id="branch-tbody"><tr><td colspan="7" class="no-data">กำลังโหลด...</td></tr></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== เอกสาร / ใบอนุญาตพนักงาน ========== -->
+    <div id="page-documents" class="page">
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-num" id="doc-total">0</div><div class="kpi-label">เอกสารทั้งหมด</div></div>
+        <div class="kpi"><div class="kpi-num" id="doc-expiring" style="color:#d97706;">0</div><div class="kpi-label">ใกล้หมดอายุ (30 วัน)</div></div>
+        <div class="kpi"><div class="kpi-num" id="doc-expired" style="color:#ef4444;">0</div><div class="kpi-label">หมดอายุแล้ว</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📄 เอกสาร / ใบอนุญาตพนักงาน</div>
+          <button class="btn btn-primary btn-sm" onclick="openAddDocument()">+ เพิ่มเอกสาร</button>
+        </div>
+        <div class="filter-row">
+          <div class="filter-group"><div class="filter-label">ประเภทเอกสาร</div>
+            <select id="doc-type-filter" style="width:180px;" onchange="loadDocuments()">
+              <option value="">ทั้งหมด</option>
+              <option value="broker_license">ใบอนุญาตนายหน้าประกัน</option>
+              <option value="id_card">บัตรประชาชน</option>
+              <option value="driver_license">ใบขับขี่</option>
+              <option value="passport">พาสปอร์ต</option>
+              <option value="work_permit">ใบอนุญาตทำงาน</option>
+              <option value="contract">สัญญาจ้าง</option>
+              <option value="other">อื่นๆ</option>
+            </select></div>
+          <div class="filter-group"><div class="filter-label">สถานะ</div>
+            <select id="doc-status-filter" style="width:160px;" onchange="loadDocuments()">
+              <option value="">ทั้งหมด</option>
+              <option value="expiring">ใกล้หมดอายุ (30 วัน)</option>
+              <option value="expired">หมดอายุแล้ว</option>
+            </select></div>
+          <div class="filter-group"><div class="filter-label">ค้นหา</div>
+            <input type="text" id="doc-search" placeholder="ชื่อ / รหัสพนักงาน" style="width:180px;" oninput="renderDocumentTable()"></div>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>พนักงาน</th><th>แผนก</th><th>ประเภทเอกสาร</th><th>เลขที่</th><th>วันหมดอายุ</th><th>สถานะ</th><th>หมายเหตุ</th><th>จัดการ</th></tr></thead>
+            <tbody id="doc-tbody"><tr><td colspan="8" class="no-data">กำลังโหลด...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: เพิ่ม/แก้ไข เอกสาร -->
+    <div class="modal" id="doc-modal">
+      <div class="modal-box">
+        <div class="modal-title" id="doc-modal-title">เพิ่มเอกสาร</div>
+        <input type="hidden" id="doc-edit-id">
+        <div class="form-group">
+          <label class="form-label">พนักงาน *</label>
+          <select id="doc-employee"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ประเภทเอกสาร *</label>
+          <select id="doc-type">
+            <option value="broker_license">ใบอนุญาตนายหน้าประกัน</option>
+            <option value="id_card">บัตรประชาชน</option>
+            <option value="driver_license">ใบขับขี่</option>
+            <option value="passport">พาสปอร์ต</option>
+            <option value="work_permit">ใบอนุญาตทำงาน</option>
+            <option value="contract">สัญญาจ้าง</option>
+            <option value="other">อื่นๆ</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">เลขที่เอกสาร</label>
+          <input type="text" id="doc-number" placeholder="เช่น เลขที่ใบอนุญาต">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group">
+            <label class="form-label">วันที่ออก</label>
+            <input type="date" id="doc-issue-date">
+          </div>
+          <div class="form-group">
+            <label class="form-label">วันหมดอายุ *</label>
+            <input type="date" id="doc-expiry-date">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">หมายเหตุ</label>
+          <textarea id="doc-note" rows="2" placeholder="รายละเอียดเพิ่มเติม..."></textarea>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeModal('doc-modal')">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="saveDocument()">บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== ทรัพย์สิน / อุปกรณ์บริษัท ========== -->
+    <div id="page-assets" class="page">
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-num" id="ast-total">0</div><div class="kpi-label">ทรัพย์สินทั้งหมด</div></div>
+        <div class="kpi"><div class="kpi-num" id="ast-assigned" style="color:#2563eb;">0</div><div class="kpi-label">กำลังใช้งาน</div></div>
+        <div class="kpi"><div class="kpi-num" id="ast-available" style="color:#22c55e;">0</div><div class="kpi-label">ว่าง</div></div>
+        <div class="kpi"><div class="kpi-num" id="ast-issue" style="color:#ef4444;">0</div><div class="kpi-label">ชำรุด/สูญหาย</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🧰 ทรัพย์สิน / อุปกรณ์บริษัท</div>
+          <button class="btn btn-primary btn-sm" onclick="openAddAsset()">+ เพิ่มทรัพย์สิน</button>
+        </div>
+        <div class="filter-row">
+          <div class="filter-group"><div class="filter-label">หมวดหมู่</div>
+            <select id="ast-category-filter" style="width:160px;" onchange="loadAssets()">
+              <option value="">ทั้งหมด</option>
+              <option value="laptop">💻 Laptop</option>
+              <option value="phone">📱 มือถือ</option>
+              <option value="uniform">👔 เครื่องแบบ</option>
+              <option value="vehicle">🚗 ยานพาหนะ</option>
+              <option value="furniture">🪑 เฟอร์นิเจอร์</option>
+              <option value="other">📦 อื่นๆ</option>
+            </select></div>
+          <div class="filter-group"><div class="filter-label">สถานะ</div>
+            <select id="ast-status-filter" style="width:150px;" onchange="loadAssets()">
+              <option value="">ทั้งหมด</option>
+              <option value="available">ว่าง</option>
+              <option value="assigned">กำลังใช้งาน</option>
+              <option value="maintenance">ซ่อมบำรุง</option>
+              <option value="lost">สูญหาย</option>
+              <option value="retired">ปลดระวาง</option>
+            </select></div>
+          <div class="filter-group"><div class="filter-label">ค้นหา</div>
+            <input type="text" id="ast-search" placeholder="รหัส / ชื่อทรัพย์สิน" style="width:180px;" oninput="renderAssetTable()"></div>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>รหัส</th><th>ชื่อทรัพย์สิน</th><th>หมวดหมู่</th><th>S/N</th><th>สถานะ</th><th>ผู้ถือครอง</th><th>จัดการ</th></tr></thead>
+            <tbody id="ast-tbody"><tr><td colspan="7" class="no-data">กำลังโหลด...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: เพิ่ม/แก้ไข ทรัพย์สิน -->
+    <div class="modal" id="asset-modal">
+      <div class="modal-box">
+        <div class="modal-title" id="asset-modal-title">เพิ่มทรัพย์สิน</div>
+        <input type="hidden" id="ast-edit-id">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group">
+            <label class="form-label">รหัสทรัพย์สิน *</label>
+            <input type="text" id="ast-code" placeholder="เช่น LAPTOP-001">
+          </div>
+          <div class="form-group">
+            <label class="form-label">หมวดหมู่ *</label>
+            <select id="ast-category">
+              <option value="laptop">💻 Laptop</option>
+              <option value="phone">📱 มือถือ</option>
+              <option value="uniform">👔 เครื่องแบบ</option>
+              <option value="vehicle">🚗 ยานพาหนะ</option>
+              <option value="furniture">🪑 เฟอร์นิเจอร์</option>
+              <option value="other">📦 อื่นๆ</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ชื่อทรัพย์สิน *</label>
+          <input type="text" id="ast-name" placeholder="เช่น Notebook Dell Latitude 5420">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Serial Number</label>
+            <input type="text" id="ast-serial">
+          </div>
+          <div class="form-group">
+            <label class="form-label">วันที่ซื้อ</label>
+            <input type="date" id="ast-purchase-date">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ราคาซื้อ (บาท)</label>
+          <input type="number" id="ast-price" min="0" step="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">หมายเหตุ</label>
+          <textarea id="ast-note" rows="2"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeModal('asset-modal')">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="saveAsset()">บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: เบิกทรัพย์สิน -->
+    <div class="modal" id="asset-assign-modal">
+      <div class="modal-box">
+        <div class="modal-title">เบิกทรัพย์สินให้พนักงาน</div>
+        <input type="hidden" id="asg-asset-id">
+        <div id="asg-asset-name" style="font-size:13px;color:#6b7280;margin-bottom:10px;"></div>
+        <div class="form-group">
+          <label class="form-label">พนักงาน *</label>
+          <select id="asg-employee"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันที่เบิก</label>
+          <input type="date" id="asg-date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">หมายเหตุ</label>
+          <textarea id="asg-note" rows="2"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeModal('asset-assign-modal')">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="saveAssign()">เบิก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: คืนทรัพย์สิน -->
+    <div class="modal" id="asset-return-modal">
+      <div class="modal-box">
+        <div class="modal-title">คืนทรัพย์สิน</div>
+        <input type="hidden" id="ret-assignment-id">
+        <input type="hidden" id="ret-employee-id">
+        <input type="hidden" id="ret-employee-name">
+        <div id="ret-asset-name" style="font-size:13px;color:#6b7280;margin-bottom:10px;"></div>
+        <div class="form-group">
+          <label class="form-label">วันที่คืน</label>
+          <input type="date" id="ret-date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">สภาพเมื่อคืน *</label>
+          <select id="ret-condition">
+            <option value="normal">✅ ปกติ</option>
+            <option value="damaged">⚠️ ชำรุด</option>
+            <option value="lost">❌ สูญหาย</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">หมายเหตุ</label>
+          <textarea id="ret-note" rows="2" placeholder="รายละเอียดความเสียหาย (ถ้ามี)..."></textarea>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeModal('asset-return-modal')">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="saveReturn()">บันทึกการคืน</button>
         </div>
       </div>
     </div>
@@ -2309,6 +2557,8 @@ function showPage(name) {
     'audit-log':'Audit Log — ประวัติการดำเนินการ',
     'salary-adjustment':'ขึ้นเงินเดือนประจำปี',
     'employee-salary':'เงินเดือนพนักงาน',
+    documents:'เอกสาร / ใบอนุญาตพนักงาน',
+    assets:'ทรัพย์สิน / อุปกรณ์บริษัท',
   };
   document.getElementById('page-title').textContent = titles[name] || name;
   if (name === 'employees')   loadEmployees();
@@ -2340,6 +2590,8 @@ function showPage(name) {
   if (name === 'salary-adjustment') initSalaryAdj();
   if (name === 'employee-salary') loadEmployeeSalary();
   if (name === 'sales') initSalesBot();
+  if (name === 'documents') loadDocuments();
+  if (name === 'assets')    loadAssets();
 }
 
 function updateClock() {
@@ -5348,6 +5600,366 @@ async function deleteDeductionItem(id) {
     loadDeductionItems();
     loadPayroll();
   } catch(err) { toast('❌ ' + err.message, 'error'); }
+}
+
+// ─── เอกสาร / ใบอนุญาตพนักงาน ───────────────────────────────────────────────
+
+const DOC_TYPE_LABEL = {
+  broker_license: 'ใบอนุญาตนายหน้าประกัน', id_card: 'บัตรประชาชน', driver_license: 'ใบขับขี่',
+  passport: 'พาสปอร์ต', work_permit: 'ใบอนุญาตทำงาน', contract: 'สัญญาจ้าง', other: 'อื่นๆ',
+};
+let allDocuments = [];
+
+function populateEmployeeSelect(selectId) {
+  const el = document.getElementById(selectId);
+  if (!el) return;
+  const prev = el.value;
+  el.innerHTML = '<option value="">— เลือกพนักงาน —</option>';
+  (allEmployees || []).filter(e => e.is_active !== false).forEach(e => {
+    const opt = document.createElement('option');
+    opt.value = e.id; opt.textContent = `${e.name} (${e.employee_code || '-'})`;
+    el.appendChild(opt);
+  });
+  if (prev) el.value = prev;
+}
+
+async function loadDocuments() {
+  const tbody = document.getElementById('doc-tbody');
+  tbody.innerHTML = '<tr><td colspan="8" class="no-data">กำลังโหลด...</td></tr>';
+  try {
+    const docType = document.getElementById('doc-type-filter')?.value || '';
+    const status  = document.getElementById('doc-status-filter')?.value || '';
+    const params  = new URLSearchParams();
+    if (docType) params.set('doc_type', docType);
+    if (status)  params.set('status', status);
+    const res = await apiFetch(`${API}/api/document?${params.toString()}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    allDocuments = await res.json();
+    renderDocumentTable();
+    document.getElementById('doc-total').textContent    = allDocuments.length;
+    document.getElementById('doc-expiring').textContent = allDocuments.filter(d => d.days_left >= 0 && d.days_left <= 30).length;
+    document.getElementById('doc-expired').textContent  = allDocuments.filter(d => d.days_left < 0).length;
+  } catch(err) {
+    tbody.innerHTML = `<tr><td colspan="8" class="no-data" style="color:#ef4444;">โหลดไม่สำเร็จ: ${err.message}</td></tr>`;
+  }
+}
+
+function renderDocumentTable() {
+  const tbody  = document.getElementById('doc-tbody');
+  const search = (document.getElementById('doc-search')?.value || '').trim().toLowerCase();
+  const rows = allDocuments.filter(d =>
+    !search || (d.employee_name||'').toLowerCase().includes(search) || (d.employee_code||'').toLowerCase().includes(search)
+  );
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="8" class="no-data">ไม่พบเอกสาร</td></tr>'; return; }
+
+  const fmtDate = d => d ? new Date(String(d)+'T12:00:00+07:00').toLocaleDateString('th-TH',{year:'numeric',month:'short',day:'numeric',timeZone:'Asia/Bangkok'}) : '—';
+  const statusBadge = days => {
+    if (days == null) return '—';
+    if (days < 0)   return `<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">หมดอายุแล้ว ${Math.abs(days)} วัน</span>`;
+    if (days <= 30) return `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">ใกล้หมดอายุ (${days} วัน)</span>`;
+    return `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">ปกติ</span>`;
+  };
+
+  tbody.innerHTML = rows.map(d => `<tr>
+    <td>${d.employee_name||'—'} <span style="color:#9ca3af;font-size:11px;">(${d.employee_code||'-'})</span></td>
+    <td style="font-size:12px;">${d.department_name||'—'}</td>
+    <td style="font-size:13px;">${DOC_TYPE_LABEL[d.doc_type]||d.doc_type}</td>
+    <td style="font-size:12px;color:#6b7280;">${d.doc_number||'—'}</td>
+    <td style="font-family:monospace;font-size:12px;">${fmtDate(d.expiry_date)}</td>
+    <td>${statusBadge(d.days_left)}</td>
+    <td style="font-size:12px;color:#6b7280;max-width:180px;">${d.note||'—'}</td>
+    <td><div class="actions">
+      <button class="btn btn-ghost btn-sm" onclick="openEditDocument(${d.id})">แก้ไข</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmDeleteDocument(${d.id})">ลบ</button>
+    </div></td>
+  </tr>`).join('');
+}
+
+function openAddDocument() {
+  document.getElementById('doc-edit-id').value = '';
+  document.getElementById('doc-modal-title').textContent = 'เพิ่มเอกสาร';
+  populateEmployeeSelect('doc-employee');
+  document.getElementById('doc-type').value = 'broker_license';
+  document.getElementById('doc-number').value = '';
+  document.getElementById('doc-issue-date').value = '';
+  document.getElementById('doc-expiry-date').value = '';
+  document.getElementById('doc-note').value = '';
+  openModal('doc-modal');
+}
+
+function openEditDocument(id) {
+  const d = allDocuments.find(x => x.id === id);
+  if (!d) return;
+  document.getElementById('doc-edit-id').value = d.id;
+  document.getElementById('doc-modal-title').textContent = `แก้ไขเอกสาร — ${d.employee_name}`;
+  populateEmployeeSelect('doc-employee');
+  document.getElementById('doc-employee').value = d.employee_id;
+  document.getElementById('doc-type').value = d.doc_type;
+  document.getElementById('doc-number').value = d.doc_number || '';
+  document.getElementById('doc-issue-date').value = d.issue_date ? String(d.issue_date).slice(0,10) : '';
+  document.getElementById('doc-expiry-date').value = d.expiry_date ? String(d.expiry_date).slice(0,10) : '';
+  document.getElementById('doc-note').value = d.note || '';
+  openModal('doc-modal');
+}
+
+async function saveDocument() {
+  const editId = document.getElementById('doc-edit-id').value;
+  const employeeId = document.getElementById('doc-employee').value;
+  const expiryDate  = document.getElementById('doc-expiry-date').value;
+  if (!employeeId) return toast('กรุณาเลือกพนักงาน', 'error');
+  if (!expiryDate)  return toast('กรุณาระบุวันหมดอายุ', 'error');
+  const body = {
+    employee_id: employeeId,
+    doc_type:    document.getElementById('doc-type').value,
+    doc_number:  document.getElementById('doc-number').value.trim() || null,
+    issue_date:  document.getElementById('doc-issue-date').value || null,
+    expiry_date: expiryDate,
+    note:        document.getElementById('doc-note').value.trim() || null,
+  };
+  try {
+    const url    = editId ? `${API}/api/document/${editId}` : `${API}/api/document`;
+    const method = editId ? 'PUT' : 'POST';
+    const res  = await apiFetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+    toast(editId ? '✅ แก้ไขเอกสารสำเร็จ' : '✅ เพิ่มเอกสารสำเร็จ');
+    closeModal('doc-modal');
+    loadDocuments();
+  } catch(err) { toast('❌ ' + err.message, 'error'); }
+}
+
+async function confirmDeleteDocument(id) {
+  if (!confirm('ลบเอกสารนี้?')) return;
+  try {
+    const res  = await apiFetch(`${API}/api/document/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+    toast('✅ ลบเอกสารสำเร็จ');
+    loadDocuments();
+  } catch(err) { toast('❌ ' + err.message, 'error'); }
+}
+
+// ─── ทรัพย์สิน / อุปกรณ์บริษัท ──────────────────────────────────────────────
+
+const AST_CATEGORY_LABEL = { laptop:'💻 Laptop', phone:'📱 มือถือ', uniform:'👔 เครื่องแบบ', vehicle:'🚗 ยานพาหนะ', furniture:'🪑 เฟอร์นิเจอร์', other:'📦 อื่นๆ' };
+const AST_STATUS_LABEL = {
+  available:   ['#dcfce7','#166534','ว่าง'],
+  assigned:    ['#dbeafe','#1d4ed8','กำลังใช้งาน'],
+  maintenance: ['#fef3c7','#92400e','ซ่อมบำรุง'],
+  lost:        ['#fee2e2','#991b1b','สูญหาย'],
+  retired:     ['#f3f4f6','#374151','ปลดระวาง'],
+};
+let allAssets = [];
+
+async function loadAssets() {
+  const tbody = document.getElementById('ast-tbody');
+  tbody.innerHTML = '<tr><td colspan="7" class="no-data">กำลังโหลด...</td></tr>';
+  try {
+    const category = document.getElementById('ast-category-filter')?.value || '';
+    const status   = document.getElementById('ast-status-filter')?.value || '';
+    const params   = new URLSearchParams();
+    if (category) params.set('category', category);
+    if (status)   params.set('status', status);
+    const res = await apiFetch(`${API}/api/asset?${params.toString()}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    allAssets = await res.json();
+    renderAssetTable();
+    document.getElementById('ast-total').textContent     = allAssets.length;
+    document.getElementById('ast-assigned').textContent  = allAssets.filter(a => a.status === 'assigned').length;
+    document.getElementById('ast-available').textContent = allAssets.filter(a => a.status === 'available').length;
+    document.getElementById('ast-issue').textContent     = allAssets.filter(a => a.status === 'maintenance' || a.status === 'lost').length;
+  } catch(err) {
+    tbody.innerHTML = `<tr><td colspan="7" class="no-data" style="color:#ef4444;">โหลดไม่สำเร็จ: ${err.message}</td></tr>`;
+  }
+}
+
+function renderAssetTable() {
+  const tbody  = document.getElementById('ast-tbody');
+  const search = (document.getElementById('ast-search')?.value || '').trim().toLowerCase();
+  const rows = allAssets.filter(a =>
+    !search || (a.asset_code||'').toLowerCase().includes(search) || (a.asset_name||'').toLowerCase().includes(search)
+  );
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7" class="no-data">ไม่พบทรัพย์สิน</td></tr>'; return; }
+
+  tbody.innerHTML = rows.map(a => {
+    const [bg,col,txt] = AST_STATUS_LABEL[a.status] || AST_STATUS_LABEL.available;
+    const holder = a.current_employee_name ? `${a.current_employee_name}` : '<span style="color:#9ca3af;">—</span>';
+    const actions = [];
+    if (a.status === 'available') {
+      actions.push(`<button class="btn btn-primary btn-sm" onclick="openAssignAsset(${a.id})">เบิก</button>`);
+    }
+    if (a.status === 'assigned') {
+      actions.push(`<button class="btn btn-warning btn-sm" onclick="openReturnAsset(${a.id})">คืน</button>`);
+    }
+    actions.push(`<button class="btn btn-ghost btn-sm" onclick="openEditAsset(${a.id})">แก้ไข</button>`);
+    actions.push(`<button class="btn btn-danger btn-sm" onclick="confirmDeleteAsset(${a.id})">ลบ</button>`);
+    return `<tr>
+      <td style="font-family:monospace;font-size:12px;">${a.asset_code}</td>
+      <td>${a.asset_name}</td>
+      <td style="font-size:13px;">${AST_CATEGORY_LABEL[a.category]||a.category}</td>
+      <td style="font-size:12px;color:#6b7280;">${a.serial_number||'—'}</td>
+      <td><span style="background:${bg};color:${col};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">${txt}</span></td>
+      <td style="font-size:13px;">${holder}</td>
+      <td><div class="actions">${actions.join('')}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+function openAddAsset() {
+  document.getElementById('ast-edit-id').value = '';
+  document.getElementById('asset-modal-title').textContent = 'เพิ่มทรัพย์สิน';
+  document.getElementById('ast-code').value = '';
+  document.getElementById('ast-category').value = 'laptop';
+  document.getElementById('ast-name').value = '';
+  document.getElementById('ast-serial').value = '';
+  document.getElementById('ast-purchase-date').value = '';
+  document.getElementById('ast-price').value = '';
+  document.getElementById('ast-note').value = '';
+  openModal('asset-modal');
+}
+
+function openEditAsset(id) {
+  const a = allAssets.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('ast-edit-id').value = a.id;
+  document.getElementById('asset-modal-title').textContent = `แก้ไข — ${a.asset_name}`;
+  document.getElementById('ast-code').value = a.asset_code;
+  document.getElementById('ast-category').value = a.category;
+  document.getElementById('ast-name').value = a.asset_name;
+  document.getElementById('ast-serial').value = a.serial_number || '';
+  document.getElementById('ast-purchase-date').value = a.purchase_date ? String(a.purchase_date).slice(0,10) : '';
+  document.getElementById('ast-price').value = a.purchase_price || '';
+  document.getElementById('ast-note').value = a.note || '';
+  openModal('asset-modal');
+}
+
+async function saveAsset() {
+  const editId = document.getElementById('ast-edit-id').value;
+  const code = document.getElementById('ast-code').value.trim();
+  const name = document.getElementById('ast-name').value.trim();
+  if (!code || !name) return toast('กรุณาระบุรหัสและชื่อทรัพย์สิน', 'error');
+  const body = {
+    asset_code: code, asset_name: name,
+    category: document.getElementById('ast-category').value,
+    serial_number: document.getElementById('ast-serial').value.trim() || null,
+    purchase_date: document.getElementById('ast-purchase-date').value || null,
+    purchase_price: document.getElementById('ast-price').value ? parseFloat(document.getElementById('ast-price').value) : null,
+    note: document.getElementById('ast-note').value.trim() || null,
+  };
+  try {
+    const url    = editId ? `${API}/api/asset/${editId}` : `${API}/api/asset`;
+    const method = editId ? 'PUT' : 'POST';
+    const res  = await apiFetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+    toast(editId ? '✅ แก้ไขทรัพย์สินสำเร็จ' : '✅ เพิ่มทรัพย์สินสำเร็จ');
+    closeModal('asset-modal');
+    loadAssets();
+  } catch(err) { toast('❌ ' + err.message, 'error'); }
+}
+
+async function confirmDeleteAsset(id) {
+  const a = allAssets.find(x => x.id === id);
+  if (!confirm(`ลบทรัพย์สิน "${a?.asset_name||''}" ?`)) return;
+  try {
+    const res  = await apiFetch(`${API}/api/asset/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+    toast('✅ ลบทรัพย์สินสำเร็จ');
+    loadAssets();
+  } catch(err) { toast('❌ ' + err.message, 'error'); }
+}
+
+function openAssignAsset(assetId) {
+  const a = allAssets.find(x => x.id === assetId);
+  if (!a) return;
+  document.getElementById('asg-asset-id').value = assetId;
+  document.getElementById('asg-asset-name').textContent = `${a.asset_code} — ${a.asset_name}`;
+  populateEmployeeSelect('asg-employee');
+  document.getElementById('asg-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('asg-note').value = '';
+  openModal('asset-assign-modal');
+}
+
+async function saveAssign() {
+  const assetId = document.getElementById('asg-asset-id').value;
+  const employeeId = document.getElementById('asg-employee').value;
+  if (!employeeId) return toast('กรุณาเลือกพนักงาน', 'error');
+  try {
+    const res = await apiFetch(`${API}/api/asset/${assetId}/assign`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        employee_id: employeeId,
+        assigned_date: document.getElementById('asg-date').value || null,
+        note: document.getElementById('asg-note').value.trim() || null,
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+    toast('✅ เบิกทรัพย์สินสำเร็จ');
+    closeModal('asset-assign-modal');
+    loadAssets();
+  } catch(err) { toast('❌ ' + err.message, 'error'); }
+}
+
+function openReturnAsset(assetId) {
+  const a = allAssets.find(x => x.id === assetId);
+  if (!a || !a.current_employee_id) return toast('ไม่พบข้อมูลผู้เบิก', 'error');
+  // ต้องใช้ assignment id — ดึงจาก /api/asset/:id (detail + history) เอา record ที่ยังไม่คืน
+  apiFetch(`${API}/api/asset/${assetId}`).then(r => r.json()).then(detail => {
+    const active = (detail.history || []).find(h => !h.returned_date);
+    if (!active) return toast('ไม่พบรายการเบิกที่ยังไม่คืน', 'error');
+    document.getElementById('ret-assignment-id').value = active.id;
+    document.getElementById('ret-asset-name').textContent = `${a.asset_code} — ${a.asset_name}  (ผู้ถือครอง: ${a.current_employee_name || '-'})`;
+    document.getElementById('ret-date').value = new Date().toISOString().slice(0,10);
+    document.getElementById('ret-condition').value = 'normal';
+    document.getElementById('ret-note').value = '';
+    document.getElementById('ret-employee-id').value = a.current_employee_id;
+    document.getElementById('ret-employee-name').value = a.current_employee_name || '';
+    openModal('asset-return-modal');
+  }).catch(() => toast('โหลดข้อมูลไม่สำเร็จ', 'error'));
+}
+
+async function saveReturn() {
+  const assignmentId = document.getElementById('ret-assignment-id').value;
+  const condition = document.getElementById('ret-condition').value;
+  try {
+    const res = await apiFetch(`${API}/api/asset/assignment/${assignmentId}/return`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        returned_date: document.getElementById('ret-date').value || null,
+        return_condition: condition,
+        note: document.getElementById('ret-note').value.trim() || null,
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+    toast('✅ บันทึกการคืนสำเร็จ');
+    closeModal('asset-return-modal');
+    loadAssets();
+
+    // ถ้าชำรุด/สูญหาย — เสนอเปิดหน้าหักเงินหมวด "ค่าอุปกรณ์สูญหาย" ให้พนักงานคนนี้ทันที
+    if (condition !== 'normal') {
+      const empId   = document.getElementById('ret-employee-id').value;
+      const empName = document.getElementById('ret-employee-name').value;
+      if (empId && confirm(`ทรัพย์สินนี้${condition === 'lost' ? 'สูญหาย' : 'ชำรุด'} — ต้องการเปิดหน้าหักเงินพนักงาน "${empName}" หมวดค่าอุปกรณ์เลยหรือไม่?`)) {
+        showPageByName('payroll');
+        setTimeout(() => openDeductionModal(parseInt(empId), empName), 300);
+      }
+    }
+  } catch(err) { toast('❌ ' + err.message, 'error'); }
+}
+
+// helper: เปลี่ยนหน้าโดยไม่ต้องมี event ของปุ่ม nav (ใช้เรียกจากโค้ด ไม่ใช่จาก onclick)
+function showPageByName(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const pageEl = document.getElementById('page-' + name);
+  if (pageEl) pageEl.classList.add('active');
+  const navEl = document.querySelector(`.nav-item[data-page="${name}"]`);
+  if (navEl) navEl.classList.add('active');
+  document.getElementById('page-title').textContent = name;
+  if (name === 'payroll') initPayroll();
 }
 
 async function exportWageSheet() {

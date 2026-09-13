@@ -489,6 +489,62 @@ cron.schedule('0 9 * * *', async () => {
   }
 }, { timezone: 'Asia/Bangkok' });
 
+// ── แจ้งเตือนเอกสาร/ใบอนุญาตพนักงานใกล้หมดอายุ — 09:10 ทุกวัน ────
+cron.schedule('10 9 * * *', async () => {
+  console.log('[CRON] ตรวจสอบเอกสาร/ใบอนุญาตใกล้หมดอายุ...');
+  try {
+    const documentService = require('../services/documentService');
+    const docs = await documentService.getExpiringSoon(30);
+    if (!docs.length) {
+      console.log('  → ไม่มีเอกสารใกล้หมดอายุ/หมดอายุ');
+      return;
+    }
+
+    const { rows: admins } = await db.query('SELECT line_user_id FROM admin_line_users');
+    const lineClient = new (require('@line/bot-sdk').messagingApi.MessagingApiClient)({
+      channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+    });
+
+    const DOC_TYPE_TH = {
+      broker_license: 'ใบอนุญาตนายหน้าประกัน', id_card: 'บัตรประชาชน',
+      driver_license: 'ใบขับขี่', passport: 'พาสปอร์ต', work_permit: 'ใบอนุญาตทำงาน',
+      contract: 'สัญญาจ้าง', other: 'เอกสารอื่นๆ',
+    };
+
+    const expired  = docs.filter(d => d.days_left < 0);
+    const expiring = docs.filter(d => d.days_left >= 0);
+
+    const line = t => t
+      ? `• ${t.employee_name} (${t.employee_code}) — ${DOC_TYPE_TH[t.doc_type] || t.doc_type}\n  หมดอายุ: ${dayjs(t.expiry_date).format('DD/MM/YYYY')}${t.days_left >= 0 ? ` (อีก ${t.days_left} วัน)` : ` (เกินมา ${Math.abs(t.days_left)} วัน)`}`
+      : '';
+
+    let msg = `📄 แจ้งเตือนเอกสาร/ใบอนุญาตพนักงาน\n`;
+    if (expired.length)  msg += `\n❌ หมดอายุแล้ว (${expired.length} รายการ):\n${expired.map(line).join('\n')}\n`;
+    if (expiring.length) msg += `\n⚠️ ใกล้หมดอายุใน 30 วัน (${expiring.length} รายการ):\n${expiring.map(line).join('\n')}\n`;
+
+    if (admins.length) {
+      await Promise.all(admins.map(a =>
+        lineClient.pushMessage({ to: a.line_user_id, messages: [{ type: 'text', text: msg.slice(0, 4900) }] }).catch(() => {})
+      ));
+      console.log(`  → แจ้ง admin ${admins.length} คน เรื่องเอกสาร ${docs.length} รายการ (หมดอายุ ${expired.length} / ใกล้หมดอายุ ${expiring.length})`);
+    }
+
+    // แจ้งเตือนตัวพนักงานเองด้วย เฉพาะ milestone (30/14/7/1 วัน หรือหมดอายุแล้ว) กันสแปมทุกวัน
+    const milestones = [30, 14, 7, 1];
+    for (const d of docs) {
+      if (!d.line_user_id) continue;
+      const isMilestone = milestones.includes(d.days_left) || d.days_left < 0;
+      if (!isMilestone) continue;
+      const text = d.days_left < 0
+        ? `❌ ${DOC_TYPE_TH[d.doc_type] || d.doc_type} ของคุณหมดอายุแล้วเมื่อ ${dayjs(d.expiry_date).format('DD/MM/YYYY')} กรุณาต่ออายุและแจ้ง HR ด้วยครับ`
+        : `⚠️ ${DOC_TYPE_TH[d.doc_type] || d.doc_type} ของคุณจะหมดอายุในอีก ${d.days_left} วัน (${dayjs(d.expiry_date).format('DD/MM/YYYY')}) กรุณาเตรียมต่ออายุด้วยครับ`;
+      await lineClient.pushMessage({ to: d.line_user_id, messages: [{ type: 'text', text }] }).catch(() => {});
+    }
+  } catch (err) {
+    console.error('[CRON] document expiry alert error:', err.message);
+  }
+}, { timezone: 'Asia/Bangkok' });
+
 // ── สรุปการมาทำงานประจำวัน → admin LINE 19:30 ────────────────
 cron.schedule('30 19 * * *', async () => {
   console.log('[CRON] สรุปการมาทำงานประจำวัน...');
@@ -689,4 +745,4 @@ function fmtDate(d) {
 
 module.exports = { sendDailyAttendanceSummary };
 
-console.log('✅ Cron jobs registered: check-in/out (dynamic from settings) | holiday reminder 18:00 | late/absent 19:00 | attendance summary 19:30 | weekly summary Mon 09:00 | probation alert 09:00');
+console.log('✅ Cron jobs registered: check-in/out (dynamic from settings) | holiday reminder 18:00 | late/absent 19:00 | attendance summary 19:30 | weekly summary Mon 09:00 | probation alert 09:00 | document expiry alert 09:10');
