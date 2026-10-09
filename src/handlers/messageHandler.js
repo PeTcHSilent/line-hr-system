@@ -85,6 +85,78 @@ async function handleMessage(client, event, employee) {
   });
 }
 
+// ════════════════════════════════════════════════════════════════
+//  ข้อความยืนยันผลอนุมัติ (ส่งกลับให้ "หัวหน้า" ที่กดปุ่ม)
+//
+//  ❗ ต้องบอกว่าอนุมัติของใคร — หัวหน้ามักกดอนุมัติหลายรายการติดกัน
+//     ถ้าขึ้นแค่ "อนุมัติเรียบร้อยแล้ว" เหมือนกันหมด จะแยกไม่ออกว่า
+//     กดของใครไปแล้วบ้าง และถ้ากดพลาดก็ไม่รู้ตัว
+// ════════════════════════════════════════════════════════════════
+
+/** วันที่แบบไทยสั้นๆ เช่น 9 ต.ค. 69 */
+function thaiDate(d) {
+  if (!d) return '';
+  const dt = new Date(String(d).slice(0, 10) + 'T12:00:00+07:00');
+  if (isNaN(dt)) return '';
+  return dt.toLocaleDateString('th-TH', {
+    day: 'numeric', month: 'short', year: '2-digit', timeZone: 'Asia/Bangkok',
+  });
+}
+
+/** ตัดวินาทีออกจากเวลา 18:00:00 → 18:00 */
+const hhmm = t => (t ? String(t).slice(0, 5) : '');
+
+function otResultText(ot, approved) {
+  const head = approved ? '✅ อนุมัติ OT แล้ว' : '❌ ปฏิเสธ OT แล้ว';
+  if (!ot) return head;
+
+  const when  = thaiDate(ot.ot_date);
+  const time  = ot.start_time && ot.end_time ? ` ${hhmm(ot.start_time)}–${hhmm(ot.end_time)} น.` : '';
+  const hours = ot.total_hours ? ` (${Number(ot.total_hours)} ชม.)` : '';
+
+  return [
+    head,
+    `👤 ${ot.employee_name || 'ไม่ทราบชื่อ'}`,
+    when ? `📅 ${when}${time}${hours}` : null,
+  ].filter(Boolean).join('\n');
+}
+
+function leaveResultText(leave, approved) {
+  const head = approved ? '✅ อนุมัติการลาแล้ว' : '❌ ปฏิเสธการลาแล้ว';
+  if (!leave) return head;
+
+  const from = thaiDate(leave.start_date);
+  const to   = thaiDate(leave.end_date);
+  const span = from && to ? (from === to ? from : `${from} – ${to}`) : '';
+  const days = leave.total_days ? ` (${Number(leave.total_days)} วัน)` : '';
+  const type = leave.leave_type_name ? `📄 ${leave.leave_type_name}` : null;
+
+  return [
+    head,
+    `👤 ${leave.employee_name || 'ไม่ทราบชื่อ'}`,
+    span ? `📅 ${span}${days}` : null,
+    type,
+  ].filter(Boolean).join('\n');
+}
+
+/** ข้อความแจ้ง "พนักงานผู้ขอ" — บอกวันที่ที่ลา ไม่ใช่เลข ID ที่ไม่สื่ออะไร */
+function leaveNoticeToEmployee(leave, approved) {
+  const head = approved ? '✅ คำขอลาของคุณได้รับการอนุมัติแล้ว' : '❌ คำขอลาของคุณไม่ได้รับการอนุมัติ';
+  if (!leave) return head;
+
+  const from = thaiDate(leave.start_date);
+  const to   = thaiDate(leave.end_date);
+  const span = from && to ? (from === to ? from : `${from} – ${to}`) : '';
+  const days = leave.total_days ? ` (${Number(leave.total_days)} วัน)` : '';
+
+  return [
+    head,
+    leave.leave_type_name ? `📄 ${leave.leave_type_name}` : null,
+    span ? `📅 ${span}${days}` : null,
+    !approved && leave.reject_reason ? `หมายเหตุ: ${leave.reject_reason}` : null,
+  ].filter(Boolean).join('\n');
+}
+
 async function handlePostback(client, event, employee) {
   const data = new URLSearchParams(event.postback.data);
   const action = data.get('action');
@@ -145,7 +217,7 @@ async function handlePostback(client, event, employee) {
             messages: [flexMessages.otStatusUpdate(ot, 'approved')]
           }).catch(() => {});
         }
-        return reply(client, event.replyToken, { type: 'text', text: '✅ อนุมัติ OT เรียบร้อยแล้ว' });
+        return reply(client, event.replyToken, { type: 'text', text: otResultText(ot, true) });
       } catch (err) {
         return reply(client, event.replyToken, { type: 'text', text: `⚠️ ${err.message}` });
       }
@@ -162,7 +234,7 @@ async function handlePostback(client, event, employee) {
             messages: [flexMessages.otStatusUpdate(ot, 'rejected')]
           }).catch(() => {});
         }
-        return reply(client, event.replyToken, { type: 'text', text: '❌ ปฏิเสธ OT เรียบร้อยแล้ว' });
+        return reply(client, event.replyToken, { type: 'text', text: otResultText(ot, false) });
       } catch (err) {
         return reply(client, event.replyToken, { type: 'text', text: `⚠️ ${err.message}` });
       }
@@ -176,10 +248,10 @@ async function handlePostback(client, event, employee) {
         if (leave?.employee_line_id) {
           await client.pushMessage({
             to: leave.employee_line_id,
-            messages: [{ type: 'text', text: `✅ คำขอลา #${leaveId} ได้รับการอนุมัติแล้วครับ` }]
+            messages: [{ type: 'text', text: leaveNoticeToEmployee(leave, true) }]
           }).catch(() => {});
         }
-        return reply(client, event.replyToken, { type: 'text', text: '✅ อนุมัติการลาเรียบร้อยแล้ว' });
+        return reply(client, event.replyToken, { type: 'text', text: leaveResultText(leave, true) });
       } catch (err) {
         return reply(client, event.replyToken, { type: 'text', text: `⚠️ ${err.message}` });
       }
@@ -193,10 +265,10 @@ async function handlePostback(client, event, employee) {
         if (leave?.employee_line_id) {
           await client.pushMessage({
             to: leave.employee_line_id,
-            messages: [{ type: 'text', text: `❌ คำขอลา #${leaveId} ไม่ได้รับการอนุมัติครับ` }]
+            messages: [{ type: 'text', text: leaveNoticeToEmployee(leave, false) }]
           }).catch(() => {});
         }
-        return reply(client, event.replyToken, { type: 'text', text: '❌ ปฏิเสธการลาเรียบร้อยแล้ว' });
+        return reply(client, event.replyToken, { type: 'text', text: leaveResultText(leave, false) });
       } catch (err) {
         return reply(client, event.replyToken, { type: 'text', text: `⚠️ ${err.message}` });
       }

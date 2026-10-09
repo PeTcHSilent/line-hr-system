@@ -67,7 +67,8 @@ async function updateLeaveStatus(leaveId, status, approvedBy, rejectReason = nul
      WHERE id = $4 AND status = 'pending'
      RETURNING *,
        (SELECT name FROM employees WHERE id = employee_id) AS employee_name,
-       (SELECT line_user_id FROM employees WHERE id = employee_id) AS employee_line_id`,
+       (SELECT line_user_id FROM employees WHERE id = employee_id) AS employee_line_id,
+       (SELECT name FROM leave_types WHERE id = leave_type_id) AS leave_type_name`,
     [status, approvedBy, rejectReason, leaveId]
   );
   if (!result.rows[0]) throw new Error('ไม่สามารถอัปเดตสถานะได้ (อาจถูกเปลี่ยนไปแล้ว)');

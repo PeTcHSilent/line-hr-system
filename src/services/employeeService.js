@@ -193,7 +193,12 @@ async function getById(id) {
  * แก้ไขข้อมูลพนักงาน
  */
 async function updateEmployee(id, fields) {
-  const allowed = ['name', 'sex', 'phone_no', 'email', 'department_id', 'role', 'manager_id', 'salary', 'base_salary', 'deduct_absent',
+  // ❗ ไม่มี 'salary' ในรายการนี้โดยตั้งใจ
+  //    เงินเดือนปัจจุบันต้องแก้ผ่าน POST /api/salary-adjustment/one เท่านั้น
+  //    เพราะ endpoint นั้นบันทึก "ประวัติการปรับ" ให้ด้วย (ใครปรับ เมื่อไหร่ จากเท่าไหร่เป็นเท่าไหร่)
+  //    ถ้าปล่อยให้ PUT /api/employee แก้ได้ เงินเดือนจะเปลี่ยนโดยไม่มีร่องรอย
+  //    ส่วน base_salary (เงินเดือนเริ่มต้น) เป็นข้อมูลอ้างอิง ไม่ผูกประวัติ จึงยังแก้ทางนี้ได้
+  const allowed = ['name', 'sex', 'phone_no', 'email', 'department_id', 'role', 'manager_id', 'base_salary', 'deduct_absent',
     'bank_name', 'bank_branch', 'bank_account_no', 'bank_account_name',
     'probation_start_date', 'probation_end_date', 'probation_status', 'branch_id', 'hire_date', 'is_active'];
   const setClauses = [];
