@@ -1,3 +1,0 @@
--- ไฟล์นี้ถูกย้ายไปที่ sql/migration_v22.sql
--- This file has been superseded — see: sql/migration_v22.sql
--- Run: psql $DATABASE_URL -f sql/migration_v22.sql

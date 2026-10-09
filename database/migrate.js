@@ -43,13 +43,29 @@ function getMigrationFiles() {
     return numA - numB;
   });
 
-  // ลบ duplicates (ถ้าชื่อซ้ำกันใน 2 folder เอา database/ ก่อน)
-  const seen = new Set();
-  return files.filter(f => {
-    if (seen.has(f.filename)) return false;
-    seen.add(f.filename);
-    return true;
-  });
+  // ── ❗ ชื่อไฟล์ห้ามซ้ำข้าม folder ──────────────────────────
+  // _migrations ติดตามด้วย "ชื่อไฟล์" ไม่ใช่ path เต็ม
+  // ถ้า database/migration_v26.sql กับ sql/migration_v26.sql มีพร้อมกัน
+  // ตัวหนึ่งจะถูกข้ามไปเงียบๆ ตลอดกาล — และถ้าอีกตัวเคยรันไปแล้ว
+  // ตัวใหม่จะถูกมองว่า "apply แล้ว" ทั้งที่ยังไม่เคยรัน
+  // → หยุดทันทีดีกว่าปล่อยให้ migration หายไปแบบไม่รู้ตัว
+  const byName = new Map();
+  for (const f of files) {
+    if (!byName.has(f.filename)) byName.set(f.filename, []);
+    byName.get(f.filename).push(f.fullPath);
+  }
+  const dupes = [...byName.entries()].filter(([, paths]) => paths.length > 1);
+  if (dupes.length) {
+    const detail = dupes
+      .map(([name, paths]) => `  • ${name}\n${paths.map(p => `      ${p}`).join('\n')}`)
+      .join('\n');
+    throw new Error(
+      `❌ พบชื่อไฟล์ migration ซ้ำกันข้าม folder — หยุดการทำงาน\n\n${detail}\n\n` +
+      `แก้โดยเปลี่ยนชื่อไฟล์ใดไฟล์หนึ่งเป็นเลข version ใหม่ที่ยังว่าง หรือลบไฟล์ที่ไม่ใช้แล้วออก`
+    );
+  }
+
+  return files;
 }
 
 function extractVersion(filename) {
