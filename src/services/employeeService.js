@@ -120,10 +120,13 @@ async function getLeaveBalance(employeeId, sex) {
 
   // คำนวณอายุงาน (ปี) จาก hire_date
   const empRes = await db.query(
-    `SELECT hire_date FROM employees WHERE id = $1`,
+    `SELECT hire_date, probation_status FROM employees WHERE id = $1`,
     [employeeId]
   );
   const hireDate = empRes.rows[0]?.hire_date;
+  // ยังทดลองงาน → บางประเภทลายังใช้ไม่ได้ (ดู migration v32)
+  const onProbation = ['on_probation', 'extended']
+    .includes(empRes.rows[0]?.probation_status);
   const seniorityYears = hireDate
     ? (Date.now() - new Date(hireDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
     : 0;
@@ -138,6 +141,7 @@ async function getLeaveBalance(employeeId, sex) {
   // ดึง leave types + วันที่ใช้ไปปีนี้ (approved) + วันรออนุมัติ (pending)
   const result = await db.query(
     `SELECT lt.id, lt.name, lt.max_days, lt.gender_restriction,
+            COALESCE(lt.allowed_during_probation, TRUE) AS allowed_during_probation,
             COALESCE(SUM(lr.total_days) FILTER (WHERE lr.status = 'approved'), 0)::int AS used_days,
             COALESCE(SUM(lr.total_days) FILTER (WHERE lr.status = 'pending'),  0)::int AS pending_days
      FROM leave_types lt
@@ -146,7 +150,7 @@ async function getLeaveBalance(employeeId, sex) {
        AND lr.employee_id = $1
        AND EXTRACT(YEAR FROM lr.start_date) = $2
      WHERE (lt.gender_restriction IS NULL OR lt.gender_restriction = $3)
-     GROUP BY lt.id, lt.name, lt.max_days, lt.gender_restriction
+     GROUP BY lt.id, lt.name, lt.max_days, lt.gender_restriction, lt.allowed_during_probation
      ORDER BY lt.id`,
     [employeeId, year, sex || null]
   );
@@ -161,12 +165,16 @@ async function getLeaveBalance(employeeId, sex) {
       )
       .sort((a, b) => parseFloat(b.min_years) - parseFloat(a.min_years));
     const effectiveQuota = matching[0] ? Number(matching[0].quota_days) : (lt.max_days != null ? Number(lt.max_days) : null);
+    // ยังทดลองงาน + ประเภทนี้ถูกปิดไว้ → ยังยื่นลาประเภทนี้ไม่ได้
+    const blockedByProbation = onProbation && lt.allowed_during_probation === false;
     return {
       ...lt,
       used_days:       Number(lt.used_days),
       pending_days:    Number(lt.pending_days),
       effective_quota: effectiveQuota,
       seniority_years: Math.round(seniorityYears * 10) / 10,
+      on_probation:        onProbation,
+      blocked_by_probation: blockedByProbation,
     };
   });
 }

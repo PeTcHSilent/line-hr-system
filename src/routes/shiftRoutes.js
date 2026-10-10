@@ -130,7 +130,7 @@ router.delete('/assignments/:id', requireAuth, async (req, res) => {
 });
 
 // ── GET /api/shift/employee/:id/current — กะปัจจุบันของพนักงาน ─
-router.get('/employee/:id/current', async (req, res) => {
+router.get('/employee/:id/current', requireAuth, async (req, res) => {
   try {
     await ensureTables();
     const today = new Date().toISOString().slice(0, 10);

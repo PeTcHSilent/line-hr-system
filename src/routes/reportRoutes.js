@@ -1,6 +1,10 @@
 const express = require('express');
 const router  = express.Router();
 const reportService = require('../services/reportService');
+const { requireAuth } = require('../middleware/authMiddleware');
+
+// ❗ รายงานรวมทั้งองค์กร + สั่งส่งสรุปเข้า LINE — Admin เท่านั้น
+router.use(requireAuth);
 
 // GET /api/report/monthly?year=2026&month=6&department_id=1
 router.get('/monthly', async (req, res) => {

@@ -7,6 +7,12 @@ const client  = new line.messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
 });
 
+const { requireAuth } = require('../middleware/authMiddleware');
+
+// ❗ ยิงข้อความ LINE หาพนักงานทุกคน — เดิมเปิดโล่ง ใครก็สั่งส่งได้
+//    และกิน quota ข้อความของบริษัทด้วย
+router.use(requireAuth);
+
 /**
  * POST /api/broadcast
  * Body: { message, type }

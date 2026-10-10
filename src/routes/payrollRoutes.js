@@ -6,6 +6,7 @@ const lateAbsentService = require('../services/lateAbsentService');
 const employeeService   = require('../services/employeeService');
 const audit             = require('../services/auditService');
 const { requireAuth }   = require('../middleware/authMiddleware');
+const { resolveLineUser } = require('../services/lineVerifyService');
 
 // GET /api/payroll?year=&month=  — ดึง payroll records ทั้งเดือน (admin)
 router.get('/', requireAuth, async (req, res) => {
@@ -39,7 +40,7 @@ router.post('/generate', requireAuth, async (req, res) => {
 });
 
 // GET /api/payroll/settings  — ดึง payroll settings ปัจจุบัน
-router.get('/settings', async (req, res) => {
+router.get('/settings', requireAuth, async (req, res) => {
   try {
     res.json(await payrollService.getPayrollSettings());
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -60,7 +61,7 @@ router.get('/payslip', requireAuth, async (req, res) => {
 });
 
 // GET /api/payroll/my-payslip?line_user_id=&year=&month=  — LIFF (ไม่ต้อง auth)
-router.get('/my-payslip', async (req, res) => {
+router.get('/my-payslip', resolveLineUser, async (req, res) => {
   try {
     const { line_user_id, year, month } = req.query;
     if (!line_user_id) return res.status(400).json({ error: 'ต้องระบุ line_user_id' });
@@ -86,13 +87,24 @@ router.patch('/bulk-status', requireAuth, async (req, res) => {
 
     const updated = await payrollService.bulkUpdatePayrollStatus(year, month, status);
 
+    // ❗ เดิม: กด "Mark as Paid" แล้วยิงสลิปเข้า LINE พนักงานทุกคนทันที
+    //    อันตราย เพราะสองเรื่องนี้ไม่ควรผูกกัน — การบันทึกว่า "จ่ายแล้ว"
+    //    กับการส่งสลิปเป็นคนละการตัดสินใจ และสลิปส่งผิดแล้วเรียกคืนไม่ได้
+    //    ตอนนี้แยกเป็นปุ่มต่างหาก และต้องเปิดสวิตช์ PAYSLIP_LINE_ENABLED ก่อน
     let lineResult = null;
     if (status === 'paid' && updated > 0) {
-      try {
-        lineResult = await payrollService.sendPayslipsViaLine(year, month);
-      } catch (lineErr) {
-        console.error('[bulk-status] sendPayslipsViaLine error:', lineErr.message);
-        lineResult = { sent: 0, failed: 0, error: lineErr.message };
+      if (!payrollService.isRealSendEnabled()) {
+        lineResult = {
+          sent: 0, failed: 0, skipped: true,
+          message: 'บันทึกสถานะแล้ว แต่ยังไม่ส่งสลิป — ระบบอยู่ในโหมดทดสอบรูปแบบ',
+        };
+      } else {
+        try {
+          lineResult = await payrollService.sendPayslipsViaLine(year, month);
+        } catch (lineErr) {
+          console.error('[bulk-status] sendPayslipsViaLine error:', lineErr.message);
+          lineResult = { sent: 0, failed: 0, error: lineErr.message };
+        }
       }
     }
 
@@ -190,6 +202,46 @@ router.post('/send-payslips', requireAuth, async (req, res) => {
       meta:        { year, month, sent: result.sent, failed: result.failed },
     });
     res.json({ success: true, ...result });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /api/payroll/send-payslip-preview
+// ส่ง "ตัวอย่าง" สลิปให้เฉพาะ Admin ที่ผูก LINE ไว้ — ไม่แตะพนักงานเลย
+// ใช้ตรวจรูปแบบก่อนเปิดใช้งานจริง
+router.post('/send-payslip-preview', requireAuth, async (req, res) => {
+  try {
+    const year  = parseInt(req.body.year)  || new Date().getFullYear();
+    const month = parseInt(req.body.month) || new Date().getMonth() + 1;
+    const employeeId = req.body.employee_id ? parseInt(req.body.employee_id) : null;
+
+    const result = await payrollService.sendPayslipsViaLine(year, month, {
+      previewToAdmin: true,
+      employeeId,
+    });
+
+    audit.log({
+      actorName:   req.admin.display_name || req.admin.username,
+      actorRole:   req.admin.role,
+      action:      'send_payslip_preview',
+      targetType:  'payroll',
+      targetId:    null,
+      description: `ส่งตัวอย่างสลิปให้ Admin เดือน ${month}/${year} (${result.sent || 0} คน)`,
+      meta:        { year, month, employeeId, sent: result.sent, failed: result.failed },
+    });
+
+    res.json({ success: true, ...result });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /api/payroll/payslip-send-status — บอกหน้าเว็บว่าตอนนี้ส่งจริงได้หรือยัง
+router.get('/payslip-send-status', requireAuth, async (req, res) => {
+  try {
+    const admins = await payrollService.getAdminLineTargets();
+    res.json({
+      real_send_enabled: payrollService.isRealSendEnabled(),
+      admin_targets:     admins.length,
+      liff_configured:   !!process.env.LIFF_ID_PAYSLIP,
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

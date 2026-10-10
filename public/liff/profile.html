@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>โปรไฟล์ของฉัน — ต่อกัน HR</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="/liff/liff-auth.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -386,6 +387,8 @@ async function initLIFF() {
     } catch (e) { /* use default */ }
     if (!liffId) throw new Error('LIFF ID ยังไม่ได้ตั้งค่า');
     await liff.init({ liffId });
+    // แนบ ID Token ไปกับทุก request หา /api/ (ดู public/liff/liff-auth.js)
+    await attachLiffIdToken();
     if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
     const profile = await liff.getProfile();
     lineUserId = profile.userId;

@@ -5,6 +5,7 @@ const employeeService = require('../services/employeeService');
 const line    = require('@line/bot-sdk');
 const audit   = require('../services/auditService');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { resolveLineUser } = require('../services/lineVerifyService');
 
 const client = new line.messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
@@ -46,7 +47,7 @@ async function notifyAdmins(text) {
 }
 
 // ── POST /api/expense  (LIFF — พนักงานยื่นเบิก) ──────────────────
-router.post('/', async (req, res) => {
+router.post('/', resolveLineUser, async (req, res) => {
   try {
     await ensureExpenseTable();
     const { line_user_id, employee_id, claim_date, category, amount, description, receipt_url, status, _admin } = req.body;
@@ -100,7 +101,7 @@ router.post('/', async (req, res) => {
 });
 
 // ── GET /api/expense/mine?line_user_id=&year=&month= ──────────────
-router.get('/mine', async (req, res) => {
+router.get('/mine', resolveLineUser, async (req, res) => {
   try {
     await ensureExpenseTable();
     const { line_user_id, year, month } = req.query;
@@ -134,7 +135,7 @@ router.get('/mine', async (req, res) => {
 });
 
 // ── GET /api/expense  (Admin — ดูทั้งหมด) ────────────────────────
-router.get('/', async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
     await ensureExpenseTable();
     const { year, month, status, employee_id, department_id } = req.query;
@@ -271,7 +272,7 @@ router.patch('/:id/mark-paid', requireAuth, async (req, res) => {
 });
 
 // ── GET /api/expense/summary?year=&month=  (Admin — ยอดรวมเพื่อรวม payroll) ─
-router.get('/summary', async (req, res) => {
+router.get('/summary', requireAuth, async (req, res) => {
   try {
     await ensureExpenseTable();
     const { year, month } = req.query;
@@ -297,19 +298,21 @@ router.get('/summary', async (req, res) => {
 });
 
 // ── DELETE /api/expense/:id  (ลบเฉพาะ pending) ───────────────────
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', resolveLineUser, async (req, res) => {
   try {
     await ensureExpenseTable();
     const { line_user_id } = req.body;
-    let whereClause = 'id=$1 AND status=\'pending\'';
-    const params = [req.params.id];
-    if (line_user_id) {
-      const emp = await employeeService.findByLineId(line_user_id);
-      if (!emp) return res.status(404).json({ error: 'ไม่พบพนักงาน' });
-      whereClause += ' AND employee_id=$2';
-      params.push(emp.id);
-    }
-    const { rowCount } = await db.query(`DELETE FROM expense_claims WHERE ${whereClause}`, params);
+
+    // ❗ เดิม line_user_id เป็น optional — ถ้าไม่ส่งมา จะลบคำขอ pending ของ "ใครก็ได้"
+    //    ตอนนี้บังคับ และเช็ค employee_id ใน WHERE เสมอ ลบได้แค่ของตัวเอง
+    if (!line_user_id) return res.status(400).json({ error: 'ต้องระบุ line_user_id' });
+    const emp = await employeeService.findByLineId(line_user_id);
+    if (!emp) return res.status(404).json({ error: 'ไม่พบพนักงาน' });
+
+    const { rowCount } = await db.query(
+      "DELETE FROM expense_claims WHERE id=$1 AND status='pending' AND employee_id=$2",
+      [req.params.id, emp.id]
+    );
     if (!rowCount) return res.status(404).json({ error: 'ไม่พบคำขอ หรือไม่ใช่สถานะ pending' });
     res.json({ success: true });
   } catch (err) { res.status(400).json({ error: err.message }); }

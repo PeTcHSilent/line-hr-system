@@ -702,6 +702,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         <div class="card-header">
           <div class="card-title">⏰ Attendance Records</div>
           <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary btn-sm" onclick="openAttAdd()" title="สำหรับพนักงานที่ไม่ได้เช็คอินเลย จึงไม่มีแถวในตาราง">➕ เพิ่มบันทึกเวลา</button>
             <button class="btn btn-success btn-sm" onclick="exportAttendance()" title="Export Excel รายเดือน">📊 Export Excel</button>
             <button class="btn btn-warning btn-sm" onclick="runLateAbsentCheck()">🔍 ตรวจสาย/ขาด</button>
           </div>
@@ -717,8 +718,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
             <input type="text" id="att-search" placeholder="ชื่อ / รหัส" style="width:160px;" oninput="filterAttendance()"></div>
         </div>
         <div class="tbl-wrap">
-          <table><thead><tr><th>ชื่อพนักงาน</th><th>แผนก</th><th>สาขา</th><th>วันที่</th><th>เช็คอิน</th><th>เช็คเอาท์</th><th>ชั่วโมง</th><th>In GPS</th><th>Out GPS</th></tr></thead>
-          <tbody id="att-tbody"><tr><td colspan="9" class="no-data">กำลังโหลด...</td></tr></tbody></table>
+          <table><thead><tr><th>ชื่อพนักงาน</th><th>แผนก</th><th>สาขา</th><th>วันที่</th><th>เช็คอิน</th><th>เช็คเอาท์</th><th>ชั่วโมง</th><th>In GPS</th><th>Out GPS</th><th>แก้ไข</th></tr></thead>
+          <tbody id="att-tbody"><tr><td colspan="10" class="no-data">กำลังโหลด...</td></tr></tbody></table>
         </div>
       </div>
     </div>
@@ -852,8 +853,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
           <button class="btn btn-primary btn-sm" onclick="openLeaveTypeModal()">+ เพิ่มประเภทการลา</button>
         </div>
         <div class="tbl-wrap">
-          <table><thead><tr><th>รหัส</th><th>ชื่อประเภทการลา</th><th>จำนวนวันสูงสุด/ปี</th><th>เพศ</th><th>มีค่าจ้าง</th><th>จัดการ</th></tr></thead>
-          <tbody id="leave-tbody"><tr><td colspan="6" class="no-data">กำลังโหลด...</td></tr></tbody></table>
+          <table><thead><tr><th>รหัส</th><th>ชื่อประเภทการลา</th><th>จำนวนวันสูงสุด/ปี</th><th>เพศ</th><th>มีค่าจ้าง</th><th title="พนักงานที่ยังไม่ผ่านทดลองงานยื่นลาประเภทนี้ได้หรือไม่">ช่วงทดลองงาน</th><th>จัดการ</th></tr></thead>
+          <tbody id="leave-tbody"><tr><td colspan="7" class="no-data">กำลังโหลด...</td></tr></tbody></table>
         </div>
       </div>
     </div>
@@ -1009,7 +1010,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
           </div>
         </div>
         <div class="tbl-wrap">
-          <table><thead><tr><th>รหัส</th><th>ชื่อ</th><th>แผนก</th><th>วันเข้างาน</th><th>ชม.เฉลี่ย</th><th>ลา (อนุมัติ)</th><th>วันลา</th><th>OT (อนุมัติ)</th><th>OT ชม.</th><th>ค่า OT (฿)</th><th>นอกรัศมี</th></tr></thead>
+          <table><thead><tr><th>รหัส</th><th>ชื่อ</th><th>แผนก</th><th>วันเข้างาน</th><th>ชม.เฉลี่ย</th><th title="จำนวนใบลาที่อนุมัติ ไม่ใช่จำนวนวัน">ใบลา (ใบ)</th><th title="จำนวนวันลารวมจากทุกใบ">วันลา (วัน)</th><th title="จำนวนรายการ OT ที่อนุมัติ ไม่ใช่จำนวนชั่วโมง">OT (ครั้ง)</th><th>OT (ชม.)</th><th>ค่า OT (฿)</th><th>นอกรัศมี</th></tr></thead>
           <tbody id="rpt-tbody"><tr><td colspan="11" class="no-data">กำลังโหลด...</td></tr></tbody></table>
         </div>
       </div>
@@ -1439,6 +1440,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
             <button class="btn btn-secondary btn-sm" onclick="exportPayrollCSV()">📄 Export CSV</button>
           </div>
         </div>
+
+        <!-- สถานะการส่งสลิป — ต้องเห็นชัดก่อนกดปุ่มใดๆ -->
+        <div id="payslip-send-banner" style="display:none;margin:0 0 14px;padding:12px 14px;border-radius:8px;font-size:13px;line-height:1.65;"></div>
+
         <div class="tbl-wrap">
           <table><thead><tr>
             <th>รหัส</th><th>ชื่อพนักงาน</th><th>แผนก</th><th>เงินเดือน</th>
@@ -2342,6 +2347,62 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
     </div>
   </div>
 
+  <!-- แก้เวลาเข้า-ออกย้อนหลัง (HR) -->
+  <div class="modal" id="att-edit-modal">
+    <div class="modal-box" style="max-width:460px;">
+      <div class="modal-title">✏️ แก้เวลาเข้า-ออกย้อนหลัง</div>
+      <!-- โหมดแก้ไขแถวเดิม: เก็บค่าไว้เฉยๆ แล้วโชว์เป็นข้อความ -->
+      <div id="att-edit-fixed">
+        <input type="hidden" id="att-edit-emp-id">
+        <input type="hidden" id="att-edit-date">
+        <div style="background:#F1F5F9;border-radius:8px;padding:12px 14px;margin-bottom:16px;">
+          <div style="font-weight:600;font-size:14px;" id="att-edit-who">—</div>
+          <div style="font-size:12.5px;color:#64748B;margin-top:2px;" id="att-edit-when">—</div>
+        </div>
+      </div>
+
+      <!-- โหมดเพิ่มใหม่: พนักงานที่ไม่ได้เช็คอินเลยจะไม่มีแถวในตาราง
+           จึงไม่มีปุ่มให้กดแก้ ต้องเลือกพนักงาน + วันที่เอง -->
+      <div id="att-edit-pick" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">พนักงาน *</label>
+          <select id="att-edit-emp-select"><option value="">— เลือกพนักงาน —</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันที่ *</label>
+          <input type="date" id="att-edit-date-input">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">เวลาเช็คอิน</label>
+          <input type="time" id="att-edit-in">
+        </div>
+        <div class="form-group">
+          <label class="form-label">เวลาเช็คเอาท์</label>
+          <input type="time" id="att-edit-out">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ (เหตุผลที่แก้)</label>
+        <input type="text" id="att-edit-note" placeholder="เช่น ลืมเช็คอิน แจ้งทาง LINE 09:05 น." maxlength="200">
+      </div>
+
+      <div style="background:#FFFBEB;border-left:4px solid #F59E0B;border-radius:0 6px 6px 0;padding:10px 12px;font-size:12.5px;color:#92400E;line-height:1.6;">
+        เวลาที่แก้จะถูกบันทึกเป็นประเภท <b>manual</b> และกระทบการคำนวณเงินเดือน<br>
+        ทุกการแก้ไขถูกบันทึกใน <b>ประวัติการใช้งาน</b> พร้อมค่าก่อน–หลัง<br>
+        เว้นช่องว่างไว้ = ล้างเวลานั้นทิ้ง
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('att-edit-modal')">ยกเลิก</button>
+        <button class="btn btn-primary" onclick="saveAttEdit()">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Branch Modal -->
   <div class="modal" id="branch-modal">
     <div class="modal-box">
@@ -2424,6 +2485,15 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
       <div class="form-group" style="flex-direction:row;align-items:center;gap:10px;">
         <input type="checkbox" id="lt-paid" style="width:auto;">
         <label class="form-label" style="margin:0;">มีค่าจ้าง</label>
+      </div>
+      <div class="form-group" style="flex-direction:row;align-items:center;gap:10px;">
+        <input type="checkbox" id="lt-probation" style="width:auto;">
+        <label class="form-label" style="margin:0;">พนักงานทดลองงานใช้ได้</label>
+      </div>
+      <div style="background:#FFFBEB;border-left:4px solid #F59E0B;border-radius:0 6px 6px 0;padding:10px 12px;font-size:12.5px;color:#92400E;line-height:1.6;">
+        ถ้า<b>ไม่</b>ติ๊ก พนักงานที่ยังไม่ผ่านทดลองงานจะยื่นลาประเภทนี้ไม่ได้
+        ระบบจะแนะนำให้เลือก “ลาไม่รับเงิน” แทน<br>
+        <b>ลาป่วย</b> และ <b>ลาคลอด</b> ควรติ๊กไว้เสมอ เพราะเป็นสิทธิตามกฎหมายตั้งแต่วันแรกที่เริ่มงาน
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal('leavetype-modal')">ยกเลิก</button>
@@ -3718,6 +3788,9 @@ async function loadLeaveTypes() {
             : '<span class="badge badge-w">หญิง</span>')
           : '<span class="badge badge-employee">ทุกเพศ</span>'}</td>
         <td>${lt.is_paid ? '<span style="color:#22c55e;">✓ จ่ายเงิน</span>' : '<span style="color:#9ca3af;">—</span>'}</td>
+        <td>${lt.allowed_during_probation === false
+          ? '<span style="color:#DC2626;font-size:12.5px;">✕ ยังลาไม่ได้</span>'
+          : '<span style="color:#16A34A;font-size:12.5px;">✓ ลาได้</span>'}</td>
         <td><div class="actions">
           <button class="btn btn-ghost btn-sm" onclick="openEditLeaveTypeModal(${lt.id})">แก้ไข</button>
           <button class="btn btn-danger btn-sm" onclick="confirmDeleteLeaveType(${lt.id},'${lt.name.replace(/'/g,"\\'")}')">ลบ</button>
@@ -3725,7 +3798,7 @@ async function loadLeaveTypes() {
       </tr>
     `).join('');
   } catch(err) {
-    tbody.innerHTML = `<tr><td colspan="6" class="no-data" style="color:#ef4444;">โหลดไม่สำเร็จ: ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="no-data" style="color:#ef4444;">โหลดไม่สำเร็จ: ${err.message}</td></tr>`;
   }
 }
 
@@ -3736,6 +3809,8 @@ function openLeaveTypeModal() {
   document.getElementById('lt-max-days').value = '30';
   document.getElementById('lt-gender').value = '';
   document.getElementById('lt-paid').checked = true;
+  // ประเภทใหม่เริ่มต้นให้ลาได้ไว้ก่อน — ปลอดภัยกว่าการบล็อกโดยไม่ตั้งใจ
+  document.getElementById('lt-probation').checked = true;
   openModal('leavetype-modal');
 }
 
@@ -3748,6 +3823,8 @@ function openEditLeaveTypeModal(id) {
   document.getElementById('lt-max-days').value = lt.max_days || 30;
   document.getElementById('lt-gender').value = lt.gender_restriction || '';
   document.getElementById('lt-paid').checked = !!lt.is_paid;
+  // ค่าที่ยังไม่เคยตั้ง (undefined) ถือว่าลาได้ ตามค่า default ของคอลัมน์
+  document.getElementById('lt-probation').checked = lt.allowed_during_probation !== false;
   openModal('leavetype-modal');
 }
 
@@ -3760,6 +3837,7 @@ async function saveLeaveType() {
     max_days: parseInt(document.getElementById('lt-max-days').value) || 30,
     gender_restriction: document.getElementById('lt-gender').value || null,
     is_paid: document.getElementById('lt-paid').checked,
+    allowed_during_probation: document.getElementById('lt-probation').checked,
   };
   try {
     const url    = editId ? `${API}/api/leave/types/${editId}` : `${API}/api/leave/types`;
@@ -4051,7 +4129,7 @@ function filterAttendance() {
   ).length;
 
   const tbody = document.getElementById('att-tbody');
-  if (!data.length) { tbody.innerHTML = '<tr><td colspan="9" class="no-data">ไม่พบข้อมูล</td></tr>'; return; }
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="10" class="no-data">ไม่พบข้อมูล</td></tr>'; return; }
 
   const fmtTime = s => s ? new Date(s).toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' }) : '—';
   const fmtDate = s => s ? new Date(s).toLocaleDateString('th-TH', { day:'numeric', month:'short', year:'numeric' }) : '—';
@@ -4078,8 +4156,109 @@ function filterAttendance() {
       <td style="font-size:13px;font-weight:600;">${hrs}</td>
       <td>${gpsBadge(r.check_in_within_radius, r.check_in_distance)}</td>
       <td>${gpsBadge(r.check_out_within_radius, r.check_out_distance)}</td>
+      <td><button class="btn btn-secondary btn-sm" title="แก้เวลาย้อนหลัง"
+            onclick='openAttEdit(${JSON.stringify({
+              employee_id: r.employee_id, employee_name: r.employee_name,
+              employee_code: r.employee_code, work_date: r.work_date,
+              check_in: r.check_in, check_out: r.check_out, note: r.note || ''
+            }).replace(/'/g, "&#39;")})'>✏️</button></td>
     </tr>`;
   }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  แก้เวลาเข้า-ออกย้อนหลัง
+// ══════════════════════════════════════════════════════════════
+// พนักงานลืมเช็คอิน/เช็คเอาท์เป็นเรื่องปกติ แต่เดิมแก้เองไม่ได้
+// ต้องให้คนไปแก้ในฐานข้อมูลตรงๆ ซึ่งไม่มีร่องรอยว่าใครแก้
+// ทุกการแก้ผ่านหน้านี้จะถูกบันทึกใน Audit Log
+
+// ดึงเฉพาะส่วนเวลา HH:MM ตามเวลาไทย เพื่อเอาไปใส่ <input type="time">
+function attTimeValue(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
+}
+
+// โหมดเพิ่มใหม่ — ใช้กับพนักงานที่ไม่ได้เช็คอินเลย จึงไม่มีแถวให้กดแก้
+async function openAttAdd() {
+  document.getElementById('att-edit-fixed').style.display = 'none';
+  document.getElementById('att-edit-pick').style.display  = '';
+  document.querySelector('#att-edit-modal .modal-title').textContent = '➕ เพิ่มบันทึกเวลาย้อนหลัง';
+
+  const sel = document.getElementById('att-edit-emp-select');
+  if (sel.options.length <= 1) {
+    try {
+      const res  = await apiFetch(`${API}/api/employee`);
+      const list = await res.json();
+      (Array.isArray(list) ? list : []).forEach(e => {
+        const o = document.createElement('option');
+        o.value = e.id;
+        o.textContent = `${e.name}${e.employee_code ? ' (' + e.employee_code + ')' : ''}`;
+        sel.appendChild(o);
+      });
+    } catch (err) { toast('โหลดรายชื่อพนักงานไม่สำเร็จ', 'error'); }
+  }
+  sel.value = '';
+  document.getElementById('att-edit-date-input').value =
+    document.getElementById('att-date').value || new Date().toISOString().slice(0, 10);
+  document.getElementById('att-edit-in').value   = '';
+  document.getElementById('att-edit-out').value  = '';
+  document.getElementById('att-edit-note').value = '';
+  openModal('att-edit-modal');
+}
+
+function openAttEdit(rec) {
+  document.getElementById('att-edit-fixed').style.display = '';
+  document.getElementById('att-edit-pick').style.display  = 'none';
+  document.querySelector('#att-edit-modal .modal-title').textContent = '✏️ แก้เวลาเข้า-ออกย้อนหลัง';
+  document.getElementById('att-edit-emp-id').value   = rec.employee_id;
+  document.getElementById('att-edit-date').value     = String(rec.work_date).slice(0, 10);
+  document.getElementById('att-edit-in').value       = attTimeValue(rec.check_in);
+  document.getElementById('att-edit-out').value      = attTimeValue(rec.check_out);
+  document.getElementById('att-edit-note').value     = rec.note || '';
+  document.getElementById('att-edit-who').textContent =
+    `${rec.employee_name}${rec.employee_code ? ' (' + rec.employee_code + ')' : ''}`;
+  document.getElementById('att-edit-when').textContent =
+    new Date(rec.work_date).toLocaleDateString('th-TH', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  openModal('att-edit-modal');
+}
+
+async function saveAttEdit() {
+  // โหมดเพิ่มใหม่อ่านจาก dropdown/date picker, โหมดแก้ไขอ่านจาก hidden field
+  const isAdd = document.getElementById('att-edit-pick').style.display !== 'none';
+  const employee_id = isAdd
+    ? document.getElementById('att-edit-emp-select').value
+    : document.getElementById('att-edit-emp-id').value;
+  const work_date   = isAdd
+    ? document.getElementById('att-edit-date-input').value
+    : document.getElementById('att-edit-date').value;
+  const check_in    = document.getElementById('att-edit-in').value;
+  const check_out   = document.getElementById('att-edit-out').value;
+  const note        = document.getElementById('att-edit-note').value.trim();
+
+  if (!employee_id) return toast(isAdd ? 'กรุณาเลือกพนักงาน' : 'ข้อมูลไม่ครบ', 'error');
+  if (!work_date)   return toast('กรุณาเลือกวันที่', 'error');
+  if (isAdd && !check_in && !check_out) return toast('กรุณากรอกเวลาเข้าหรือเวลาออกอย่างน้อยหนึ่งช่อง', 'error');
+  if (check_in && check_out && check_out < check_in) {
+    return toast('เวลาเช็คเอาท์ต้องอยู่หลังเวลาเช็คอิน', 'error');
+  }
+
+  try {
+    const res = await apiFetch(`${API}/api/attendance/manual`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      // ส่งทั้ง 3 ฟิลด์เสมอ — '' หมายถึง "ล้างค่า" ฝั่ง server รองรับไว้แล้ว
+      body: JSON.stringify({ employee_id: Number(employee_id), work_date, check_in, check_out, note }),
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || 'บันทึกไม่สำเร็จ');
+    closeModal('att-edit-modal');
+    toast('✅ บันทึกเวลาเรียบร้อย — บันทึกใน Audit Log แล้ว');
+    loadAttendance();
+  } catch (err) {
+    toast('❌ ' + err.message, 'error');
+  }
 }
 
 // ---- LEAVE RECORDS ----
@@ -4836,7 +5015,8 @@ async function loadReport() {
 
 function exportReportCSV() {
   if (!reportData.length) return toast('ไม่มีข้อมูลสำหรับ Export', 'error');
-  const headers = ['รหัส','ชื่อ','แผนก','วันเข้างาน','ชม.เฉลี่ย','ลา(อนุมัติ)','วันลา','OT(อนุมัติ)','OT ชม.','ค่า OT (฿)','นอกรัศมี'];
+  // ชื่อหัวตารางต้องตรงกับที่แสดงบนหน้าเว็บ ไม่งั้นคนอ่าน CSV จะตีความคนละแบบ
+  const headers = ['รหัส','ชื่อ','แผนก','วันเข้างาน','ชม.เฉลี่ย','ใบลา (ใบ)','วันลา (วัน)','OT (ครั้ง)','OT (ชม.)','ค่า OT (฿)','นอกรัศมี'];
   const rows = reportData.map(r => [
     r.employee_code, r.employee_name, r.department_name||'',
     r.checkin_days||0, parseFloat(r.avg_hours||0).toFixed(1),
@@ -5281,6 +5461,7 @@ function initPayroll() {
     payrollInited = true;
   }
   loadPayroll();
+  loadPayslipSendStatus();   // แถบบอกว่าตอนนี้ส่งจริงได้หรือยัง
 }
 
 async function loadPayroll() {
@@ -5515,7 +5696,15 @@ async function markAllPaid() {
   const year  = document.getElementById('pwl-year')?.value;
   const month = document.getElementById('pwl-month')?.value;
   if (!payrollData.length) { toast('ไม่มีข้อมูล', 'error'); return; }
-  if (!confirm('Mark as Paid ทั้งหมด? จะส่ง payslip ผ่าน LINE ด้วย')) return;
+
+  // ข้อความยืนยันต้องตรงกับสิ่งที่จะเกิดขึ้นจริง
+  // เดิมเขียนว่า "จะส่ง payslip ผ่าน LINE ด้วย" เสมอ ทั้งที่ตอนนี้ขึ้นกับสวิตช์
+  const willSend = _payslipSendStatus.real_send_enabled;
+  const msg = willSend
+    ? `Mark as Paid ทั้งหมด?\n\n⚠️ จะส่งสลิปเงินเดือนเข้า LINE พนักงานทุกคนทันที — ส่งแล้วเรียกคืนไม่ได้`
+    : `Mark as Paid ทั้งหมด?\n\n(ยังไม่ส่งสลิปให้พนักงาน — ระบบอยู่ในโหมดทดสอบรูปแบบ)`;
+  if (!confirm(msg)) return;
+
   try {
     const res = await apiFetch(`${API}/api/payroll/bulk-status`, {
       method: 'PATCH', headers: {'Content-Type':'application/json'},
@@ -5523,7 +5712,66 @@ async function markAllPaid() {
     });
     const d = await res.json();
     if (!res.ok) throw new Error(d.error || 'เกิดข้อผิดพลาด');
-    toast('✅ Mark as Paid สำเร็จ'); loadPayroll();
+    const lr = d.lineResult;
+    if (lr?.skipped)   toast('✅ บันทึกสถานะแล้ว — ยังไม่ได้ส่งสลิป (โหมดทดสอบ)');
+    else if (lr?.sent) toast(`✅ Mark as Paid และส่งสลิปแล้ว ${lr.sent} คน`);
+    else               toast('✅ Mark as Paid สำเร็จ');
+    loadPayroll();
+  } catch(err) { toast('❌ ' + err.message, 'error'); }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ตัวอย่างสลิปเงินเดือน — ส่งให้ Admin เท่านั้น
+// ══════════════════════════════════════════════════════════════
+// สลิปส่งผิดแล้วเรียกคืนไม่ได้ และเป็นข้อมูลส่วนบุคคลที่อ่อนไหวที่สุด
+// จึงต้องตรวจรูปแบบให้จบก่อน แล้วค่อยเปิดสวิตช์ส่งจริง
+let _payslipSendStatus = { real_send_enabled: false, admin_targets: 0, liff_configured: false };
+
+async function loadPayslipSendStatus() {
+  const el = document.getElementById('payslip-send-banner');
+  if (!el) return;
+  try {
+    const res = await apiFetch(`${API}/api/payroll/payslip-send-status`);
+    if (!res.ok) return;
+    _payslipSendStatus = await res.json();
+  } catch (e) { return; }
+
+  const s = _payslipSendStatus;
+  el.style.display = '';
+
+  if (!s.real_send_enabled) {
+    el.style.cssText += 'background:#FFFBEB;border-left:4px solid #F59E0B;color:#92400E;';
+    el.innerHTML =
+      '<b>🧪 โหมดทดสอบรูปแบบสลิป — ยังไม่ส่งให้พนักงาน</b><br>' +
+      'กด “ส่งตัวอย่างให้ Admin” เพื่อดูรูปแบบใน LINE ของตัวเอง ' +
+      'ปรับจนพอใจแล้วค่อยเปิดใช้งานจริงโดยตั้ง <code>PAYSLIP_LINE_ENABLED=1</code> ที่ Railway<br>' +
+      (s.liff_configured ? '' : '<span style="color:#B91C1C;">⚠️ ยังไม่ได้ตั้ง LIFF_ID_PAYSLIP — ปุ่มในสลิปจะกดไม่ได้</span><br>') +
+      (s.admin_targets ? `ผู้รับตัวอย่าง: ${s.admin_targets} คน` :
+        '<span style="color:#B91C1C;">⚠️ ยังไม่มีผู้ดูแลที่ผูก LINE — ไปผูกที่หน้า “ผู้ดูแลที่ผูก LINE” ก่อน</span>') +
+      ' &nbsp; <button class="btn btn-primary btn-sm" style="margin-left:6px;" onclick="sendPayslipPreview()">📨 ส่งตัวอย่างให้ Admin</button>';
+  } else {
+    el.style.cssText += 'background:#FEF2F2;border-left:4px solid #EF4444;color:#991B1B;';
+    el.innerHTML =
+      '<b>🔴 เปิดใช้งานจริงแล้ว — กด “Mark as Paid” จะส่งสลิปเข้า LINE พนักงานทุกคนทันที</b><br>' +
+      'ถ้าต้องการกลับไปโหมดทดสอบ ให้ลบตัวแปร <code>PAYSLIP_LINE_ENABLED</code> ที่ Railway' +
+      ' &nbsp; <button class="btn btn-secondary btn-sm" style="margin-left:6px;" onclick="sendPayslipPreview()">📨 ส่งตัวอย่างให้ Admin</button>';
+  }
+}
+
+async function sendPayslipPreview() {
+  const year  = document.getElementById('pwl-year')?.value;
+  const month = document.getElementById('pwl-month')?.value;
+  if (!payrollData.length) return toast('ยังไม่มีข้อมูล Payroll เดือนนี้ กด "สร้าง Payroll" ก่อน', 'error');
+
+  try {
+    const res = await apiFetch(`${API}/api/payroll/send-payslip-preview`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ year: parseInt(year), month: parseInt(month) })
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || 'ส่งไม่สำเร็จ');
+    if (!d.sent) return toast('⚠️ ' + (d.message || 'ไม่มีผู้รับ'), 'error');
+    toast(`📨 ส่งตัวอย่างให้ Admin แล้ว ${d.sent} คน — เช็คใน LINE ได้เลย`);
   } catch(err) { toast('❌ ' + err.message, 'error'); }
 }
 
@@ -8299,15 +8547,36 @@ async function loadYTD() {
   }
 }
 
-function exportTaxCSV(type) {
+async function exportTaxCSV(type) {
   const yearId = type === 'pnd1' ? 'pnd1-year' : type === 'pnd1k' ? 'pnd1k-year' : 'ytd-year';
   const year   = document.getElementById(yearId)?.value || new Date().getFullYear();
   const month  = document.getElementById('pnd1-month')?.value || new Date().getMonth()+1;
-  let url;
-  if (type === 'pnd1')  url = `${API}/api/tax/pnd1/csv?year=${year}&month=${month}`;
-  if (type === 'pnd1k') url = `${API}/api/tax/pnd1k/csv?year=${year}`;
-  if (type === 'ytd')   url = `${API}/api/tax/ytd/csv?year=${year}`;
-  if (url) window.open(url, '_blank');
+
+  let url, filename;
+  if (type === 'pnd1')  { url = `${API}/api/tax/pnd1/csv?year=${year}&month=${month}`; filename = `pnd1_${year}_${month}.csv`; }
+  if (type === 'pnd1k') { url = `${API}/api/tax/pnd1k/csv?year=${year}`;               filename = `pnd1k_${year}.csv`; }
+  if (type === 'ytd')   { url = `${API}/api/tax/ytd/csv?year=${year}`;                 filename = `ytd_${year}.csv`; }
+  if (!url) return;
+
+  // ❗ ห้ามใช้ window.open — จะไม่ได้แนบ Authorization header ไปด้วย
+  //    ต้อง fetch พร้อม token แล้วค่อยสร้างไฟล์ให้ดาวน์โหลดฝั่ง browser
+  try {
+    const res = await apiFetch(url);
+    if (!res.ok) {
+      toast(res.status === 401 ? 'หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่' : 'ดาวน์โหลดไม่สำเร็จ', 'error');
+      return;
+    }
+    const blob = await res.blob();
+    const a    = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  } catch (err) {
+    toast('ดาวน์โหลดไม่สำเร็จ: ' + err.message, 'error');
+  }
 }
 
 // ══════════════════════════════════════════════════════════════

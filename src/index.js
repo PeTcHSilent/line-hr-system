@@ -86,6 +86,12 @@ app.get('/api/config', (req, res) => {
     liff_id_checkin:  process.env.LIFF_ID_CHECKIN  || '',
     liff_id_history:  process.env.LIFF_ID_HISTORY  || '',
     liff_id_profile:  process.env.LIFF_ID_PROFILE  || '',
+    // เพิ่มใหม่ — เดิม payslip ฝัง LIFF ID ไว้ในโค้ดตรงๆ
+    // ส่วน expense ค้างเป็น placeholder '@@LIFF_ID_EXPENSE@@' ที่ไม่มีใครแทนค่าให้
+    // ทำให้หน้านั้นเปิดไม่ได้เลย — ย้ายมาอ่านจาก env ผ่าน /api/config เหมือนหน้าอื่น
+    liff_id_payslip:  process.env.LIFF_ID_PAYSLIP  || '',
+    liff_id_expense:  process.env.LIFF_ID_EXPENSE  || '',
+    liff_id_ot:       process.env.LIFF_ID_OT       || '',
   });
 });
 

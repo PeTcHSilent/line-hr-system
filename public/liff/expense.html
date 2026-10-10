@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>เบิกค่าใช้จ่าย</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="/liff/liff-auth.js"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Noto Sans Thai',sans-serif;background:#f0f4f8;min-height:100vh;padding-bottom:40px}
@@ -151,7 +152,18 @@ document.getElementById('claim-date').value = new Date().toISOString().slice(0,1
 
 async function initLiff() {
   try {
-    await liff.init({ liffId: '@@LIFF_ID_EXPENSE@@' });
+    // ❗ เดิมเป็น '@@LIFF_ID_EXPENSE@@' ซึ่งไม่มีขั้นตอนไหนแทนค่าให้เลย
+    //    หน้านี้จึงเปิดไม่ได้มาตลอด — ดึงจาก /api/config เหมือนหน้า checkin
+    let liffId = '';
+    try {
+      const cfg = await fetch(window.location.origin + '/api/config').then(r => r.json());
+      liffId = cfg.liff_id_expense || '';
+    } catch (e) { /* ใช้ค่าว่าง แล้วไปแจ้ง error ข้างล่าง */ }
+
+    if (!liffId) throw new Error('ยังไม่ได้ตั้งค่า LIFF_ID_EXPENSE กรุณาแจ้งฝ่ายบุคคล');
+    await liff.init({ liffId });
+    // แนบ ID Token ไปกับทุก request หา /api/ (ดู public/liff/liff-auth.js)
+    await attachLiffIdToken();
     if (!liff.isLoggedIn()) { liff.login(); return; }
     const profile = await liff.getProfile();
     lineUserId = profile.userId;

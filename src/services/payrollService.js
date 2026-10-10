@@ -358,10 +358,48 @@ async function updatePayrollStatus(id, status) {
   return result.rows[0];
 }
 
+// ══════════════════════════════════════════════════════════════
+//  สวิตช์นิรภัยของการส่งสลิปเงินเดือน
+// ══════════════════════════════════════════════════════════════
+// สลิปเงินเดือนส่งผิดแล้วเรียกคืนไม่ได้ และเป็นข้อมูลส่วนบุคคลที่อ่อนไหวที่สุด
+// ในระบบ — ถ้ารูปแบบยังไม่นิ่ง หรือตัวเลขยังไม่ถูก การยิงออกไปทั้งบริษัท
+// สร้างความเสียหายทันที
+//
+// ❗ ค่าเริ่มต้นคือ "ปิด" โดยตั้งใจ
+//    ต้องตั้ง PAYSLIP_LINE_ENABLED=1 ที่ Railway ก่อน จึงจะส่งจริงได้
+//    ระหว่างนี้ให้ใช้ "ส่งตัวอย่างให้ Admin" เพื่อตรวจรูปแบบไปก่อน
+function isRealSendEnabled() {
+  return process.env.PAYSLIP_LINE_ENABLED === '1';
+}
+
+/** รายชื่อ LINE ของผู้ดูแลที่ผูกบัญชีไว้ — ใช้เป็นผู้รับตัวอย่าง */
+async function getAdminLineTargets() {
+  const { rows } = await db.query(
+    `SELECT line_user_id, display_name FROM admin_line_users
+     WHERE line_user_id IS NOT NULL AND line_user_id <> ''`
+  );
+  return rows;
+}
+
 /**
  * ส่ง Flex Message สลิปเงินเดือนผ่าน LINE ให้พนักงานทุกคน
+ *
+ * @param {object} opts
+ *   @param {boolean} opts.previewToAdmin  true = ส่งหา Admin อย่างเดียว ไม่แตะพนักงาน
+ *   @param {number}  opts.employeeId      เลือกว่าจะใช้ข้อมูลของใครเป็นตัวอย่าง
  */
-async function sendPayslipsViaLine(year, month) {
+async function sendPayslipsViaLine(year, month, opts = {}) {
+  const { previewToAdmin = false, employeeId = null } = opts;
+
+  // กันยิงจริงโดยไม่ตั้งใจ — โหมดตัวอย่างไม่ติดเงื่อนไขนี้
+  if (!previewToAdmin && !isRealSendEnabled()) {
+    throw new Error(
+      'ยังไม่เปิดการส่งสลิปจริง — ระบบอยู่ในโหมดทดสอบรูปแบบ\n' +
+      'ใช้ปุ่ม "ส่งตัวอย่างให้ Admin" เพื่อตรวจรูปแบบก่อน\n' +
+      'เมื่อรูปแบบเรียบร้อยแล้ว ให้ตั้ง PAYSLIP_LINE_ENABLED=1 ที่ Railway'
+    );
+  }
+
   const liffId = process.env.LIFF_ID_PAYSLIP;
   if (!liffId) throw new Error('LIFF_ID_PAYSLIP ยังไม่ได้ตั้งค่าใน .env');
 
@@ -370,17 +408,50 @@ async function sendPayslipsViaLine(year, month) {
   const yearTH  = year + 543;
   const fmt     = n => Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  // ดึง payroll records ที่มี line_user_id
-  const { rows } = await db.query(
-    `SELECT pr.net_income, pr.gross_income, pr.total_deduction, pr.status,
-            e.name AS employee_name, e.line_user_id
-     FROM payroll_records pr
-     JOIN employees e ON e.id = pr.employee_id
-     WHERE pr.year = $1 AND pr.month = $2
-       AND e.line_user_id IS NOT NULL AND e.line_user_id != ''
-       AND e.is_active = TRUE`,
-    [year, month]
-  );
+  let rows;
+
+  if (previewToAdmin) {
+    // ── โหมดตัวอย่าง ────────────────────────────────────────
+    // ใช้ "ข้อมูลจริง" ของพนักงาน 1 คน เพื่อให้เห็นรูปแบบตรงกับของจริง
+    // แต่ส่งไปหา Admin เท่านั้น ไม่แตะพนักงานเลยแม้แต่คนเดียว
+    const sample = await db.query(
+      `SELECT pr.net_income, pr.gross_income, pr.total_deduction, pr.status,
+              e.name AS employee_name
+       FROM payroll_records pr
+       JOIN employees e ON e.id = pr.employee_id
+       WHERE pr.year = $1 AND pr.month = $2
+         AND ($3::int IS NULL OR e.id = $3)
+       ORDER BY e.id
+       LIMIT 1`,
+      [year, month, employeeId]
+    );
+    if (!sample.rows[0]) {
+      return { sent: 0, failed: 0, preview: true,
+               message: 'ยังไม่ได้คำนวณ Payroll เดือนนี้ จึงไม่มีข้อมูลให้ทำตัวอย่าง' };
+    }
+
+    const admins = await getAdminLineTargets();
+    if (!admins.length) {
+      return { sent: 0, failed: 0, preview: true,
+               message: 'ยังไม่มีผู้ดูแลที่ผูก LINE ไว้ — ไปที่หน้า "ผู้ดูแลที่ผูก LINE" เพื่อผูกก่อน' };
+    }
+
+    // ผู้รับ = Admin ทุกคน แต่เนื้อหา = สลิปของพนักงานตัวอย่าง
+    rows = admins.map(a => ({ ...sample.rows[0], line_user_id: a.line_user_id }));
+  } else {
+    // ── ส่งจริงให้พนักงานทุกคน ──────────────────────────────
+    const r = await db.query(
+      `SELECT pr.net_income, pr.gross_income, pr.total_deduction, pr.status,
+              e.name AS employee_name, e.line_user_id
+       FROM payroll_records pr
+       JOIN employees e ON e.id = pr.employee_id
+       WHERE pr.year = $1 AND pr.month = $2
+         AND e.line_user_id IS NOT NULL AND e.line_user_id != ''
+         AND e.is_active = TRUE`,
+      [year, month]
+    );
+    rows = r.rows;
+  }
 
   if (!rows.length) {
     return { sent: 0, failed: 0, skipped: 0,
@@ -393,21 +464,33 @@ async function sendPayslipsViaLine(year, month) {
   for (const r of rows) {
     const flexMsg = {
       type: 'flex',
-      altText: `💰 สลิปเงินเดือน ${monthTH} ${yearTH} — เงินสุทธิ ฿${fmt(r.net_income)}`,
+      altText: previewToAdmin
+        ? `[ตัวอย่าง] สลิปเงินเดือน ${monthTH} ${yearTH}`
+        : `💰 สลิปเงินเดือน ${monthTH} ${yearTH} — เงินสุทธิ ฿${fmt(r.net_income)}`,
       contents: {
         type: 'bubble',
         header: {
           type: 'box',
           layout: 'vertical',
-          backgroundColor: '#1357B0',
+          // โหมดตัวอย่างใช้สีส้ม ให้แยกออกจากสลิปจริงตั้งแต่แวบแรก
+          backgroundColor: previewToAdmin ? '#B45309' : '#1357B0',
           paddingAll: '16px',
           contents: [
+            ...(previewToAdmin ? [{
+              type: 'text', text: '🧪 ตัวอย่าง — ยังไม่ได้ส่งให้พนักงาน',
+              color: '#FDE68A', weight: 'bold', size: 'xs', wrap: true,
+            }] : []),
             { type: 'text', text: 'ต่อกัน Insurance Broker',
-              color: '#ffffff', weight: 'bold', size: 'sm' },
+              color: '#ffffff', weight: 'bold', size: 'sm',
+              margin: previewToAdmin ? 'sm' : 'none' },
             { type: 'text', text: 'สลิปเงินเดือน / Pay Slip',
-              color: '#b3c9e8', size: 'xs', margin: 'xs' },
+              color: previewToAdmin ? '#FDE68A' : '#b3c9e8', size: 'xs', margin: 'xs' },
             { type: 'text', text: `${monthTH} ${yearTH}`,
               color: '#ffffff', weight: 'bold', size: 'xl', margin: 'sm' },
+            ...(previewToAdmin ? [{
+              type: 'text', text: `ข้อมูลตัวอย่างจาก: ${r.employee_name}`,
+              color: '#FDE68A', size: 'xxs', margin: 'sm', wrap: true,
+            }] : []),
           ],
         },
         body: {
@@ -473,8 +556,9 @@ async function sendPayslipsViaLine(year, month) {
     }
   }
 
-  console.log(`[payroll] ส่ง Payslip LINE ${year}/${month}: sent=${sent} failed=${failed}`);
-  return { sent, failed, total: rows.length, errors };
+  const tag = previewToAdmin ? 'ตัวอย่าง→Admin' : 'จริง→พนักงาน';
+  console.log(`[payroll] ส่ง Payslip LINE ${year}/${month} (${tag}): sent=${sent} failed=${failed}`);
+  return { sent, failed, total: rows.length, errors, preview: previewToAdmin };
 }
 
 /**
@@ -1242,4 +1326,5 @@ async function bulkUpdatePayrollStatus(year, month, status) {
 
 module.exports = { calculatePayslip, generatePayroll, getPayroll, getPayslip,
   updatePayrollStatus, bulkUpdatePayrollStatus, getPayrollSettings,
-  sendPayslipsViaLine, exportPayrollExcel, exportWageSheet };
+  sendPayslipsViaLine, isRealSendEnabled, getAdminLineTargets,
+  exportPayrollExcel, exportWageSheet };

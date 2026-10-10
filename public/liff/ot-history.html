@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>ประวัติ OT — ต่อกัน HR</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="/liff/liff-auth.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Prompt', 'Segoe UI', sans-serif; background: #f4f6fa; color: #1a1a2e; font-size: 14px; min-height: 100vh; }
@@ -210,6 +211,8 @@ async function init() {
   try {
     const liffId = LIFF_ID_OT_HISTORY || LIFF_ID_OT;
     await liff.init({ liffId });
+    // แนบ ID Token ไปกับทุก request หา /api/ (ดู public/liff/liff-auth.js)
+    await attachLiffIdToken();
     if (!liff.isLoggedIn()) { liff.login(); return; }
     const profile = await liff.getProfile();
     lineUserId = profile.userId;

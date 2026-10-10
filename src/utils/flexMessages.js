@@ -71,25 +71,47 @@ function leaveBalance(employee, balances) {
     }
 
     const pending = Number(b.pending_days) || 0;
-    const displayText = quota != null
+    let displayText = quota != null
       ? `${remaining}/${quota} วัน`
       : `ใช้ไป ${used} วัน`;
     const pendingText = pending > 0 ? ` (รอ ${pending} วัน)` : '';
 
+    // ยังทดลองงาน → ประเภทนี้ยังใช้ไม่ได้ แสดงให้เห็นตรงนี้เลย
+    // ไม่งั้นพนักงานจะเห็นตัวเลขสิทธิ์แล้วกดยื่น แล้วค่อยโดนปฏิเสธ
+    if (b.blocked_by_probation) {
+      displayText = 'ยังไม่ได้สิทธิ์';
+      valueColor  = '#9CA3AF';
+    }
+
     return {
       type: 'box', layout: 'horizontal', margin: 'sm',
       contents: [
-        { type: 'text', text: b.name, size: 'sm', color: '#555555', flex: 3, wrap: true },
+        { type: 'text', text: b.name, size: 'sm',
+          color: b.blocked_by_probation ? '#9CA3AF' : '#555555', flex: 3, wrap: true },
         {
           type: 'box', layout: 'vertical', flex: 2, alignItems: 'flex-end',
           contents: [
             { type: 'text', text: displayText, size: 'sm', color: valueColor, align: 'end', weight: 'bold' },
-            ...(pending > 0 ? [{ type: 'text', text: pendingText, size: 'xxs', color: '#F59E0B', align: 'end' }] : [])
+            ...(pending > 0 && !b.blocked_by_probation
+                ? [{ type: 'text', text: pendingText, size: 'xxs', color: '#F59E0B', align: 'end' }] : [])
           ]
         }
       ]
     };
   });
+
+  // แถบอธิบายท้ายการ์ด — ขึ้นเฉพาะคนที่ยังทดลองงาน
+  const probationNote = balances.some(b => b.blocked_by_probation)
+    ? [{
+        type: 'box', layout: 'vertical', margin: 'lg', paddingAll: '10px',
+        backgroundColor: '#FFFBEB', cornerRadius: '6px',
+        contents: [
+          { type: 'text', text: 'อยู่ระหว่างทดลองงาน', size: 'xs', weight: 'bold', color: '#92400E' },
+          { type: 'text', size: 'xxs', color: '#92400E', wrap: true, margin: 'xs',
+            text: 'สวัสดิการวันลาจะได้รับหลังผ่านทดลองงาน ระหว่างนี้หากจำเป็นต้องหยุด ให้แจ้งลาแบบไม่รับค่าจ้าง' },
+        ],
+      }]
+    : [];
 
   // แทรก separator ระหว่าง items
   const bodyContents = [];
@@ -97,6 +119,7 @@ function leaveBalance(employee, balances) {
     bodyContents.push(item);
     if (i < items.length - 1) bodyContents.push({ type: 'separator', margin: 'sm' });
   });
+  bodyContents.push(...probationNote);
 
   return {
     type: 'flex',
@@ -212,9 +235,34 @@ function leaveApprovalRequest(leaveRequest, employee) {
   const dateLabel = leaveRequest.is_half_day ? start : `${start} - ${end}`;
   const daysLabel = `${leaveRequest.total_days} วัน${halfDayLabel}`;
 
+  // ── แถบสิทธิ์คงเหลือ ─────────────────────────────────────────
+  // เดิมคนอนุมัติเห็นแค่ "ขอลากี่วัน" ต้องไปเปิดหน้าเว็บเช็คเองว่าเหลือเท่าไหร่
+  // ส่วนใหญ่เลยกดอนุมัติไปโดยไม่รู้ว่าเกินสิทธิ์
+  const q = leaveRequest.quota_info;
+  const quotaRows = [];
+  if (q) {
+    quotaRows.push({ type: 'separator', margin: 'md' });
+    if (q.is_over) {
+      quotaRows.push({
+        type: 'box', layout: 'vertical', margin: 'md', spacing: 'xs',
+        backgroundColor: '#FEF2F2', cornerRadius: '6px', paddingAll: '10px',
+        contents: [
+          { type: 'text', text: `⚠️ เกินสิทธิ์ ${q.over_days} วัน`, size: 'sm', weight: 'bold', color: '#B91C1C', wrap: true },
+          { type: 'text', text: `${q.leave_type_name}: เหลือ ${q.remaining_before} วัน จากสิทธิ์ ${q.quota} วัน แต่ขอ ${q.requested} วัน`,
+            size: 'xs', color: '#7F1D1D', wrap: true },
+        ],
+      });
+    } else {
+      quotaRows.push({
+        type: 'text', margin: 'md', size: 'xs', color: '#15803D', wrap: true,
+        text: `✓ สิทธิ์คงเหลือพอ — ${q.leave_type_name} เหลือ ${q.remaining_before} วัน จากสิทธิ์ ${q.quota} วัน`,
+      });
+    }
+  }
+
   return {
     type: 'flex',
-    altText: `${employee.name} ขอลางาน`,
+    altText: `${employee.name} ขอลางาน${q?.is_over ? ' (เกินสิทธิ์)' : ''}`,
     contents: {
       type: 'bubble',
       header: {
@@ -229,7 +277,8 @@ function leaveApprovalRequest(leaveRequest, employee) {
           infoRow('วันที่', dateLabel),
           infoRow('จำนวน', daysLabel),
           { type: 'separator', margin: 'md' },
-          { type: 'text', text: `เหตุผล: ${leaveRequest.reason || '-'}`, size: 'sm', color: '#555555', wrap: true }
+          { type: 'text', text: `เหตุผล: ${leaveRequest.reason || '-'}`, size: 'sm', color: '#555555', wrap: true },
+          ...quotaRows
         ]
       },
       footer: {

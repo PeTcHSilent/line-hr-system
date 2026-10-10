@@ -78,10 +78,45 @@ async function handleMessage(client, event, employee) {
     });
   }
 
+  // ── สลิปเงินเดือน ────────────────────────────────────────────
+  // หน้า payslip.html มีอยู่แล้วแต่ไม่มีทางเข้าเลย — ไม่มีปุ่มใน Rich Menu
+  // (เมนูเต็ม 6 ช่องแล้ว) และไม่มี keyword พนักงานจึงเปิดไม่ได้มาตลอด
+  if (lower === 'สลิป' || lower === 'สลิปเงินเดือน' || lower === 'payslip' ||
+      lower === 'เงินเดือน' || lower === 'ดูสลิป') {
+    const id = process.env.LIFF_ID_PAYSLIP;
+    if (!id) return reply(client, event.replyToken, {
+      type: 'text', text: '⚠️ ระบบสลิปเงินเดือนยังไม่พร้อมใช้งาน กรุณาแจ้งฝ่ายบุคคล'
+    });
+    return reply(client, event.replyToken, {
+      type: 'text',
+      text: `💰 สลิปเงินเดือนของคุณ${employee.name}\nกดลิงก์นี้เพื่อดู:\nhttps://liff.line.me/${id}`
+    });
+  }
+
+  // ── เบิกค่าใช้จ่าย ───────────────────────────────────────────
+  if (lower === 'เบิก' || lower === 'เบิกเงิน' || lower === 'เบิกค่าใช้จ่าย' ||
+      lower === 'expense' || lower === 'ขอเบิก' || lower === 'เคลม') {
+    const id = process.env.LIFF_ID_EXPENSE;
+    if (!id) return reply(client, event.replyToken, {
+      type: 'text', text: '⚠️ ระบบเบิกค่าใช้จ่ายยังไม่พร้อมใช้งาน กรุณาแจ้งฝ่ายบุคคล'
+    });
+    return reply(client, event.replyToken, {
+      type: 'text',
+      text: `🧾 เบิกค่าใช้จ่าย — คุณ${employee.name}\nกดลิงก์นี้เพื่อยื่นเรื่องและดูสถานะ:\nhttps://liff.line.me/${id}`
+    });
+  }
+
   // default — ไม่ตรงกับ keyword ใดเลย
+  // บอกคำสั่งที่ไม่มีปุ่มใน Rich Menu ด้วย (เมนูเต็ม 6 ช่องแล้ว ใส่เพิ่มไม่ได้)
+  const extra = [];
+  if (process.env.LIFF_ID_PAYSLIP) extra.push('• สลิปเงินเดือน');
+  if (process.env.LIFF_ID_EXPENSE) extra.push('• เบิกค่าใช้จ่าย');
+
   return reply(client, event.replyToken, {
     type: 'text',
-    text: `สวัสดีคุณ${employee.name} 👋\nใช้เมนูด้านล่างเพื่อเลือกบริการได้เลยครับ`
+    text:
+      `สวัสดีคุณ${employee.name} 👋\nใช้เมนูด้านล่างเพื่อเลือกบริการได้เลยครับ` +
+      (extra.length ? `\n\nหรือพิมพ์คำสั่งเหล่านี้ (ไม่มีปุ่มในเมนู):\n${extra.join('\n')}` : '')
   });
 }
 
@@ -398,20 +433,40 @@ async function handleUnregistered(client, event, lineUserId) {
 async function handleFollow(client, event) {
   const lineUserId = event.source?.userId;
 
-  // ตรวจว่าเป็นพนักงานหรือไม่
-  let isEmployee = false;
+  // ── หา employee จาก line_user_id ที่ผูกไว้แล้ว ──────────────────
+  // ❗ จุดที่เคยพลาด: findByLineId จะเจอก็ต่อเมื่อ "ผูกบัญชีแล้ว"
+  //    โค้ดเดิมจึงกลับด้านกัน —
+  //      คนที่ผูกแล้ว  → ได้ข้อความ "กรุณาพิมพ์รหัสพนักงาน" (ทำไปแล้ว ไม่ต้องทำซ้ำ)
+  //      พนักงานใหม่   → ตกไปได้ข้อความต้อนรับของ Sales Bot ฝั่งลูกค้า
+  //                      ไม่มีใครบอกเลยว่าต้องพิมพ์ TK001
+  let employee = null;
   try {
-    const emp = lineUserId ? await employeeService.findByLineId(lineUserId) : null;
-    if (emp) isEmployee = true;
+    employee = lineUserId ? await employeeService.findByLineId(lineUserId) : null;
   } catch {}
 
-  if (isEmployee) {
-    // ข้อความต้อนรับพนักงาน
+  if (employee) {
+    // ผูกบัญชีไว้แล้ว — ต้อนรับกลับ ไม่ต้องให้พิมพ์รหัสอีก
     return reply(client, event.replyToken, {
       type: 'text',
-      text: '🎉 ยินดีต้อนรับสู่ระบบ HR ต่อกัน!\n\nกรุณาพิมพ์รหัสพนักงานเพื่อเริ่มต้นใช้งาน\nตัวอย่าง: TK001',
+      text:
+        `🎉 ยินดีต้อนรับกลับ คุณ${employee.name}\n\n` +
+        'บัญชีของคุณผูกกับระบบ HR เรียบร้อยแล้ว\n' +
+        'ใช้เมนูด้านล่างจอได้เลย — ลางาน ขอ OT เช็คอิน ดูวันลาคงเหลือ\n\n' +
+        'ถ้าเมนูไม่ขึ้น ให้ปิดแชทแล้วเปิดใหม่',
     });
   }
+
+  // ── ยังไม่ผูกบัญชี — แยกไม่ออกว่าเป็นลูกค้าหรือพนักงานใหม่ ──────
+  // ส่วนใหญ่คือลูกค้า จึงใช้ข้อความ Sales Bot เป็นหลัก
+  // แต่ต่อท้ายด้วยคำแนะนำสำหรับพนักงานใหม่ ไม่งั้นจะไม่มีทางรู้ว่าต้องพิมพ์รหัส
+  const staffHint = {
+    type: 'text',
+    text:
+      '👔 ถ้าคุณเป็นพนักงานต่อกัน\n' +
+      'พิมพ์รหัสพนักงานของคุณเพื่อเริ่มใช้งานระบบ HR\n' +
+      'ตัวอย่าง: TK001\n\n' +
+      '(พิมพ์เฉพาะรหัส ไม่ต้องพิมพ์คำอื่น — ถ้าไม่ทราบรหัส สอบถามฝ่ายบุคคล)',
+  };
 
   // ข้อความต้อนรับลูกค้า (Sales Bot)
   let displayName = 'ลูกค้า';
@@ -466,7 +521,7 @@ async function handleFollow(client, event) {
     },
   };
 
-  return reply(client, event.replyToken, welcomeMsg);
+  return reply(client, event.replyToken, [welcomeMsg, staffHint]);
 }
 
 async function handleCheckIn(client, event, employee) {

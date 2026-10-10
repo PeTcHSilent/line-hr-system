@@ -14,6 +14,12 @@
 const express = require('express');
 const router  = express.Router();
 const taxService = require('../services/taxService');
+const { requireAuth } = require('../middleware/authMiddleware');
+
+// ❗ ทุก endpoint ในไฟล์นี้คืนข้อมูลส่วนบุคคล — เลขบัตรประชาชน 13 หลัก,
+//    เงินเดือน, ภาษีหัก ณ ที่จ่าย ของพนักงานทุกคน
+//    ใส่ไว้ตรงนี้ตัวเดียวเพื่อให้ endpoint ที่เพิ่มทีหลังถูกป้องกันอัตโนมัติ
+router.use(requireAuth);
 
 // ─── helper: build CSV ────────────────────────────────────────────────────
 function toCSV(headers, rows) {

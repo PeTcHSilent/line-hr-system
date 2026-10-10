@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>สลิปเงินเดือน — ต่อกัน Insurance Broker</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="/liff/liff-auth.js"></script>
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
 body { font-family:'Sarabun',system-ui,sans-serif; background:#f1f5f9; min-height:100vh; }
@@ -119,7 +120,9 @@ let lineUserId = null;
 let currentYear  = new Date().getFullYear();
 let currentMonth = new Date().getMonth() + 1;
 
-const LIFF_ID = '2010328906-xH1TUNdt';
+// ❗ เดิมฝังค่านี้ไว้ในโค้ดตรงๆ ถ้าเปลี่ยน LIFF app ต้องมาแก้ไฟล์แล้ว deploy ใหม่
+//    ตอนนี้ใช้เป็นแค่ค่าสำรอง ค่าจริงอ่านจาก /api/config (env LIFF_ID_PAYSLIP)
+let LIFF_ID = '2010328906-xH1TUNdt';
 
 async function init() {
   const params    = new URLSearchParams(window.location.search);
@@ -127,7 +130,14 @@ async function init() {
   const shortUrl  = window.location.href.substring(0, 80);
 
   try {
+    try {
+      const cfg = await fetch(window.location.origin + '/api/config').then(r => r.json());
+      if (cfg.liff_id_payslip) LIFF_ID = cfg.liff_id_payslip;
+    } catch (e) { /* ใช้ค่าสำรองที่ฝังไว้ */ }
+
     await liff.init({ liffId: LIFF_ID });
+    // แนบ ID Token ไปกับทุก request หา /api/ (ดู public/liff/liff-auth.js)
+    await attachLiffIdToken();
     if (!liff.isLoggedIn()) { liff.login(); return; }
     const profile = await liff.getProfile();
     lineUserId = profile.userId;

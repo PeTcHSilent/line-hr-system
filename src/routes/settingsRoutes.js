@@ -4,10 +4,24 @@ const settingsService = require('../services/settingsService');
 const audit   = require('../services/auditService');
 const { requireAuth } = require('../middleware/authMiddleware');
 
-// GET /api/settings  — ดึงทั้งหมด
-router.get('/', async (req, res) => {
+// ── key ที่ห้ามส่งออกจาก API ไม่ว่ากรณีใด ────────────────────────
+// company_settings เก็บ bcrypt hash ของรหัสผ่าน admin และ one-time code
+// ผูก LINE ไว้ปนกับ setting ทั่วไป — getAll() เดิมคืนออกมาหมดทุก row
+// ❗ อย่าใส่ pattern กว้างเกิน เช่น /_code$/ จะไปตัด setting ปกติอย่าง
+//    branch_code / company_code ทิ้งโดยไม่ตั้งใจ
+const SECRET_KEYS = ['admin_password', 'admin_link_code'];
+const SECRET_PATTERN = /(password|passwd|secret|_token|api_key|apikey|private_key)/i;
+
+function stripSecrets(rows) {
+  return rows.filter(r =>
+    !SECRET_KEYS.includes(r.key) && !SECRET_PATTERN.test(r.key)
+  );
+}
+
+// GET /api/settings  — ดึงทั้งหมด (admin only, ตัด key ที่เป็นความลับออก)
+router.get('/', requireAuth, async (req, res) => {
   try {
-    res.json(await settingsService.getAll());
+    res.json(stripSecrets(await settingsService.getAll()));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -47,7 +61,7 @@ router.put('/', requireAuth, async (req, res) => {
       description: 'แก้ไขการตั้งค่าระบบ: ' + Object.keys(updates).join(', '),
       meta:        updates,
     });
-    res.json(await settingsService.getAll());
+    res.json(stripSecrets(await settingsService.getAll()));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

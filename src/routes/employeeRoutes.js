@@ -3,9 +3,10 @@ const router = express.Router();
 const employeeService = require('../services/employeeService');
 const audit  = require('../services/auditService');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { resolveLineUser } = require('../services/lineVerifyService');
 
 // GET /api/employee/me?line_user_id=xxx — LIFF ใช้ดึงข้อมูลตัวเอง
-router.get('/me', async (req, res) => {
+router.get('/me', resolveLineUser, async (req, res) => {
   const lineUserId = req.query.line_user_id;
   if (!lineUserId) return res.status(400).json({ error: 'ต้องระบุ line_user_id' });
 
@@ -23,7 +24,7 @@ router.get('/me', async (req, res) => {
 });
 
 // GET /api/employee/leave-types?line_user_id=xxx — ดึงประเภทลาที่พนักงานมีสิทธิ์
-router.get('/leave-types', async (req, res) => {
+router.get('/leave-types', requireAuth, async (req, res) => {
   const lineUserId = req.query.line_user_id;
   if (!lineUserId) return res.status(400).json({ error: 'ต้องระบุ line_user_id' });
 
@@ -42,7 +43,7 @@ router.get('/leave-types', async (req, res) => {
 });
 
 // GET /api/employee?include_inactive=true — ดึงพนักงานทั้งหมด (admin)
-router.get('/', async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
     const includeInactive = req.query.include_inactive === 'true';
     const employees = await employeeService.getAllEmployees({ includeInactive });
@@ -91,7 +92,7 @@ router.post('/', requireAuth, async (req, res) => {
 });
 
 // GET /api/employee/leave-balance?line_user_id=xxx — วันลาคงเหลือ (LIFF)
-router.get('/leave-balance', async (req, res) => {
+router.get('/leave-balance', resolveLineUser, async (req, res) => {
   const lineUserId = req.query.line_user_id;
   if (!lineUserId) return res.status(400).json({ error: 'ต้องระบุ line_user_id' });
 
@@ -103,7 +104,7 @@ router.get('/leave-balance', async (req, res) => {
 });
 
 // GET /api/employee/:id/balance — วันลาคงเหลือรายคน (Admin)
-router.get('/:id/balance', async (req, res) => {
+router.get('/:id/balance', requireAuth, async (req, res) => {
   try {
     const emp = await employeeService.getById(parseInt(req.params.id));
     if (!emp) return res.status(404).json({ error: 'ไม่พบพนักงาน' });
@@ -113,7 +114,7 @@ router.get('/:id/balance', async (req, res) => {
 });
 
 // GET /api/employee/search?keyword=xxx&department_id=1&role=employee&branch_id=1&include_inactive=true
-router.get('/search', async (req, res) => {
+router.get('/search', requireAuth, async (req, res) => {
   try {
     const { keyword, department_id, role, branch_id, include_inactive } = req.query;
     const employees = await employeeService.searchEmployees({
@@ -194,7 +195,7 @@ router.get('/notify-targets', async (req, res) => {
 });
 
 // GET /api/employee/:id — ดึงพนักงานรายเดียว
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireAuth, async (req, res) => {
   try {
     const emp = await employeeService.getById(req.params.id);
     if (!emp) return res.status(404).json({ error: 'ไม่พบพนักงาน' });

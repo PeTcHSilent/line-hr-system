@@ -6,13 +6,14 @@ const line = require('@line/bot-sdk');
 const flexMessages = require('../utils/flexMessages');
 const { requireAuth } = require('../middleware/authMiddleware');
 const audit = require('../services/auditService');
+const { resolveLineUser } = require('../services/lineVerifyService');
 
 const client = new line.messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
 });
 
 // POST /api/leave - ส่งคำขอลา (จาก LIFF)
-router.post('/', async (req, res) => {
+router.post('/', resolveLineUser, async (req, res) => {
   try {
     const lineUserId     = req.body.line_user_id     || req.body.lineUserId;
     const leaveTypeId    = req.body.leave_type_id    || req.body.leaveTypeId;
@@ -79,7 +80,7 @@ router.post('/', async (req, res) => {
 // ============================================================
 
 // GET /api/leave/types — ดึงทุกประเภทลา (ไม่ filter gender)
-router.get('/types', async (req, res) => {
+router.get('/types', requireAuth, async (req, res) => {
   try {
     const db = require('../db');
     const { rows } = await db.query(
@@ -94,12 +95,14 @@ router.get('/types', async (req, res) => {
 router.post('/types', requireAuth, async (req, res) => {
   try {
     const db = require('../db');
-    const { name, max_days, gender_restriction, is_paid } = req.body;
+    const { name, max_days, gender_restriction, is_paid, allowed_during_probation } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'กรุณาระบุชื่อประเภทลา' });
     const { rows } = await db.query(
-      `INSERT INTO leave_types (name, max_days, gender_restriction, is_paid)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [name.trim(), max_days || null, gender_restriction || null, is_paid !== false]
+      `INSERT INTO leave_types (name, max_days, gender_restriction, is_paid, allowed_during_probation)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      // ไม่ส่งมา = ลาได้ (ตรงกับ default ของคอลัมน์ ไม่บล็อกโดยไม่ตั้งใจ)
+      [name.trim(), max_days || null, gender_restriction || null, is_paid !== false,
+       allowed_during_probation !== false]
     );
     res.status(201).json({ success: true, leave_type: rows[0] });
   } catch (err) { res.status(400).json({ error: err.message }); }
@@ -109,11 +112,14 @@ router.post('/types', requireAuth, async (req, res) => {
 router.put('/types/:id', requireAuth, async (req, res) => {
   try {
     const db = require('../db');
-    const { name, max_days, gender_restriction, is_paid } = req.body;
+    const { name, max_days, gender_restriction, is_paid, allowed_during_probation } = req.body;
     const { rows } = await db.query(
-      `UPDATE leave_types SET name=$1, max_days=$2, gender_restriction=$3, is_paid=$4
-       WHERE id=$5 RETURNING *`,
-      [name, max_days || null, gender_restriction || null, is_paid !== false, req.params.id]
+      `UPDATE leave_types
+       SET name=$1, max_days=$2, gender_restriction=$3, is_paid=$4,
+           allowed_during_probation=$5
+       WHERE id=$6 RETURNING *`,
+      [name, max_days || null, gender_restriction || null, is_paid !== false,
+       allowed_during_probation !== false, req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'ไม่พบประเภทลา' });
     res.json({ success: true, leave_type: rows[0] });
@@ -202,7 +208,7 @@ router.patch('/:id/reject', requireAuth, async (req, res) => {
 });
 
 // GET /api/leave/calendar?year=2024&month=6
-router.get('/calendar', async (req, res) => {
+router.get('/calendar', requireAuth, async (req, res) => {
   const { year, month } = req.query;
   const data = await leaveService.getLeaveCalendar(year, month);
   res.json(data);
@@ -210,7 +216,7 @@ router.get('/calendar', async (req, res) => {
 
 // GET /api/leave/history?line_user_id=xxx&year=2026&status=approved
 // ประวัติการลาของพนักงานคนนั้น (LIFF ใช้)
-router.get('/history', async (req, res) => {
+router.get('/history', resolveLineUser, async (req, res) => {
   try {
     const { line_user_id, year, status } = req.query;
     if (!line_user_id) return res.status(400).json({ error: 'ต้องระบุ line_user_id' });
@@ -231,7 +237,7 @@ router.get('/history', async (req, res) => {
 
 // GET /api/leave/all?year=2026&month=6&department_id=1&status=pending
 // ประวัติการลาทั้งหมด (Admin ใช้)
-router.get('/all', async (req, res) => {
+router.get('/all', requireAuth, async (req, res) => {
   try {
     const { year, month, department_id, status, employee_id, branch_id } = req.query;
     const data = await leaveService.getAllLeaveHistory({
@@ -249,7 +255,7 @@ router.get('/all', async (req, res) => {
 });
 
 // PATCH /api/leave/:id/cancel — พนักงานยกเลิกใบลาที่ pending (LIFF ใช้)
-router.patch('/:id/cancel', async (req, res) => {
+router.patch('/:id/cancel', resolveLineUser, async (req, res) => {
   try {
     const { line_user_id } = req.body;
     if (!line_user_id) return res.status(400).json({ error: 'ต้องระบุ line_user_id' });
@@ -261,7 +267,7 @@ router.patch('/:id/cancel', async (req, res) => {
 });
 
 // DELETE /api/leave/:id — ยกเลิกคำขอลา (เฉพาะ pending)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', resolveLineUser, async (req, res) => {
   try {
     const { line_user_id } = req.body;
     if (!line_user_id) return res.status(400).json({ error: 'ต้องระบุ line_user_id' });
@@ -302,7 +308,7 @@ async function ensureCarryoverTable() {
 }
 
 // GET /api/leave/carryover/log?year=&employee_id=  — ดูประวัติ carryover (Admin)
-router.get('/carryover/log', async (req, res) => {
+router.get('/carryover/log', requireAuth, async (req, res) => {
   try {
     const db = require('../db');
     await ensureCarryoverTable();
@@ -323,7 +329,7 @@ router.get('/carryover/log', async (req, res) => {
 
 // POST /api/leave/carryover/run  — รัน carryover ปีที่แล้ว → ปีนี้ (Admin)
 // body: { from_year?, max_carryover_days? }
-router.post('/carryover/run', async (req, res) => {
+router.post('/carryover/run', requireAuth, async (req, res) => {
   try {
     const db = require('../db');
     await ensureCarryoverTable();
@@ -399,7 +405,7 @@ router.post('/carryover/run', async (req, res) => {
 });
 
 // GET /api/leave/balance?line_user_id= (LIFF — รวม carryover)
-router.get('/balance', async (req, res) => {
+router.get('/balance', requireAuth, async (req, res) => {
   try {
     const { line_user_id } = req.query;
     if (!line_user_id) return res.status(400).json({ error: 'ต้องระบุ line_user_id' });

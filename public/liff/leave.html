@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>ขอลางาน — ต่อกัน HR</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="/liff/liff-auth.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Sarabun', 'Helvetica Neue', Arial, sans-serif; background: #F3F4F6; min-height: 100vh; }
@@ -232,6 +233,8 @@ const LIFF_ID = '2010328906-y4bbKHYu';
 async function initLiff() {
   try {
     await liff.init({ liffId: LIFF_ID });
+    // แนบ ID Token ไปกับทุก request หา /api/ (ดู public/liff/liff-auth.js)
+    await attachLiffIdToken();
     if (!liff.isLoggedIn()) {
       liff.login({ redirectUri: window.location.href });
       return;
@@ -267,12 +270,43 @@ async function initLiff() {
 
 // อัปเดตวันลาคงเหลือบนปุ่ม
 function applyLeaveBalance(balance) {
+  // ยังทดลองงาน → ขึ้นแถบอธิบายไว้บนสุด ไม่งั้นพนักงานจะงงว่าทำไมกดไม่ได้
+  if (balance.some(b => b.blocked_by_probation)) {
+    const grid = document.getElementById('leaveTypeGrid');
+    if (grid && !document.getElementById('probation-note')) {
+      const note = document.createElement('div');
+      note.id = 'probation-note';
+      note.style.cssText =
+        'grid-column:1/-1;background:#FFFBEB;border:1px solid #FCD34D;border-radius:10px;' +
+        'padding:10px 12px;font-size:12.5px;color:#92400E;line-height:1.6;margin-bottom:4px;';
+      note.innerHTML =
+        '<b>อยู่ระหว่างทดลองงาน</b><br>' +
+        'สวัสดิการวันลาจะได้รับหลังผ่านทดลองงาน ระหว่างนี้หากจำเป็นต้องหยุด ' +
+        'ให้เลือก <b>ลาไม่รับเงิน</b>';
+      grid.prepend(note);
+    }
+  }
+
   balance.forEach(item => {
     const el = document.getElementById(`quota-${item.id}`);
     if (!el) return;
     const quota = item.effective_quota ?? item.max_days;
     const remaining = quota - parseInt(item.used_days);
     const btn = el.closest('.leave-type-btn');
+
+    // ทดลองงาน + ประเภทนี้ถูกปิดไว้ → ปิดปุ่มเลย กดไม่ได้
+    if (item.blocked_by_probation) {
+      el.textContent = 'ยังไม่ได้สิทธิ์';
+      el.classList.add('used-up');
+      if (btn) {
+        btn.classList.add('no-quota');
+        btn.style.opacity = '0.45';
+        btn.style.cursor  = 'not-allowed';
+        btn.dataset.blocked = '1';
+      }
+      return;
+    }
+
     if (remaining <= 0) {
       el.textContent = 'หมดสิทธิ์';
       el.classList.add('used-up');
@@ -296,6 +330,11 @@ function applyGenderFilter(sex) {
 
 function selectType(el) {
   if (el.classList.contains('hidden')) return;
+  // ประเภทที่ยังไม่ได้สิทธิ์ตอนทดลองงาน — กันไว้ตั้งแต่กด
+  if (el.dataset.blocked === '1') {
+    showToast('ยังอยู่ระหว่างทดลองงาน กรุณาเลือก "ลาไม่รับเงิน"');
+    return;
+  }
   document.querySelectorAll('.leave-type-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   selectedTypeId = parseInt(el.dataset.type);
@@ -438,6 +477,19 @@ async function submitLeave() {
 }
 
 function showSuccessScreen(data) {
+  // ── แจ้งเตือนถ้าลาเกินสิทธิ์ ────────────────────────────────
+  // ระบบไม่บล็อก (มีกรณีป่วยยาวที่ต้องลาเกินจริงๆ) แต่ต้องบอกให้รู้ตัว
+  // ไม่งั้นพนักงานจะรู้อีกทีตอนโดนหักเงินเดือน
+  const q = data && data.leave && data.leave.quota_info;
+  const quotaBox = (q && q.is_over) ? `
+      <div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:12px;padding:14px 18px;text-align:left;max-width:320px;">
+        <div style="font-size:14px;font-weight:700;color:#B91C1C;margin-bottom:4px;">⚠️ คำขอนี้เกินสิทธิ์ ${q.over_days} วัน</div>
+        <div style="font-size:12.5px;color:#7F1D1D;line-height:1.6;">
+          ${q.leave_type_name} เหลือ ${q.remaining_before} วัน จากสิทธิ์ ${q.quota} วัน แต่ขอ ${q.requested} วัน<br>
+          หัวหน้าจะเห็นข้อมูลนี้ตอนพิจารณา — หากไม่ต้องการให้เกินสิทธิ์ กรุณายกเลิกแล้วยื่นใหม่
+        </div>
+      </div>` : '';
+
   document.querySelector('.form-body').innerHTML = `
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;padding:32px;">
       <div style="font-size:64px;">✅</div>
@@ -445,6 +497,7 @@ function showSuccessScreen(data) {
       <div style="font-size:14px;color:#6B7280;text-align:center;line-height:1.6;">
         คำขอลางานของคุณถูกส่งถึงหัวหน้าแล้ว<br>รอการอนุมัติผ่าน LINE นะครับ
       </div>
+      ${quotaBox}
       <div style="background:#EFF6FF;border-radius:12px;padding:16px 24px;text-align:center;">
         <div style="font-size:13px;color:#6B7280;">หมายเลขคำขอ</div>
         <div style="font-size:24px;font-weight:700;color:#1357B0;">#${data.id || '-'}</div>

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>คำขอ OT — ต่อกัน HR</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="/liff/liff-auth.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Prompt', 'Sarabun', 'Helvetica Neue', sans-serif; background: #F4F6FA; color: #1a1a2e; font-size: 14px; -webkit-font-smoothing: antialiased; }
@@ -215,6 +216,8 @@ let employeeId = null;
 async function init() {
   try {
     await liff.init({ liffId: LIFF_ID });
+    // แนบ ID Token ไปกับทุก request หา /api/ (ดู public/liff/liff-auth.js)
+    await attachLiffIdToken();
     if (!liff.isLoggedIn()) { liff.login(); return; }
     const profile = await liff.getProfile();
     lineUserId = profile.userId;
@@ -338,19 +341,23 @@ async function loadHistory() {
 
   try {
     const cy = new Date().getFullYear();
-    const res = await fetch(`/api/ot?employee_id=${employeeId}&year=${cy}`);
+    // ❗ เดิมเรียก /api/ot?employee_id=... ซึ่งเป็น endpoint ฝั่ง Admin
+    //    (ใส่ employee_id เลขไหนก็ดู OT ของคนนั้นได้) — ย้ายมาใช้ /mine
+    //    ที่ผูกกับ line_user_id ของผู้ใช้เอง ดูได้เฉพาะของตัวเอง
+    const res  = await fetch(`/api/ot/mine?line_user_id=${encodeURIComponent(lineUserId)}&year=${cy}`);
     const data = await res.json();
-    const records = Array.isArray(data) ? data : [];
+    const records = Array.isArray(data?.records) ? data.records : [];
+    const sum     = data?.summary || {};
 
-    // Summary
-    const pending  = records.filter(r => r.status === 'pending').length;
-    const approved = records.filter(r => r.status === 'approved').length;
-    const hours    = records
+    // Summary — ใช้ค่าที่ server คำนวณมาให้ ถ้าไม่มีค่อยนับเอง
+    const pending  = sum.pending  ?? records.filter(r => r.status === 'pending').length;
+    const approved = sum.approved ?? records.filter(r => r.status === 'approved').length;
+    const hours    = sum.total_approved_hours ?? records
       .filter(r => r.status === 'approved')
       .reduce((s, r) => s + parseFloat(r.total_hours || 0), 0);
     document.getElementById('h-pending').textContent  = pending;
     document.getElementById('h-approved').textContent = approved;
-    document.getElementById('h-hours').textContent    = hours.toFixed(1);
+    document.getElementById('h-hours').textContent    = Number(hours).toFixed(1);
 
     if (!records.length) {
       list.innerHTML = `

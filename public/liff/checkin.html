@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Clock In / Out</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="/liff/liff-auth.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Prompt', 'Segoe UI', sans-serif; background: #F4F6FA; color: #1a1a2e; font-size: 14px; min-height: 100vh; }
@@ -396,6 +397,8 @@ async function init() {
 
     if (!liffId) throw new Error('LIFF ID ยังไม่ได้ตั้งค่า — กรุณาตั้งค่า LIFF_ID_CHECKIN ใน .env แล้ว restart server');
     await liff.init({ liffId });
+    // แนบ ID Token ไปกับทุก request หา /api/ (ดู public/liff/liff-auth.js)
+    await attachLiffIdToken();
     if (!liff.isLoggedIn()) { liff.login(); return; }
     const profile = await liff.getProfile();
     lineUserId = profile.userId;

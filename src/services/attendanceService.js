@@ -198,10 +198,10 @@ async function getAllAttendance({ date, departmentId, employeeId, month, year, b
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const result = await db.query(
-    `SELECT a.id, a.work_date, a.check_in, a.check_out,
+    `SELECT a.id, a.employee_id, a.work_date, a.check_in, a.check_out,
             a.check_in_distance, a.check_out_distance,
             a.check_in_within_radius, a.check_out_within_radius,
-            a.note,
+            a.note, a.check_in_type,
             ROUND(EXTRACT(EPOCH FROM (a.check_out - a.check_in))/3600, 2) AS hours_worked,
             e.name AS employee_name, e.employee_code,
             d.name AS department_name,

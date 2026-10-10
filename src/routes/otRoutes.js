@@ -6,6 +6,7 @@ const flexMessages = require('../utils/flexMessages');
 const line = require('@line/bot-sdk');
 const { requireAuth } = require('../middleware/authMiddleware');
 const audit = require('../services/auditService');
+const { resolveLineUser } = require('../services/lineVerifyService');
 const client = new line.messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN
 });
@@ -42,7 +43,7 @@ async function notifyApprovers(ot, employee) {
 }
 
 // GET /api/ot
-router.get('/', async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
     const { year, month, status, department_id, employee_id, branch_id } = req.query;
     const data = await otService.getAllOT({
@@ -58,7 +59,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/ot/summary
-router.get('/summary', async (req, res) => {
+router.get('/summary', requireAuth, async (req, res) => {
   try {
     const { year, month } = req.query;
     const data = await otService.getOTSummary({
@@ -70,7 +71,7 @@ router.get('/summary', async (req, res) => {
 });
 
 // GET /api/ot/report?year=&month=&employee_id=  — สรุป OT รายบุคคล (Admin)
-router.get('/report', async (req, res) => {
+router.get('/report', requireAuth, async (req, res) => {
   try {
     const { year, month, employee_id } = req.query;
     const data = await otService.getOTReportPerEmployee({
@@ -83,7 +84,7 @@ router.get('/report', async (req, res) => {
 });
 
 // GET /api/ot/daily-records?year=&month=&employee_id=  — OT รายวัน พร้อมค่า OT ต่อ record
-router.get('/daily-records', async (req, res) => {
+router.get('/daily-records', requireAuth, async (req, res) => {
   try {
     const { year, month, employee_id } = req.query;
     if (!employee_id) return res.status(400).json({ error: 'ต้องระบุ employee_id' });
@@ -97,7 +98,7 @@ router.get('/daily-records', async (req, res) => {
 });
 
 // GET /api/ot/monthly-breakdown?year=&employee_id=  — OT ราย-เดือนสำหรับพนักงาน 1 คน
-router.get('/monthly-breakdown', async (req, res) => {
+router.get('/monthly-breakdown', requireAuth, async (req, res) => {
   try {
     const { year, employee_id } = req.query;
     if (!employee_id) return res.status(400).json({ error: 'ต้องระบุ employee_id' });
@@ -110,7 +111,7 @@ router.get('/monthly-breakdown', async (req, res) => {
 });
 
 // GET /api/ot/mine - OT of a specific employee (LIFF Profile)
-router.get('/mine', async (req, res) => {
+router.get('/mine', resolveLineUser, async (req, res) => {
   try {
     const { line_user_id, year } = req.query;
     if (!line_user_id) return res.status(400).json({ error: 'ต้องระบุ line_user_id' });
@@ -145,7 +146,7 @@ router.get('/mine', async (req, res) => {
 });
 
 // POST /api/ot
-router.post('/', async (req, res) => {
+router.post('/', resolveLineUser, async (req, res) => {
   try {
     const { line_user_id, employee_id, ot_date, start_time, end_time, reason } = req.body;
     let empId = employee_id;
@@ -220,11 +221,17 @@ router.patch('/:id', requireAuth, async (req, res) => {
 });
 
 // DELETE /api/ot/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', resolveLineUser, async (req, res) => {
   try {
-    const employeeId = req.query.employee_id ? parseInt(req.query.employee_id) : null;
-    if (!employeeId) return res.status(400).json({ error: 'ต้องระบุ employee_id' });
-    const result = await otService.deleteOT(parseInt(req.params.id), employeeId);
+    // ❗ เดิมเชื่อ employee_id จาก query ตรงๆ — ใส่เลขไหนก็ลบ OT ของคนนั้นได้
+    //    ตอนนี้หาจาก LINE user ที่ผ่าน resolveLineUser มาแล้วเท่านั้น
+    const lineUserId = req.lineUserId || req.query.line_user_id || req.body?.line_user_id;
+    if (!lineUserId) return res.status(400).json({ error: 'ต้องระบุ line_user_id' });
+
+    const emp = await employeeService.findByLineId(lineUserId);
+    if (!emp) return res.status(404).json({ error: 'ไม่พบพนักงาน' });
+
+    const result = await otService.deleteOT(parseInt(req.params.id), emp.id);
     res.json(result);
   } catch (err) { res.status(400).json({ error: err.message }); }
 });

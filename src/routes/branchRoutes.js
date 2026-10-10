@@ -3,8 +3,10 @@ const router  = express.Router();
 const branchService = require('../services/branchService');
 const { requireAuth } = require('../middleware/authMiddleware');
 
-// GET /api/branch — ดึงสาขาทั้งหมด (ไม่ต้อง auth สำหรับ dropdown ใน LIFF/checkin)
-router.get('/', async (req, res) => {
+// GET /api/branch — ดึงสาขาทั้งหมด
+// หมายเหตุ: คอมเมนต์เดิมบอกว่าเปิดไว้ให้ dropdown ใน LIFF แต่ตรวจแล้ว
+// ไม่มีหน้า LIFF ไหนเรียก /api/branch เลย — มีแต่หน้า admin
+router.get('/', requireAuth, async (req, res) => {
   try {
     const activeOnly = req.query.active === 'true';
     const data = await branchService.getAll({ activeOnly });
@@ -13,7 +15,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/branch/:id
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireAuth, async (req, res) => {
   try {
     const data = await branchService.getById(parseInt(req.params.id));
     if (!data) return res.status(404).json({ error: 'ไม่พบสาขา' });

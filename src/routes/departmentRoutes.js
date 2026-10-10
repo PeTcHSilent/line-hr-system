@@ -1,6 +1,11 @@
 const express = require('express');
 const router  = express.Router();
 const deptSvc = require('../services/departmentService');
+const { requireAuth } = require('../middleware/authMiddleware');
+
+// ❗ ทุก endpoint เป็นงานฝั่ง Admin ทั้งหมด (หน้า LIFF ไม่ได้เรียกเลย)
+//    เดิมเปิดโล่ง — แก้/ลบแผนกได้โดยไม่ต้องล็อกอิน
+router.use(requireAuth);
 
 // GET /api/department?include_inactive=1
 router.get('/', async (req, res) => {
