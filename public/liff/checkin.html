@@ -245,10 +245,47 @@ function renderBtn(ci, co) {
     btn.innerHTML = `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> เช็คอินเข้างาน`;
     btn.onclick = () => handleAction('checkin');
   } else {
-    btn.className = 'btn-main btn-checkout'; btn.disabled = false;
-    btn.innerHTML = `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> เช็คเอาท์ออกงาน`;
+    btn.className = 'btn-main btn-checkout';
     btn.onclick = () => handleAction('checkout');
+
+    // เพิ่งเช็คอินไป → นับถอยหลังก่อนเปิดปุ่มเช็คเอาท์
+    // เวลาที่เหลือมาจากเซิร์ฟเวอร์ (todayStatus.checkout_wait_sec)
+    // ไม่ได้คำนวณจากนาฬิกาเครื่อง ซึ่งอาจตั้งไว้ไม่ตรง
+    const wait = Number(todayStatus?.checkout_wait_sec || 0);
+    if (wait > 0) startCheckoutCountdown(wait);
+    else { btn.disabled = false; setCheckoutBtnLabel(); }
   }
+}
+
+const CHECKOUT_SVG = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>';
+
+function setCheckoutBtnLabel() {
+  const btn = document.getElementById('main-btn');
+  if (btn) btn.innerHTML = CHECKOUT_SVG + ' เช็คเอาท์ออกงาน';
+}
+
+let _coTimer = null;
+function startCheckoutCountdown(seconds) {
+  const btn = document.getElementById('main-btn');
+  if (!btn) return;
+  clearInterval(_coTimer);
+
+  let left = Math.ceil(seconds);
+  const tick = () => {
+    if (left <= 0) {
+      clearInterval(_coTimer); _coTimer = null;
+      btn.disabled = false;
+      btn.style.opacity = '';
+      setCheckoutBtnLabel();
+      return;
+    }
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    btn.innerHTML = CHECKOUT_SVG + ` เช็คเอาท์ได้ในอีก ${left} วินาที`;
+    left--;
+  };
+  tick();
+  _coTimer = setInterval(tick, 1000);
 }
 
 // ---- GPS ----
@@ -326,6 +363,14 @@ async function doAction(action, lat, lng) {
       body: JSON.stringify({ line_user_id: lineUserId, lat, lng }),
     });
     const data = await res.json();
+
+    // เซิร์ฟเวอร์บอกว่ายังเช็คเอาท์เร็วเกินไป — เริ่มนับถอยหลังใหม่ตามเวลาที่เหลือจริง
+    // (เข้าทางนี้ได้เมื่อกดผ่านปุ่ม "ยืนยันนอกรัศมี" ซึ่งไม่ผ่านปุ่มหลักที่ถูกปิดไว้)
+    if (data.code === 'TOO_SOON') {
+      startCheckoutCountdown(Number(data.wait_seconds) || 30);
+      throw new Error(data.message);
+    }
+
     if (!res.ok || data.success === false) throw new Error(data.message || data.error);
     toast(data.message || (action === 'checkin' ? 'เช็คอินสำเร็จ!' : 'เช็คเอาท์สำเร็จ!'));
     await loadTodayStatus();

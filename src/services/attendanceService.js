@@ -7,6 +7,13 @@ const OFFICE_LAT    = parseFloat(process.env.OFFICE_LAT    || '13.7563');
 const OFFICE_LNG    = parseFloat(process.env.OFFICE_LNG    || '100.5018');
 const OFFICE_RADIUS = parseFloat(process.env.OFFICE_RADIUS_METERS || '300');
 
+// ระยะเวลาขั้นต่ำระหว่างเช็คอินกับเช็คเอาท์ (วินาที)
+// ปรับได้ด้วย env CHECKOUT_MIN_GAP_SEC โดยไม่ต้องแก้โค้ด
+const MIN_CHECKOUT_GAP_SEC = Math.max(
+  0,
+  parseInt(process.env.CHECKOUT_MIN_GAP_SEC || '30', 10) || 0
+);
+
 // ดึง GPS ของสาขาที่พนักงานสังกัด หรือ fallback เป็น ENV
 async function getOfficeGPS(employeeId) {
   try {
@@ -37,20 +44,31 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 async function getTodayStatus(employeeId) {
   const today = dayjs().format('YYYY-MM-DD');
   const result = await db.query(
+    // คำนวณเวลาที่ต้องรอด้วย NOW() ของฐานข้อมูล
+    // ถ้าให้หน้าเว็บคำนวณเองจากนาฬิกาเครื่อง จะเพี้ยนเมื่อเวลาเครื่องไม่ตรง
     `SELECT a.*,
-            e.name AS employee_name
+            e.name AS employee_name,
+            GREATEST(0, CEIL($3 - EXTRACT(EPOCH FROM (NOW() - a.check_in))))::int AS checkout_wait_sec
      FROM attendance a
      JOIN employees e ON a.employee_id = e.id
      WHERE a.employee_id = $1 AND a.work_date = $2`,
-    [employeeId, today]
+    [employeeId, today, MIN_CHECKOUT_GAP_SEC]
   );
   const row = result.rows[0] || null;
   const gps = await getOfficeGPS(employeeId);
+
+  // เหลือเวลาอีกกี่วินาทีจึงจะเช็คเอาท์ได้ (0 = กดได้เลย)
+  const waitSec = (row?.check_in && !row?.check_out)
+    ? (row.checkout_wait_sec ?? 0)
+    : 0;
+
   return {
     date: today,
     has_checked_in:  !!row?.check_in,
     has_checked_out: !!row?.check_out,
     record: row,
+    checkout_wait_sec: waitSec,
+    checkout_min_gap_sec: MIN_CHECKOUT_GAP_SEC,
     office: { lat: gps.lat, lng: gps.lng, radius: gps.radius, branch: gps.branchName },
   };
 }
@@ -123,6 +141,29 @@ async function checkOut(employeeId, lat = null, lng = null) {
   }
   if (existing.rows[0]?.check_out) {
     return { success: false, message: 'เช็คเอาท์วันนี้ไปแล้ว', data: existing.rows[0] };
+  }
+
+  // ── เว้นระยะขั้นต่ำระหว่างเช็คอินกับเช็คเอาท์ ────────────────
+  // กันการกดสองปุ่มรวดเดียวโดยไม่ตั้งใจ (นิ้วลั่น / กดซ้ำตอนเน็ตช้า)
+  // ซึ่งจะได้ชั่วโมงทำงานเป็น 0 แล้วต้องให้ HR มาตามแก้ย้อนหลัง
+  //
+  // ❗ ต้องเช็คฝั่งเซิร์ฟเวอร์ ไม่ใช่แค่ปิดปุ่มในหน้าเว็บ
+  //    เพราะปุ่มที่ปิดไว้ bypass ได้ด้วยการ refresh หน้า
+  //    และเทียบเวลาด้วย NOW() ของฐานข้อมูล ไม่ใช่นาฬิกาเครื่องผู้ใช้
+  const gapRow = await db.query(
+    `SELECT GREATEST(0, CEIL($1 - EXTRACT(EPOCH FROM (NOW() - check_in))))::int AS wait_sec
+     FROM   attendance
+     WHERE  employee_id = $2 AND work_date = $3`,
+    [MIN_CHECKOUT_GAP_SEC, employeeId, today]
+  );
+  const waitSec = gapRow.rows[0]?.wait_sec ?? 0;
+  if (waitSec > 0) {
+    return {
+      success: false,
+      message: `เพิ่งเช็คอินไป กรุณารออีก ${waitSec} วินาทีก่อนเช็คเอาท์`,
+      wait_seconds: waitSec,
+      code: 'TOO_SOON',
+    };
   }
 
   // คำนวณระยะห่าง GPS จากสาขาที่พนักงานสังกัด
