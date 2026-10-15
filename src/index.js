@@ -122,6 +122,8 @@ app.use('/api/tax',            require('./routes/taxRoutes'));
 app.use('/api/audit-logs',        require('./routes/auditRoutes'));
 app.use('/api/export',            require('./routes/exportRoutes'));
 app.use('/api/salary-adjustment', require('./routes/salaryAdjustmentRoutes'));
+// ระบบบัญชีมาดึงสรุปเงินเดือนจากที่นี่ — ป้องกันด้วย x-sync-key (ไม่ใช่ JWT)
+app.use('/api/accounting-sync',   require('./routes/accountingSyncRoutes'));
 app.use('/api/sales-leads',       require('./routes/salesLeadRoutes'));
 
 // ---- LIFF Payslip ----
