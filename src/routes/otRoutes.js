@@ -7,6 +7,7 @@ const line = require('@line/bot-sdk');
 const { requireAuth } = require('../middleware/authMiddleware');
 const audit = require('../services/auditService');
 const { resolveLineUser } = require('../services/lineVerifyService');
+const pushService = require('../services/pushService');
 const client = new line.messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN
 });
@@ -36,10 +37,13 @@ async function notifyApprovers(ot, employee) {
     }
 
     const msg = flexMessages.otApprovalRequest(ot, employee);
-    await Promise.all(targets.map(lineId =>
-      client.pushMessage({ to: lineId, messages: [msg] }).catch(() => {})
-    ));
-  } catch (e) { console.error('notifyApprovers error:', e.message); }
+    // ❗ ผ่าน pushService เพื่อให้เห็นสาเหตุใน log ไม่ใช่เงียบหายไป
+    return await pushService.pushTo(
+      targets, [msg], `OT ใหม่ของ ${employee.name}`);
+  } catch (e) {
+    console.error('[ot] notifyApprovers error:', e.message);
+    return { sent: 0, failed: [] };
+  }
 }
 
 // GET /api/ot
@@ -159,8 +163,13 @@ router.post('/', resolveLineUser, async (req, res) => {
     // ot_type ถูก detect อัตโนมัติใน otService.createOT()
     const created = await otService.createOT({ employeeId: empId, otDate: ot_date, startTime: start_time, endTime: end_time, reason });
     const emp = await employeeService.findById(empId);
-    if (emp) notifyApprovers(created, emp);
-    res.status(201).json({ success: true, ot: created, message: 'บันทึก OT สำเร็จ' });
+    // ❗ await ไม่ใช่ยิงทิ้ง — ไม่งั้นผลการแจ้งเตือนหายไปพร้อมกับ promise
+    //   (ยังไม่ทำให้บันทึก OT ล้มเหลว เพราะ notifyApprovers จับ error ไว้หมดแล้ว)
+    const push = emp ? await notifyApprovers(created, emp) : { sent: 0, failed: [] };
+    res.status(201).json({
+      success: true, ot: created, message: 'บันทึก OT สำเร็จ',
+      notify: { sent: push.sent, failed: push.failed.length },
+    });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 

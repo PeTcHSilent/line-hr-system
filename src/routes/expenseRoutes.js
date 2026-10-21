@@ -40,10 +40,13 @@ async function ensureExpenseTable() {
 async function notifyAdmins(text) {
   try {
     const rows = await db.query('SELECT line_user_id FROM admin_line_users');
-    await Promise.all(rows.rows.map(r =>
-      client.pushMessage({ to: r.line_user_id, messages: [{ type: 'text', text }] }).catch(() => {})
-    ));
-  } catch {}
+    // ❗ ผ่าน pushService เพื่อให้เห็นสาเหตุเวลาแจ้งเตือนไม่ถึง
+    return await require('../services/pushService')
+      .pushTo(rows.rows.map(r => r.line_user_id), [{ type: 'text', text }], 'เบิกค่าใช้จ่าย');
+  } catch (e) {
+    console.error('[expense] notifyAdmins:', e.message);
+    return { sent: 0, failed: [] };
+  }
 }
 
 // ── POST /api/expense  (LIFF — พนักงานยื่นเบิก) ──────────────────

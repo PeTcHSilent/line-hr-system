@@ -7,6 +7,7 @@ const flexMessages = require('../utils/flexMessages');
 const { requireAuth } = require('../middleware/authMiddleware');
 const audit = require('../services/auditService');
 const { resolveLineUser } = require('../services/lineVerifyService');
+const pushService = require('../services/pushService');
 
 const client = new line.messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
@@ -64,11 +65,18 @@ router.post('/', resolveLineUser, async (req, res) => {
       admins.forEach(a => { if (a.line_user_id) targets.push(a.line_user_id); });
     }
     const msg = flexMessages.leaveApprovalRequest(leave, employee);
-    await Promise.all(targets.map(lineId =>
-      client.pushMessage({ to: lineId, messages: [msg] }).catch(() => {})
-    ));
 
-    res.json({ success: true, id: leave.id, leave });
+    // ❗ ส่งผ่าน pushService เพื่อให้รู้ว่าพลาดเพราะอะไร
+    //   เดิมใช้ .catch(() => {}) ทำให้ "ไม่มีแจ้งเตือน" หาสาเหตุไม่ได้เลย
+    const push = await pushService.pushTo(
+      targets, [msg], `ใบลาใหม่ของ ${employee.name}`);
+
+    // ❗ ส่งผลการแจ้งเตือนกลับไปด้วย แต่ไม่ทำให้คำขอลาล้มเหลว
+    //   พนักงานยื่นใบลาสำเร็จแล้ว ระบบแจ้งหัวหน้าไม่ได้ไม่ใช่ความผิดเขา
+    res.json({
+      success: true, id: leave.id, leave,
+      notify: { targets: targets.length, sent: push.sent, failed: push.failed.length },
+    });
   } catch (err) {
     console.error('Leave POST error:', err);
     res.status(400).json({ error: err.message });

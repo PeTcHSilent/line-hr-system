@@ -205,6 +205,64 @@ router.get('/:id', requireAuth, async (req, res) => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════
+//  ลาออก / รับกลับ
+//
+//  ❗ แยกออกจาก PUT /:id ตั้งใจ
+//    การ "ให้ออก" ไม่ใช่การแก้ฟิลด์หนึ่งฟิลด์ แต่เป็นชุดของการยกเลิก
+//    (ปลด LINE + ยกเลิกคำขอค้าง + คืนรหัสพนักงาน) ที่ต้องเกิดพร้อมกัน
+//    ถ้าปล่อยให้ทำผ่าน is_active ของ PUT จะได้สถานะครึ่ง ๆ กลาง ๆ
+//    คือออกแล้วแต่ยังเช็คอินได้ และใบลายังค้างในคิวหัวหน้า
+// ══════════════════════════════════════════════════════════════
+const offboard = require('../services/offboardService');
+const db = require('../db');   // ❗ ไฟล์นี้เดิม require ซ้อนในแต่ละ handler — ตัวนี้ใช้ร่วม
+
+// GET /api/employee/:id/offboard-preview — ดูว่าจะยกเลิกอะไรบ้าง (ยังไม่ทำ)
+router.get('/:id/offboard-preview', requireAuth, async (req, res) => {
+  try {
+    res.json(await offboard.preview(parseInt(req.params.id)));
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// POST /api/employee/:id/resign — ให้ออก + ยกเลิกงานค้าง
+router.post('/:id/resign', requireAuth, async (req, res) => {
+  try {
+    const actor = req.admin.display_name || req.admin.username;
+    const r = await offboard.resign(parseInt(req.params.id), {
+      resign_date: req.body?.resign_date || null,
+      reason:      req.body?.reason || null,
+      actor,
+    });
+    audit.log({
+      actorName: actor, actorRole: req.admin.role,
+      action: 'resign_employee', targetType: 'employee', targetId: r.employee.id,
+      description: `ให้ออก: ${r.employee.name} (${r.employee.employee_code}) — ` +
+        `ยกเลิกใบลา ${r.cancelled.leave} · OT ${r.cancelled.ot} · เบิกเงิน ${r.cancelled.expense}`,
+      meta: { employee_code: r.employee.employee_code, cancelled: r.cancelled },
+    });
+    res.json({
+      success: true,
+      cancelled: r.cancelled,
+      message: `${r.employee.name} ออกแล้ว — รหัส ${r.employee.employee_code} ใช้กับคนใหม่ได้แล้ว`,
+    });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// POST /api/employee/:id/rehire — รับกลับเข้าทำงาน
+router.post('/:id/rehire', requireAuth, async (req, res) => {
+  try {
+    const actor = req.admin.display_name || req.admin.username;
+    const r = await offboard.rehire(parseInt(req.params.id), actor);
+    audit.log({
+      actorName: actor, actorRole: req.admin.role,
+      action: 'rehire_employee', targetType: 'employee', targetId: r.employee.id,
+      description: `รับกลับเข้าทำงาน: ${r.employee.name} (${r.employee.employee_code})`,
+      meta: { employee_code: r.employee.employee_code },
+    });
+    res.json({ success: true, message: `รับ ${r.employee.name} กลับแล้ว — ${r.note}` });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
 // PUT /api/employee/:id — แก้ไขข้อมูลพนักงาน
 router.put('/:id', requireAuth, async (req, res) => {
   try {
@@ -219,6 +277,32 @@ router.put('/:id', requireAuth, async (req, res) => {
     const VALID_PROB = ['on_probation', 'passed', 'failed', 'extended'];
     if (probation_status && !VALID_PROB.includes(probation_status)) {
       return res.status(400).json({ error: 'probation_status ไม่ถูกต้อง' });
+    }
+
+    // ❗ เปลี่ยนสถานะเป็น "ออก" ผ่านหน้าแก้ไข ต้องวิ่งผ่านขั้นตอนลาออกเต็มรูปแบบ
+    //   ไม่งั้นจะได้คนที่ "ออกแล้ว" แต่ LINE ยังผูกอยู่และใบลายังค้างในคิว
+    //   ซึ่งเป็นสถานะที่ไม่มีใครตั้งใจให้เกิด แต่เกิดได้ง่ายมากถ้าไม่ดักตรงนี้
+    const cur = await db.query('SELECT is_active FROM employees WHERE id=$1', [req.params.id]);
+    if (!cur.rows[0]) return res.status(404).json({ error: 'ไม่พบพนักงานคนนี้' });
+
+    if (is_active === false && cur.rows[0].is_active === true) {
+      const actor = req.admin.display_name || req.admin.username;
+      const r = await offboard.resign(parseInt(req.params.id), { actor });
+      audit.log({
+        actorName: actor, actorRole: req.admin.role,
+        action: 'resign_employee', targetType: 'employee', targetId: r.employee.id,
+        description: `ให้ออก (ผ่านหน้าแก้ไข): ${r.employee.name} (${r.employee.employee_code})`,
+        meta: { employee_code: r.employee.employee_code, cancelled: r.cancelled },
+      });
+      return res.json({
+        success: true, cancelled: r.cancelled,
+        message: `${r.employee.name} ออกแล้ว — รหัส ${r.employee.employee_code} ใช้กับคนใหม่ได้แล้ว`,
+      });
+    }
+    if (is_active === true && cur.rows[0].is_active === false) {
+      const actor = req.admin.display_name || req.admin.username;
+      const r = await offboard.rehire(parseInt(req.params.id), actor);
+      return res.json({ success: true, message: `รับ ${r.employee.name} กลับแล้ว — ${r.note}` });
     }
     const emp = await employeeService.updateEmployee(req.params.id, {
       name, sex, phone_no, email, department_id, role, manager_id,

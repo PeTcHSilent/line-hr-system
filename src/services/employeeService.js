@@ -295,6 +295,16 @@ async function searchEmployees({ keyword, departmentId, role, branchId, includeI
  * เพิ่มพนักงานใหม่
  */
 async function createEmployee({ employeeCode, name, sex, phoneNo, email, departmentId, role, managerId, branchId, hireDate }) {
+  // ❗ ตรวจรหัสซ้ำเองก่อน เพื่อให้ได้ข้อความที่คนอ่านรู้เรื่อง
+  //   ปล่อยให้ชนที่ฐานข้อมูลจะได้ข้อความแบบ
+  //   'duplicate key value violates unique constraint "uq_employees_code_active"'
+  //   ซึ่งไม่บอกเลยว่ารหัสนี้เป็นของใคร และควรทำยังไงต่อ
+  const dup = await db.query(
+    `SELECT name FROM employees WHERE UPPER(employee_code)=UPPER($1) AND is_active=TRUE`,
+    [employeeCode]);
+  if (dup.rowCount)
+    throw new Error(`รหัส ${employeeCode} ใช้อยู่แล้วโดย ${dup.rows[0].name} — เลือกรหัสอื่น`);
+
   const result = await db.query(
     `INSERT INTO employees
        (employee_code, name, sex, phone_no, email, department_id, role, manager_id, branch_id, hire_date)

@@ -2071,9 +2071,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
           <button class="btn btn-primary btn-sm" onclick="showAddAdminUserModal()">➕ เพิ่ม Admin</button>
         </div>
         <p style="font-size:12px;color:#64748b;margin:0 0 12px;">LINE User IDs เหล่านี้จะได้รับแจ้งเตือนจากระบบ (ลา, OT, เบิกค่าใช้จ่าย, ทดลองงาน)</p>
+
+        <!-- ❗ กล่องตรวจระบบ — ตอบคำถาม "กดลา/OT แล้วไม่มีแจ้งเตือน" ได้เองโดยไม่ต้องไล่ log -->
+        <div id="notify-diag" style="margin-bottom:14px"></div>
+        <button class="btn btn-secondary btn-sm" onclick="runNotifyDiag()" style="margin-bottom:14px">
+          🩺 ตรวจระบบแจ้งเตือน
+        </button>
+
         <div class="tbl-wrap">
           <table>
-            <thead><tr><th>#</th><th>LINE User ID</th><th>ชื่อ</th><th>หมายเหตุ</th><th>เพิ่มเมื่อ</th><th>จัดการ</th></tr></thead>
+            <thead><tr><th>#</th><th>LINE User ID</th><th>ชื่อ</th><th>สถานะรับแจ้งเตือน</th><th>หมายเหตุ</th><th>จัดการ</th></tr></thead>
             <tbody id="admin-users-tbody"><tr><td colspan="6" class="no-data">กำลังโหลด...</td></tr></tbody>
           </table>
         </div>
@@ -3591,16 +3598,66 @@ async function saveEmployee() {
     if (statusEl) body.is_active = statusEl.value === 'active';
   }
 
+  // ❗ เปลี่ยนเป็น "ออก" ไม่ใช่การแก้ฟิลด์ธรรมดา — ต้องให้เห็นก่อนว่าจะยกเลิกอะไร
+  //   เพราะมันไปยกเลิกใบลา/OT/เบิกเงินที่ยังรออนุมัติ และปลด LINE ด้วย
+  if (editingId && body.is_active === false) {
+    const okToResign = await confirmResign(editingId);
+    if (!okToResign) return;
+  }
+
   try {
     const url = editingId ? `${API}/api/employee/${editingId}` : `${API}/api/employee/`;
     const method = editingId ? 'PUT' : 'POST';
     const res = await apiFetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
-    toast(editingId ? 'แก้ไขข้อมูลเรียบร้อย' : 'เพิ่มพนักงานสำเร็จ');
+    // ฝั่งเซิร์ฟเวอร์ส่งข้อความเฉพาะกรณีลาออก/รับกลับมาให้ ใช้ของมันถ้ามี
+    toast(data.message || (editingId ? 'แก้ไขข้อมูลเรียบร้อย' : 'เพิ่มพนักงานสำเร็จ'));
     closeModal('emp-modal');
     loadEmployees();
   } catch (err) { toast(err.message, 'error'); }
+}
+
+/**
+ * ยืนยันการให้ออก — แสดงให้เห็นก่อนว่าจะยกเลิกอะไรบ้าง
+ *
+ * ❗ ไม่ใช้ confirm() เปล่า ๆ ที่ถามว่า "แน่ใจไหม"
+ *   เพราะคนกด OK โดยไม่รู้ว่ามีใบลารออนุมัติ 3 ใบกำลังจะถูกยกเลิก
+ *   การบอกตัวเลขจริงคือสิ่งที่ทำให้คำถามนั้นมีความหมาย
+ */
+async function confirmResign(empId) {
+  let p = null;
+  try {
+    const res = await apiFetch(`${API}/api/employee/${empId}/offboard-preview`);
+    if (res.ok) p = await res.json();
+  } catch { /* ดูไม่ได้ก็ยังถามต่อได้ แค่ไม่มีรายละเอียด */ }
+
+  const lines = ['เปลี่ยนสถานะเป็น "ออก"', ''];
+
+  if (p) {
+    lines.push(`พนักงาน: ${p.employee.name} (${p.employee.employee_code})`, '');
+    lines.push('ระบบจะยกเลิกให้อัตโนมัติ:');
+
+    const items = [];
+    if (p.pending_leave)   items.push(`  • ใบลาที่รออนุมัติ ${p.pending_leave} ใบ`);
+    if (p.pending_ot)      items.push(`  • OT ที่รออนุมัติ ${p.pending_ot} รายการ`);
+    if (p.pending_expense) items.push(`  • เบิกค่าใช้จ่ายที่รออนุมัติ ${p.pending_expense} รายการ`);
+    if (p.has_line)        items.push('  • ปลดการผูก LINE (เช็คอิน/ยื่นลาไม่ได้อีก)');
+    if (p.in_admin_line)   items.push('  • ถอดออกจากรายชื่อ Admin LINE');
+    lines.push(items.length ? items.join('\n') : '  • ไม่มีงานค้าง');
+
+    lines.push('', `รหัส ${p.employee.employee_code} จะใช้กับคนใหม่ได้ทันที`);
+
+    // ❗ เตือนเรื่องลูกน้อง — ถ้าไม่บอก จะมีคนยื่นลาแล้วไม่มีใครอนุมัติ
+    if (p.is_manager_of)
+      lines.push('', `⚠️ คนนี้เป็นหัวหน้าของพนักงาน ${p.is_manager_of} คน`,
+                 '   อย่าลืมย้ายลูกน้องไปอยู่ใต้หัวหน้าคนใหม่');
+
+    lines.push('', 'ประวัติเงินเดือน/การลา/เข้าออก ยังเก็บไว้ทั้งหมด ไม่ถูกลบ');
+  }
+
+  lines.push('', 'ยืนยันหรือไม่?');
+  return confirm(lines.join('\n'));
 }
 
 async function confirmDelete(id, name) {
@@ -7558,7 +7615,9 @@ async function quickApproveOT(id) {
 // ══════════════════════════════════════════════════════════════════
 // ADMIN LINE USERS
 // ══════════════════════════════════════════════════════════════════
-async function initAdminUsers() { loadAdminUsers(); }
+// ❗ ตรวจให้อัตโนมัติตอนเปิดหน้า — ไม่ต้องรอให้คนสงสัยก่อนแล้วค่อยกด
+//    ปัญหา "ไม่มีแจ้งเตือน" มักถูกค้นพบช้าหลายวันเพราะไม่มีใครรู้ว่ามันพัง
+async function initAdminUsers() { await loadAdminUsers(); runNotifyDiag(); }
 
 async function loadAdminUsers() {
   const tbody = document.getElementById('admin-users-tbody');
@@ -7573,14 +7632,70 @@ async function loadAdminUsers() {
       <td>${i+1}</td>
       <td style="font-family:monospace;font-size:12px;">${u.line_user_id}</td>
       <td>${u.name || '—'}</td>
+      <td id="au-st-${u.id}" style="font-size:12px;color:#94a3b8;">ยังไม่ได้ตรวจ</td>
       <td style="font-size:12px;color:#64748b;">${u.note || '—'}</td>
-      <td style="font-size:12px;">${u.created_at ? new Date(u.created_at).toLocaleDateString('th-TH') : '—'}</td>
-      <td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secondary btn-xs" onclick="testAdminPush(${u.id})" title="ส่งข้อความทดสอบ">📨</button>
         <button class="btn btn-secondary btn-xs" onclick="editAdminUser(${u.id},'${(u.name||'').replace(/'/g,"\\'")}','${(u.note||'').replace(/'/g,"\\'")}')">✏️</button>
         <button class="btn btn-danger btn-xs" onclick="deleteAdminUser(${u.id})">🗑️</button>
       </td>
     </tr>`).join('');
   } catch(err) { toast('❌ ' + err.message, 'error'); tbody.innerHTML = '<tr><td colspan="6" class="no-data">เกิดข้อผิดพลาด</td></tr>'; }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ตรวจระบบแจ้งเตือน
+// ══════════════════════════════════════════════════════════════
+async function runNotifyDiag() {
+  const box = document.getElementById('notify-diag');
+  box.innerHTML = '<div style="padding:12px;color:#64748b;font-size:13px">⏳ กำลังตรวจ...</div>';
+  try {
+    const res = await apiFetch(`${API}/api/admin-users/diagnose`);
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || 'HTTP ' + res.status);
+
+    const tone = d.ok ? { bg:'#f0fdf4', bd:'#bbf7d0', fg:'#166534', icon:'✅' }
+                      : { bg:'#fef2f2', bd:'#fecaca', fg:'#991b1b', icon:'❌' };
+
+    box.innerHTML = `
+      <div style="background:${tone.bg};border:1px solid ${tone.bd};border-radius:10px;padding:14px 16px">
+        <div style="font-weight:700;color:${tone.fg};font-size:14px">${tone.icon} ${d.verdict}</div>
+        ${d.fix ? `<div style="margin-top:7px;font-size:13px;color:${tone.fg};line-height:1.65">
+                     <b>วิธีแก้:</b> ${d.fix}</div>` : ''}
+        <div style="margin-top:10px;font-size:12px;color:#475569;line-height:1.8">
+          <b>LINE OA ที่ระบบใช้ส่ง:</b>
+          ${d.token.ok ? `${d.token.oa_name || '-'} (${d.token.basic_id || '-'})`
+                       : `<span style="color:#dc2626">${d.token.error}</span>`}<br>
+          <b>รายชื่อ Admin LINE:</b> ${d.summary.total} คน ·
+          ส่งถึงได้ ${d.summary.reachable} · ส่งไม่ถึง ${d.summary.unreachable}<br>
+          <b>หัวหน้าที่ผูก LINE ไว้:</b> ${d.managers_with_line} คน
+          <span style="color:#94a3b8">(ช่องทางสำรองเมื่อไม่มี Admin LINE)</span>
+        </div>
+      </div>`;
+
+    // เติมสถานะรายคนลงในตาราง
+    (d.admins || []).forEach(a => {
+      const el = document.getElementById('au-st-' + a.id);
+      if (!el) return;
+      el.innerHTML = a.ok
+        ? `<span style="color:#16a34a;font-weight:600">✅ ส่งถึงได้</span>`
+        : `<span style="color:#dc2626;font-weight:600">❌ ส่งไม่ถึง</span>
+           <div style="color:#94a3b8;font-size:11px;line-height:1.5;margin-top:2px">${a.reason || ''}</div>`;
+    });
+  } catch (err) {
+    box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;
+      padding:12px;color:#991b1b;font-size:13px">❌ ตรวจไม่สำเร็จ: ${err.message}</div>`;
+  }
+}
+
+async function testAdminPush(id) {
+  if (!confirm('ส่งข้อความทดสอบไปหาคนนี้ทาง LINE?')) return;
+  try {
+    const res = await apiFetch(`${API}/api/admin-users/${id}/test`, { method:'POST' });
+    const d = await res.json();
+    if (res.ok) toast('✅ ' + (d.message || 'ส่งแล้ว'));
+    else toast('❌ ' + (d.error || 'ส่งไม่สำเร็จ'), 'error');
+  } catch (err) { toast('❌ ' + err.message, 'error'); }
 }
 
 function showAddAdminUserModal() {
