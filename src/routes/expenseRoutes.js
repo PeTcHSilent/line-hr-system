@@ -3,6 +3,7 @@ const router  = express.Router();
 const db      = require('../db');
 const employeeService = require('../services/employeeService');
 const line    = require('@line/bot-sdk');
+const { todayTH } = require('../utils/thaiDate');
 const audit   = require('../services/auditService');
 const { requireAuth } = require('../middleware/authMiddleware');
 const { resolveLineUser } = require('../services/lineVerifyService');
@@ -77,7 +78,7 @@ router.post('/', resolveLineUser, async (req, res) => {
       `INSERT INTO expense_claims
          (employee_id, claim_date, category, amount, description, receipt_url, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [emp.id, claim_date || new Date().toISOString().slice(0, 10),
+      [emp.id, claim_date || todayTH(),
        category || 'other', parseFloat(amount), description.trim(), receipt_url || null, initialStatus]
     );
     const claim = rows[0];
