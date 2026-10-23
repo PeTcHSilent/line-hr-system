@@ -39,6 +39,11 @@ router.get('/diagnose', requireAuth, async (req, res) => {
     const push = require('../services/pushService');
 
     const bot = await push.botInfo();
+    // ❗ โควตาต้องเช็คด้วย ไม่ใช่เช็คแค่ว่า "ส่งถึงใครได้"
+    //   เพราะ getProfile ยังสำเร็จปกติแม้โควตาหมด → ถ้าไม่ถามตรงนี้
+    //   หน้าตรวจระบบจะขึ้น "พร้อมใช้งาน" ทั้งที่ push ส่งไม่ออกแล้ว
+    const quota = bot.ok ? await push.quota() : { ok: false, error: 'ตรวจไม่ได้ เพราะ token ใช้ไม่ได้' };
+
     const { rows: admins } = await db.query(
       'SELECT id, line_user_id, name FROM admin_line_users ORDER BY created_at');
 
@@ -63,6 +68,12 @@ router.get('/diagnose', requireAuth, async (req, res) => {
     if (!bot.ok) {
       verdict = 'ส่งแจ้งเตือนไม่ได้เลย — ปัญหาอยู่ที่ LINE Token';
       fix = bot.error;
+    } else if (quota.ok && quota.exhausted) {
+      // ❗ ต้องอยู่ก่อนเงื่อนไขอื่น เพราะโควตาหมดแล้วทุกอย่างอื่น "ดูปกติ"
+      verdict = `ส่งแจ้งเตือนไม่ได้ — โควตาข้อความเดือนนี้หมดแล้ว (ใช้ไป ${quota.used} จาก ${quota.limit})`;
+      fix = 'รอรอบเดือนใหม่ หรืออัปเกรดแพ็กเกจ LINE OA ใน LINE Official Account Manager → ' +
+            'ข้อสังเกต: บอทยัง "ตอบ" ข้อความที่มีคนพิมพ์มาได้ปกติ เพราะข้อความตอบกลับไม่นับโควตา ' +
+            'แต่การแจ้งเตือนที่ระบบส่งเอง (ลา/OT/เบิก) นับโควตาทั้งหมด';
     } else if (!admins.length) {
       verdict = 'ส่งแจ้งเตือนไม่ได้เลย — ยังไม่มีรายชื่อ Admin LINE';
       fix = 'ไปที่หน้า "Admin LINE" แล้วเพิ่ม LINE User ID ของคนที่ต้องรับแจ้งเตือน ' +
@@ -76,11 +87,15 @@ router.get('/diagnose', requireAuth, async (req, res) => {
       fix = 'ดูรายชื่อด้านล่างว่าคนไหนติดปัญหา แล้วให้คนนั้นแอด OA เป็นเพื่อนหรือผูกบัญชีใหม่';
     } else {
       verdict = `พร้อมใช้งาน — ส่งถึงได้ครบทั้ง ${admins.length} คน`;
+      if (quota.ok && quota.low) {
+        fix = `⚠️ โควตาเดือนนี้เหลือ ${quota.remaining} จาก ${quota.limit} ข้อความ — ` +
+              'ใกล้หมดแล้ว ถ้าหมดจะเงียบทันทีโดยไม่มี error ให้เห็น';
+      }
     }
 
     res.json({
-      ok: bot.ok && reachable > 0,
-      verdict, fix,
+      ok: bot.ok && reachable > 0 && !(quota.ok && quota.exhausted),
+      verdict, fix, quota,
       token: bot.ok
         ? { ok: true, oa_name: bot.display_name, basic_id: bot.basic_id }
         : { ok: false, error: bot.error },

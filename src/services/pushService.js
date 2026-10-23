@@ -135,6 +135,56 @@ async function botInfo() {
 }
 
 /**
+ * โควตาข้อความของเดือนนี้ — เหลือเท่าไหร่
+ *
+ * ❗ ทำไมต้องมี: "ส่งแจ้งเตือนไม่ออก" กับ "โควตาหมด" แยกกันไม่ออกถ้าไม่ถาม LINE
+ *   และเป็นสาเหตุที่คนมักนึกไม่ถึงเพราะบอทยัง "ตอบ" ในแชทได้ปกติ
+ *
+ * ❗ ความต่างที่ทำให้สับสนมากที่สุด:
+ *   · Reply message (บอทตอบกลับข้อความที่ลูกค้าพิมพ์มา) — ฟรี ไม่จำกัด ไม่นับโควตา
+ *   · Push message  (ระบบส่งหาเองโดยไม่มีใครทัก เช่นแจ้งเตือน OT/ลา) — นับโควตา
+ *   โควตาหมดจึงเห็นอาการว่า "พิมพ์คุยกับบอทได้ แต่แจ้งเตือนไม่เข้า"
+ *   ซึ่งดูเหมือนระบบพังทั้งที่ LINE แค่ไม่ให้ส่ง push แล้ว
+ */
+async function quota() {
+  if (!TOKEN()) return { ok: false, error: 'ยังไม่ได้ตั้ง LINE_CHANNEL_ACCESS_TOKEN' };
+  try {
+    const h = { Authorization: 'Bearer ' + TOKEN() };
+    const [qRes, cRes] = await Promise.all([
+      fetch('https://api.line.me/v2/bot/message/quota', { headers: h }),
+      fetch('https://api.line.me/v2/bot/message/quota/consumption', { headers: h }),
+    ]);
+
+    if (!qRes.ok) {
+      const d = await qRes.json().catch(() => ({}));
+      return { ok: false, error: `อ่านโควตาไม่ได้ (${qRes.status}) ${d.message || ''}`.trim() };
+    }
+
+    const q = await qRes.json();
+    const c = cRes.ok ? await cRes.json().catch(() => ({})) : {};
+    const used = Number(c.totalUsage ?? 0);
+
+    // type:'none' = แพ็กเกจไม่จำกัดจำนวน — ไม่ต้องห่วงเรื่องโควตา
+    if (q.type === 'none') {
+      return { ok: true, unlimited: true, used, limit: null, remaining: null };
+    }
+
+    const limit = Number(q.value ?? 0);
+    const remaining = Math.max(0, limit - used);
+    return {
+      ok: true,
+      unlimited: false,
+      used, limit, remaining,
+      exhausted: remaining <= 0,
+      // ❗ เตือนล่วงหน้า ไม่ใช่รอจนหมดแล้วค่อยรู้ตอนแจ้งเตือนไม่เข้า
+      low: limit > 0 && remaining / limit <= 0.1,
+    };
+  } catch (e) {
+    return { ok: false, error: 'ติดต่อ LINE API ไม่ได้: ' + e.message };
+  }
+}
+
+/**
  * ตรวจว่า User ID นี้ "รับข้อความจาก OA ตัวนี้ได้จริงไหม" โดยไม่ต้องส่งข้อความรบกวน
  *
  * ❗ ใช้ getProfile แทนการยิงข้อความทดสอบ
@@ -159,4 +209,4 @@ async function canReceive(lineUserId) {
   }
 }
 
-module.exports = { pushTo, botInfo, canReceive, explain, client };
+module.exports = { pushTo, botInfo, quota, canReceive, explain, client };
