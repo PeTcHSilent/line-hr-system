@@ -3,6 +3,7 @@
 // ══════════════════════════════════════════════════════
 const express = require('express');
 const router  = express.Router();
+const { todayTH } = require('../utils/thaiDate');
 const db      = require('../db');
 const { requireAuth } = require('../middleware/authMiddleware');
 
@@ -112,7 +113,7 @@ router.post('/assign', requireAuth, async (req, res) => {
        ON CONFLICT (employee_id, effective_date)
        DO UPDATE SET shift_id=$2, end_date=$4, day_of_week=$5
        RETURNING *`,
-      [employee_id, shift_id, effective_date || new Date().toISOString().slice(0,10),
+      [employee_id, shift_id, effective_date || todayTH(),
        end_date || null, day_of_week || null]
     );
     res.status(201).json(rows[0]);
@@ -133,7 +134,7 @@ router.delete('/assignments/:id', requireAuth, async (req, res) => {
 router.get('/employee/:id/current', requireAuth, async (req, res) => {
   try {
     await ensureTables();
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayTH();
     const { rows } = await db.query(
       `SELECT es.*, s.name AS shift_name, s.start_time, s.end_time, s.break_minutes
        FROM employee_shifts es

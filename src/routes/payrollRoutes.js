@@ -3,6 +3,7 @@ const router  = express.Router();
 const db             = require('../db');
 const payrollService    = require('../services/payrollService');
 const lateAbsentService = require('../services/lateAbsentService');
+const { todayTH } = require('../utils/thaiDate');
 const employeeService   = require('../services/employeeService');
 const audit             = require('../services/auditService');
 const { requireAuth }   = require('../middleware/authMiddleware');
@@ -165,7 +166,7 @@ router.get('/warnings', requireAuth, async (req, res) => {
 // POST /api/payroll/check-late-absent  — trigger manual check (admin)
 router.post('/check-late-absent', requireAuth, async (req, res) => {
   try {
-    const date = req.body.date || new Date().toISOString().split('T')[0];
+    const date = req.body.date || todayTH();
     const result = await lateAbsentService.checkLateAbsent(date);
     res.json({ success: true, date, result });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -337,7 +338,7 @@ router.get('/bank-transfer', requireAuth, async (req, res) => {
     const companyName  = compConf['company_name']         || 'COMPANY';
     const companyAcct  = compConf['company_bank_account'] || '0000000000';
     const periodStr    = `${year}${String(month).padStart(2,'0')}`;
-    const today        = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const today        = todayTH().replace(/-/g, '');
     const fmt2         = (n) => parseFloat(n || 0).toFixed(2);
 
     let content = '';

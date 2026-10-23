@@ -3,6 +3,7 @@
 // ══════════════════════════════════════════════════════
 const express = require('express');
 const router  = express.Router();
+const { todayTH } = require('../utils/thaiDate');
 const db      = require('../db');
 const { requireAuth } = require('../middleware/authMiddleware');
 
@@ -58,7 +59,7 @@ router.post('/', requireAuth, async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [
         employee_id,
-        eval_date || new Date().toISOString().slice(0, 10),
+        eval_date || todayTH(),
         eval_score || null,
         eval_result,
         eval_note?.trim() || null,
