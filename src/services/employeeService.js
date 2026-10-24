@@ -142,8 +142,13 @@ async function getLeaveBalance(employeeId, sex) {
   const result = await db.query(
     `SELECT lt.id, lt.name, lt.max_days, lt.gender_restriction,
             COALESCE(lt.allowed_during_probation, TRUE) AS allowed_during_probation,
-            COALESCE(SUM(lr.total_days) FILTER (WHERE lr.status = 'approved'), 0)::int AS used_days,
-            COALESCE(SUM(lr.total_days) FILTER (WHERE lr.status = 'pending'),  0)::int AS pending_days
+            -- ❗ ห้ามใช้ ::int เด็ดขาด
+            --   total_days เป็น NUMERIC(5,1) เพราะรองรับลาครึ่งวัน
+            --   ::int ของ Postgres "ปัดขึ้น" ที่ .5 → ลาจริง 3.5 วันกลายเป็น 4
+            --   ทำให้พนักงานถูกตัดสิทธิ์เกินจริงครึ่งวัน และยอดคงเหลือติดลบ
+            --   ทั้งที่ยังไม่ได้ใช้เกิน (เคสจริง: ลากิจ 3.5/3 → แสดง 4/3 = -1)
+            COALESCE(SUM(lr.total_days) FILTER (WHERE lr.status = 'approved'), 0)::numeric(6,1) AS used_days,
+            COALESCE(SUM(lr.total_days) FILTER (WHERE lr.status = 'pending'),  0)::numeric(6,1) AS pending_days
      FROM leave_types lt
      LEFT JOIN leave_requests lr
        ON lr.leave_type_id = lt.id

@@ -4379,7 +4379,13 @@ function filterLeaveRecords() {
   document.getElementById('lr-pending').textContent  = data.filter(r => r.status === 'pending').length;
   document.getElementById('lr-approved').textContent = data.filter(r => r.status === 'approved').length;
   document.getElementById('lr-rejected').textContent = data.filter(r => r.status === 'rejected').length;
-  document.getElementById('lr-days').textContent     = data.filter(r => r.status === 'approved').reduce((s,r) => s + parseFloat(r.total_days||0), 0);
+  // ❗ ใช้ days_in_period ไม่ใช่ total_days
+  //   total_days คือทั้งใบ — ใบลาคร่อมเดือนจะทำให้ยอดของเดือนที่เลือกเกินจริง
+  //   (ฝั่ง server คำนวณเฉพาะวันที่ตกในเดือนนั้นมาให้แล้ว)
+  const sumDays = data.filter(r => r.status === 'approved')
+    .reduce((s, r) => s + parseFloat(r.days_in_period ?? r.total_days ?? 0), 0);
+  document.getElementById('lr-days').textContent =
+    Number.isInteger(sumDays) ? sumDays : sumDays.toFixed(1);
 
   const tbody = document.getElementById('lr-tbody');
   if (!data.length) { tbody.innerHTML = '<tr><td colspan="10" class="no-data">ไม่พบข้อมูล</td></tr>'; return; }
@@ -4407,7 +4413,17 @@ function filterLeaveRecords() {
           ? `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#fff7ed;color:#F47920;border:1px solid #fed7aa;">
                ${r.half_day_period === 'morning' ? '🌅 เช้า' : '🌇 บ่าย'}&nbsp;½
              </span>`
-          : r.total_days
+          : (() => {
+              // ❗ ใบลาคร่อมเดือน: บอกให้ชัดว่าเดือนที่เลือกนับกี่วัน จากทั้งใบกี่วัน
+              //   ไม่งั้นยอดรวมด้านบนกับตัวเลขในตารางจะไม่ตรงกัน แล้วคนจะงง
+              //   ว่าตัวไหนถูก (เคสจริงที่ทำให้ตัวเลขรายเดือนดูผิด)
+              const tot = parseFloat(r.total_days || 0);
+              const inp = parseFloat(r.days_in_period ?? tot);
+              const f = n => Number.isInteger(n) ? n : n.toFixed(1);
+              return inp !== tot
+                ? `${f(inp)} <span style="font-weight:400;color:#9ca3af;font-size:11px;">(ทั้งใบ ${f(tot)})</span>`
+                : f(tot);
+            })()
         }
       </td>
       <td><span class="leave-status-badge ls-${r.status}">${statusMap[r.status]||r.status}</span></td>
@@ -4473,17 +4489,20 @@ async function loadLeaveBalance() {
     const bal = data.balance || [];
     if (!bal.length) { resultDiv.innerHTML = '<span style="color:#6b7280;font-size:13px;">ไม่พบข้อมูลประเภทการลา</span>'; return; }
     const clr = used => used <= 0 ? '#15803d' : '#1d4ed8';
+    // ❗ แสดงเศษครึ่งวันเฉพาะเมื่อมีจริง (3 ไม่ใช่ 3.0 แต่ 3.5 ต้องเห็น .5)
+    const d = n => Number.isInteger(n) ? String(n) : n.toFixed(1);
     resultDiv.innerHTML = `<div style="font-size:12px;color:#6b7280;margin-bottom:4px;width:100%;">
         อายุงาน ${bal[0]?.seniority_years ?? '?'} ปี — <strong>${sel.options[sel.selectedIndex].text}</strong>
       </div>` +
+      // ❗ parseFloat ไม่ใช่ parseInt — ลาครึ่งวันต้องไม่ถูกตัดทิ้ง
       bal.map(b => {
-        const quota = b.effective_quota ?? b.max_days;
-        const used  = parseInt(b.used_days);
+        const quota = parseFloat(b.effective_quota ?? b.max_days);
+        const used  = parseFloat(b.used_days) || 0;
         const rem   = quota - used;
         return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px 14px;min-width:130px;text-align:center;">
-          <div style="font-size:18px;font-weight:700;color:${rem<=0?'#dc2626':rem<=2?'#d97706':clr(used)};">${rem}</div>
+          <div style="font-size:18px;font-weight:700;color:${rem<=0?'#dc2626':rem<=2?'#d97706':clr(used)};">${d(rem)}</div>
           <div style="font-size:11px;color:#374151;font-weight:600;">${b.name}</div>
-          <div style="font-size:11px;color:#9ca3af;">ใช้ ${used}/${quota} วัน</div>
+          <div style="font-size:11px;color:#9ca3af;">ใช้ ${d(used)}/${d(quota)} วัน</div>
         </div>`;
       }).join('');
   } catch(err) { resultDiv.innerHTML = `<span style="color:#ef4444;font-size:13px;">❌ ${err.message}</span>`; }

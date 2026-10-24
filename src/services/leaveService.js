@@ -299,8 +299,33 @@ async function getAllLeaveHistory({ year, month, departmentId, status, employeeI
   const values = [];
   let idx = 1;
 
-  if (year)         { conditions.push(`EXTRACT(YEAR FROM lr.start_date) = $${idx++}`);  values.push(year); }
-  if (month)        { conditions.push(`EXTRACT(MONTH FROM lr.start_date) = $${idx++}`); values.push(month); }
+  // ❗ กรองแบบ "ช่วงวันลาทับกับช่วงที่เลือก" ไม่ใช่ดูแค่ start_date
+  //
+  //   เดิมใช้ EXTRACT(MONTH FROM start_date) = เดือนที่เลือก
+  //   ใบลา 30 ก.ย. – 2 ต.ค. จะโผล่แต่ในกันยายน ตุลาคมไม่เห็นเลยสักใบ
+  //   ทั้งที่พนักงานหยุดจริงในตุลาคม 2 วัน
+  //
+  //   ผลเสียที่ตามมา: รายงานรายเดือนของ HR ขาดใบลาที่คร่อมเดือนทุกใบ
+  //   และตัวเลข "วันที่อนุมัติ" ของเดือนนั้นต่ำกว่าความจริง
+  //   ซึ่งเอาไปใช้คิดเงินเดือน/หักเงินต่อได้เลย
+  let monthStart = null;
+  if (year && month) {
+    monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+    const si = idx++, ei = idx++;
+    conditions.push(
+      `lr.start_date <= ($${si}::date + INTERVAL '1 month - 1 day')::date
+       AND lr.end_date >= $${ei}::date`);
+    values.push(monthStart, monthStart);
+  } else if (year) {
+    // ทั้งปี — ใบที่คร่อมปีใหม่ก็ต้องเห็นในทั้งสองปี
+    const si = idx++, ei = idx++;
+    conditions.push(
+      `lr.start_date <= make_date($${si}::int, 12, 31)
+       AND lr.end_date >= make_date($${ei}::int, 1, 1)`);
+    values.push(year, year);
+  } else if (month) {
+    conditions.push(`EXTRACT(MONTH FROM lr.start_date) = $${idx++}`); values.push(month);
+  }
   if (status)       { conditions.push(`lr.status = $${idx++}`);                          values.push(status); }
   if (employeeId)   { conditions.push(`lr.employee_id = $${idx++}`);                    values.push(employeeId); }
   if (departmentId) { conditions.push(`e.department_id = $${idx++}`);                   values.push(departmentId); }
@@ -308,8 +333,26 @@ async function getAllLeaveHistory({ year, month, departmentId, status, employeeI
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
+  // ❗ จำนวนวันที่ตกอยู่ใน "เดือนที่เลือก" จริง ๆ
+  //   total_days คือทั้งใบ — ใบลา 30 ก.ย. – 2 ต.ค. มี total_days = 3
+  //   แต่ตุลาคมหยุดจริงแค่ 2 วัน ถ้าเอา total_days ไปรวมเป็นยอดรายเดือน
+  //   ตุลาคมจะโดนนับ 3 วัน ซึ่งเกินจริง 1 วัน และเอาไปหักเงินต่อได้
+  //
+  //   สูตร: นับวันที่ทับกันระหว่างช่วงใบลากับช่วงเดือน แล้วเทียบสัดส่วน
+  //   กับความยาวใบลาทั้งหมด เพื่อให้ลาครึ่งวันยังคงเป็นครึ่งวัน
+  const daysInMonth = monthStart
+    ? `ROUND(
+         lr.total_days
+         * ( (LEAST(lr.end_date, ($${idx}::date + INTERVAL '1 month - 1 day')::date)
+              - GREATEST(lr.start_date, $${idx}::date) + 1)::numeric
+             / NULLIF(lr.end_date - lr.start_date + 1, 0) )
+       , 1)`
+    : 'lr.total_days';
+  if (monthStart) values.push(monthStart);
+
   const result = await db.query(
     `SELECT lr.id, lr.status, lr.start_date, lr.end_date, lr.total_days,
+            ${daysInMonth} AS days_in_period,
             lr.is_half_day, lr.half_day_period,
             lr.reason, lr.reject_reason, lr.approved_at, lr.created_at,
             lt.name AS leave_type_name,
