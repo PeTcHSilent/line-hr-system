@@ -108,7 +108,12 @@ router.get('/:id/balance', requireAuth, async (req, res) => {
   try {
     const emp = await employeeService.getById(parseInt(req.params.id));
     if (!emp) return res.status(404).json({ error: 'ไม่พบพนักงาน' });
-    const balance = await employeeService.getLeaveBalance(emp.id, emp.sex);
+    // ❗ รับปี/เดือนจากตัวกรองหน้าจอ — เดิมใช้ปีปัจจุบันตายตัว
+    //   เลือกปีย้อนหลังแล้วการ์ดยังโชว์ยอดปีปัจจุบัน โดยไม่มีอะไรบอก
+    const balance = await employeeService.getLeaveBalance(emp.id, emp.sex, {
+      year:  req.query.year,
+      month: req.query.month,
+    });
     res.json({ employee_name: emp.name, employee_code: emp.employee_code, balance });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

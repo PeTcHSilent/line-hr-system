@@ -115,8 +115,39 @@ async function adminSetLineId(employeeId, lineUserId) {
  * ดึงวันลาคงเหลือของพนักงาน (กรองตามเพศด้วย)
  * sex: 'M' หรือ 'W'
  */
-async function getLeaveBalance(employeeId, sex) {
-  const year = new Date().getFullYear();
+/**
+ * ยอดวันลาคงเหลือ
+ *
+ * ❗ สิทธิ์ลาทุกประเภทเป็น "ต่อปี" ตาม พ.ร.บ.คุ้มครองแรงงาน
+ *   (ลาป่วยไม่เกิน 30 วัน/ปี · ลากิจไม่น้อยกว่า 3 วัน/ปี · ลาพักผ่อนไม่น้อยกว่า 6 วัน/ปี)
+ *   ยอดคงเหลือจึงต้องคิดทั้งปีเสมอ ไม่รีเซ็ตรายเดือน
+ *
+ * ❗ แต่เดิมฟังก์ชันนี้ใช้ new Date().getFullYear() ตายตัว
+ *   เลือกปี 2568 ในตัวกรองแล้วการ์ดยังโชว์ยอดปี 2569 อยู่ดี — ไม่มีใครรู้
+ *   ตอนนี้รับปีจากตัวกรองได้ และคืน used_in_month มาด้วย
+ *   เพื่อให้หน้าจอแยกได้ชัดว่า "เดือนนี้ใช้เท่าไหร่" กับ "ทั้งปีเหลือเท่าไหร่"
+ *   (ความสับสนเดิม: การ์ดวางใต้ตัวกรองเดือน เลยถูกอ่านว่าเป็นยอดของเดือนนั้น)
+ *
+ * @param {object} opts  { year, month } — ไม่ส่งมาก็ใช้ปีปัจจุบัน
+ */
+/**
+ * สัดส่วนของใบลาที่ตกอยู่ในช่วง [from, to]
+ *
+ * ❗ GREATEST(..., 0) สำคัญมาก — ห้ามลืม
+ *   ถ้าใบลาอยู่นอกช่วงที่ถาม (เช่นลามิถุนายน แต่ถามเดือนตุลาคม)
+ *   ผลลบของวันที่จะติดลบหลักร้อย แล้วไปหักยอดรวมจนกลายเป็นติดลบทั้งก้อน
+ *   (เจอจริงตอนทดสอบ: ตุลาคมขึ้น -380 วัน)
+ *   ต้องบีบให้เป็น 0 เมื่อไม่ทับกันเลย
+ */
+const OVERLAP_RATIO = (from, to) => `
+  (GREATEST(
+     LEAST(lr.end_date, ${to}) - GREATEST(lr.start_date, ${from}) + 1,
+     0)::numeric
+   / NULLIF(lr.end_date - lr.start_date + 1, 0))`;
+
+async function getLeaveBalance(employeeId, sex, opts = {}) {
+  const year  = parseInt(opts.year) || new Date().getFullYear();
+  const month = opts.month ? parseInt(opts.month) : null;
 
   // คำนวณอายุงาน (ปี) จาก hire_date
   const empRes = await db.query(
@@ -147,17 +178,38 @@ async function getLeaveBalance(employeeId, sex) {
             --   ::int ของ Postgres "ปัดขึ้น" ที่ .5 → ลาจริง 3.5 วันกลายเป็น 4
             --   ทำให้พนักงานถูกตัดสิทธิ์เกินจริงครึ่งวัน และยอดคงเหลือติดลบ
             --   ทั้งที่ยังไม่ได้ใช้เกิน (เคสจริง: ลากิจ 3.5/3 → แสดง 4/3 = -1)
-            COALESCE(SUM(lr.total_days) FILTER (WHERE lr.status = 'approved'), 0)::numeric(6,1) AS used_days,
-            COALESCE(SUM(lr.total_days) FILTER (WHERE lr.status = 'pending'),  0)::numeric(6,1) AS pending_days
+            -- ❗ นับเฉพาะวันที่ตกอยู่ใน "ปีนั้น" จริง ๆ ไม่ใช่ทั้งใบ
+            --   ใบลา 31 ธ.ค. – 1 ม.ค. (2 วัน) ต้องตัดสิทธิ์ปีเก่า 1 วัน ปีใหม่ 1 วัน
+            --   ถ้านับทั้งใบเข้าปีเดียว พนักงานจะเสียสิทธิ์เกินจริงไป 1 วัน
+            COALESCE(SUM(
+              CASE WHEN lr.status = 'approved'
+                   THEN ROUND(lr.total_days * ${OVERLAP_RATIO(
+                        `make_date($2::int, 1, 1)`, `make_date($2::int, 12, 31)`)}, 1)
+                   ELSE 0 END), 0)::numeric(6,1) AS used_days,
+            COALESCE(SUM(
+              CASE WHEN lr.status = 'pending'
+                   THEN ROUND(lr.total_days * ${OVERLAP_RATIO(
+                        `make_date($2::int, 1, 1)`, `make_date($2::int, 12, 31)`)}, 1)
+                   ELSE 0 END), 0)::numeric(6,1) AS pending_days,
+            -- วันลาที่ตกอยู่ใน "เดือนที่เลือก" — ไว้โชว์คู่กับยอดทั้งปี
+            COALESCE(SUM(
+              CASE WHEN $4::int IS NULL OR lr.status <> 'approved' THEN 0
+                   ELSE ROUND(lr.total_days * ${OVERLAP_RATIO(
+                        `make_date($2::int, $4::int, 1)`,
+                        `(make_date($2::int, $4::int, 1) + INTERVAL '1 month - 1 day')::date`)}, 1)
+              END), 0)::numeric(6,1) AS used_in_month
      FROM leave_types lt
      LEFT JOIN leave_requests lr
        ON lr.leave_type_id = lt.id
        AND lr.employee_id = $1
-       AND EXTRACT(YEAR FROM lr.start_date) = $2
+       -- ❗ ใช้ "ช่วงวันลาทับกับปีนั้น" ไม่ใช่ปีของ start_date
+       --   ใบลา 31 ธ.ค. – 1 ม.ค. เดิมถูกนับเข้าปีเก่าทั้งใบ ปีใหม่ได้ 0
+       AND lr.start_date <= make_date($2::int, 12, 31)
+       AND lr.end_date   >= make_date($2::int, 1, 1)
      WHERE (lt.gender_restriction IS NULL OR lt.gender_restriction = $3)
      GROUP BY lt.id, lt.name, lt.max_days, lt.gender_restriction, lt.allowed_during_probation
      ORDER BY lt.id`,
-    [employeeId, year, sex || null]
+    [employeeId, year, sex || null, month]
   );
 
   // รวม effective_quota จาก quota_rules (อายุงาน) หรือ max_days ถ้าไม่มีกฎ
@@ -174,7 +226,10 @@ async function getLeaveBalance(employeeId, sex) {
     const blockedByProbation = onProbation && lt.allowed_during_probation === false;
     return {
       ...lt,
+      year,                                   // ให้หน้าจอรู้ว่านี่คือยอดของปีไหน
+      month: month || null,
       used_days:       Number(lt.used_days),
+      used_in_month:   Number(lt.used_in_month || 0),
       pending_days:    Number(lt.pending_days),
       effective_quota: effectiveQuota,
       seniority_years: Math.round(seniorityYears * 10) / 10,

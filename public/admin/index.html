@@ -4483,7 +4483,14 @@ async function loadLeaveBalance() {
   resultDiv.innerHTML = 'กำลังโหลด...';
   resultDiv.style.display = 'flex';
   try {
-    const r = await apiFetch(`${API}/api/employee/${empId}/balance`);
+    // ❗ ส่งปี/เดือนที่เลือกไปด้วย — เดิมไม่ส่ง การ์ดเลยโชว์ปีปัจจุบันเสมอ
+    //   เลือกปี 2568 แล้วยังเห็นยอดปี 2569 โดยไม่มีอะไรบอกว่าไม่ตรงกับตัวกรอง
+    const qy = document.getElementById('lr-year')?.value || '';
+    const qm = document.getElementById('lr-month')?.value || '';
+    const qs = new URLSearchParams();
+    if (qy) qs.set('year', qy);
+    if (qm) qs.set('month', qm);
+    const r = await apiFetch(`${API}/api/employee/${empId}/balance?${qs}`);
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'โหลดข้อมูลไม่ได้');
     const bal = data.balance || [];
@@ -4491,18 +4498,34 @@ async function loadLeaveBalance() {
     const clr = used => used <= 0 ? '#15803d' : '#1d4ed8';
     // ❗ แสดงเศษครึ่งวันเฉพาะเมื่อมีจริง (3 ไม่ใช่ 3.0 แต่ 3.5 ต้องเห็น .5)
     const d = n => Number.isInteger(n) ? String(n) : n.toFixed(1);
+    // ❗ ต้องบอกให้ชัดว่านี่คือ "ยอดทั้งปี" ไม่ใช่ยอดของเดือนที่กรองไว้
+    //   การ์ดวางอยู่ใต้ตัวกรองเดือนพอดี คนจึงอ่านว่าเป็นยอดของเดือนนั้น
+    //   แล้วงงว่าทำไมตุลาคมลา 2 วัน แต่ขึ้นว่าใช้ไป 3
+    //   (สิทธิ์ลาทุกประเภทเป็นต่อปีตามกฎหมาย ไม่รีเซ็ตรายเดือน)
+    const byear = bal[0]?.year ?? new Date().getFullYear();
+    const bmon  = bal[0]?.month ?? null;
+    const MONTHS = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+                    'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
     resultDiv.innerHTML = `<div style="font-size:12px;color:#6b7280;margin-bottom:4px;width:100%;">
         อายุงาน ${bal[0]?.seniority_years ?? '?'} ปี — <strong>${sel.options[sel.selectedIndex].text}</strong>
+        <span style="display:inline-block;margin-left:8px;padding:1px 8px;border-radius:10px;
+                     background:#eff6ff;color:#1d4ed8;font-weight:600;">
+          ยอดคงเหลือทั้งปี พ.ศ. ${byear + 543}
+        </span>
+        ${bmon ? `<span style="color:#9ca3af;"> · ตัวเลขเล็กคือที่ใช้ใน${MONTHS[bmon]}</span>` : ''}
       </div>` +
       // ❗ parseFloat ไม่ใช่ parseInt — ลาครึ่งวันต้องไม่ถูกตัดทิ้ง
       bal.map(b => {
-        const quota = parseFloat(b.effective_quota ?? b.max_days);
-        const used  = parseFloat(b.used_days) || 0;
-        const rem   = quota - used;
+        const quota   = parseFloat(b.effective_quota ?? b.max_days);
+        const used    = parseFloat(b.used_days) || 0;
+        const inMonth = parseFloat(b.used_in_month) || 0;
+        const rem     = quota - used;
         return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px 14px;min-width:130px;text-align:center;">
           <div style="font-size:18px;font-weight:700;color:${rem<=0?'#dc2626':rem<=2?'#d97706':clr(used)};">${d(rem)}</div>
           <div style="font-size:11px;color:#374151;font-weight:600;">${b.name}</div>
-          <div style="font-size:11px;color:#9ca3af;">ใช้ ${d(used)}/${d(quota)} วัน</div>
+          <div style="font-size:11px;color:#9ca3af;">ใช้ทั้งปี ${d(used)}/${d(quota)} วัน</div>
+          ${bmon ? `<div style="font-size:11px;margin-top:2px;color:${inMonth>0?'#1d4ed8':'#cbd5e1'};">
+                      ${MONTHS[bmon]} ${d(inMonth)} วัน</div>` : ''}
         </div>`;
       }).join('');
   } catch(err) { resultDiv.innerHTML = `<span style="color:#ef4444;font-size:13px;">❌ ${err.message}</span>`; }
