@@ -853,7 +853,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
           <button class="btn btn-primary btn-sm" onclick="openLeaveTypeModal()">+ เพิ่มประเภทการลา</button>
         </div>
         <div class="tbl-wrap">
-          <table><thead><tr><th>รหัส</th><th>ชื่อประเภทการลา</th><th>จำนวนวันสูงสุด/ปี</th><th>เพศ</th><th>มีค่าจ้าง</th><th title="พนักงานที่ยังไม่ผ่านทดลองงานยื่นลาประเภทนี้ได้หรือไม่">ช่วงทดลองงาน</th><th>จัดการ</th></tr></thead>
+          <table><thead><tr><th>รหัส</th><th>ชื่อประเภทการลา</th><th>จำนวนวันสูงสุด/ปี</th><th>เพศ</th><th>มีค่าจ้าง</th><th title="พนักงานที่ยังไม่ผ่านทดลองงานยื่นลาประเภทนี้ได้หรือไม่">ช่วงทดลองงาน</th><th title="เมื่อใช้สิทธิ์ครบโควตาแล้ว ยังยื่นลาประเภทนี้ได้อีกหรือไม่">ใช้สิทธิ์ครบแล้ว</th><th>จัดการ</th></tr></thead>
           <tbody id="leave-tbody"><tr><td colspan="7" class="no-data">กำลังโหลด...</td></tr></tbody></table>
         </div>
       </div>
@@ -2497,6 +2497,19 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
         <input type="checkbox" id="lt-probation" style="width:auto;">
         <label class="form-label" style="margin:0;">พนักงานทดลองงานใช้ได้</label>
       </div>
+      <div class="form-group" style="flex-direction:row;align-items:flex-start;gap:10px;">
+        <input type="checkbox" id="lt-block-exceeded" style="width:auto;margin-top:3px;">
+        <div>
+          <label class="form-label" style="margin:0;">ใช้สิทธิ์ครบแล้วยื่นลาไม่ได้</label>
+          <!-- ❗ เตือนไว้ตรงนี้เพราะเป็นจุดที่ติ๊กผิดแล้วมีผลทางกฎหมาย -->
+          <div style="font-size:11.5px;color:#6b7280;line-height:1.6;margin-top:3px;">
+            ติ๊ก = ครบโควตาแล้วปุ่มจะถูกปิด ยื่นไม่ได้เลย<br>
+            <span style="color:#b45309;">⚠️ ลาป่วย/ลาคลอด ไม่ควรติ๊ก</span> —
+            กฎหมายให้ลาป่วยได้เท่าที่ป่วยจริง (30 วันคือเพดาน<u>วันที่ได้เงิน</u>)
+            ถ้าปิดไว้ พนักงานที่ป่วยจริงจะยื่นใบลาไม่ได้ แล้วกลายเป็นขาดงาน
+          </div>
+        </div>
+      </div>
       <div style="background:#FFFBEB;border-left:4px solid #F59E0B;border-radius:0 6px 6px 0;padding:10px 12px;font-size:12.5px;color:#92400E;line-height:1.6;">
         ถ้า<b>ไม่</b>ติ๊ก พนักงานที่ยังไม่ผ่านทดลองงานจะยื่นลาประเภทนี้ไม่ได้
         ระบบจะแนะนำให้เลือก “ลาไม่รับเงิน” แทน<br>
@@ -3848,6 +3861,9 @@ async function loadLeaveTypes() {
         <td>${lt.allowed_during_probation === false
           ? '<span style="color:#DC2626;font-size:12.5px;">✕ ยังลาไม่ได้</span>'
           : '<span style="color:#16A34A;font-size:12.5px;">✓ ลาได้</span>'}</td>
+        <td>${lt.block_when_exceeded === false
+          ? '<span style="color:#D97706;font-size:12.5px;">⚠ ยื่นได้ (เตือน)</span>'
+          : '<span style="color:#DC2626;font-size:12.5px;">🚫 ยื่นไม่ได้</span>'}</td>
         <td><div class="actions">
           <button class="btn btn-ghost btn-sm" onclick="openEditLeaveTypeModal(${lt.id})">แก้ไข</button>
           <button class="btn btn-danger btn-sm" onclick="confirmDeleteLeaveType(${lt.id},'${lt.name.replace(/'/g,"\\'")}')">ลบ</button>
@@ -3868,6 +3884,9 @@ function openLeaveTypeModal() {
   document.getElementById('lt-paid').checked = true;
   // ประเภทใหม่เริ่มต้นให้ลาได้ไว้ก่อน — ปลอดภัยกว่าการบล็อกโดยไม่ตั้งใจ
   document.getElementById('lt-probation').checked = true;
+  // ❗ แต่เรื่องโควตาเริ่มต้นให้ "บล็อก" ตรงกับ default ของคอลัมน์ในฐานข้อมูล
+  //   ถ้าหน้าเว็บกับ DB ตั้งค่าเริ่มต้นไม่ตรงกัน คนจะงงว่าทำไมติ๊กไว้แล้วค่าไม่ตรง
+  document.getElementById('lt-block-exceeded').checked = true;
   openModal('leavetype-modal');
 }
 
@@ -3882,6 +3901,7 @@ function openEditLeaveTypeModal(id) {
   document.getElementById('lt-paid').checked = !!lt.is_paid;
   // ค่าที่ยังไม่เคยตั้ง (undefined) ถือว่าลาได้ ตามค่า default ของคอลัมน์
   document.getElementById('lt-probation').checked = lt.allowed_during_probation !== false;
+  document.getElementById('lt-block-exceeded').checked = lt.block_when_exceeded !== false;
   openModal('leavetype-modal');
 }
 
@@ -3895,6 +3915,7 @@ async function saveLeaveType() {
     gender_restriction: document.getElementById('lt-gender').value || null,
     is_paid: document.getElementById('lt-paid').checked,
     allowed_during_probation: document.getElementById('lt-probation').checked,
+    block_when_exceeded:      document.getElementById('lt-block-exceeded').checked,
   };
   try {
     const url    = editId ? `${API}/api/leave/types/${editId}` : `${API}/api/leave/types`;

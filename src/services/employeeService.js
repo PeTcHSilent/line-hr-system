@@ -173,6 +173,7 @@ async function getLeaveBalance(employeeId, sex, opts = {}) {
   const result = await db.query(
     `SELECT lt.id, lt.name, lt.max_days, lt.gender_restriction,
             COALESCE(lt.allowed_during_probation, TRUE) AS allowed_during_probation,
+            COALESCE(lt.block_when_exceeded, TRUE) AS block_when_exceeded,
             -- ❗ ห้ามใช้ ::int เด็ดขาด
             --   total_days เป็น NUMERIC(5,1) เพราะรองรับลาครึ่งวัน
             --   ::int ของ Postgres "ปัดขึ้น" ที่ .5 → ลาจริง 3.5 วันกลายเป็น 4
@@ -207,7 +208,8 @@ async function getLeaveBalance(employeeId, sex, opts = {}) {
        AND lr.start_date <= make_date($2::int, 12, 31)
        AND lr.end_date   >= make_date($2::int, 1, 1)
      WHERE (lt.gender_restriction IS NULL OR lt.gender_restriction = $3)
-     GROUP BY lt.id, lt.name, lt.max_days, lt.gender_restriction, lt.allowed_during_probation
+     GROUP BY lt.id, lt.name, lt.max_days, lt.gender_restriction,
+              lt.allowed_during_probation, lt.block_when_exceeded
      ORDER BY lt.id`,
     [employeeId, year, sex || null, month]
   );
@@ -235,6 +237,11 @@ async function getLeaveBalance(employeeId, sex, opts = {}) {
       seniority_years: Math.round(seniorityYears * 10) / 10,
       on_probation:        onProbation,
       blocked_by_probation: blockedByProbation,
+      // ❗ ใช้สิทธิ์ครบแล้วและประเภทนี้ตั้งให้บล็อก → ยื่นไม่ได้
+      //   นับ pending รวมด้วย ไม่งั้นยื่นรัว ๆ ตอนใบแรกยังไม่อนุมัติจะทะลุโควตาได้
+      blocked_by_quota: effectiveQuota != null
+        && lt.block_when_exceeded !== false
+        && (Number(lt.used_days) + Number(lt.pending_days)) >= effectiveQuota,
     };
   });
 }

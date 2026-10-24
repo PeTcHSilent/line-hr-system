@@ -83,6 +83,29 @@ async function createLeaveRequest({ employeeId, leaveTypeId, startDate, endDate,
     );
   }
 
+  // ── ตรวจสิทธิ์คงเหลือ "ก่อน" บันทึก ───────────────────────────
+  // ❗ ย้ายมาก่อน INSERT โดยตั้งใจ
+  //   เดิมตรวจหลังบันทึกเพราะแค่ต้องการ "เตือน" — บันทึกไปแล้วค่อยแปะข้อมูล
+  //   แต่พอต้อง "บล็อก" ถ้ายังตรวจทีหลังจะกลายเป็นบันทึกลงฐานข้อมูลแล้ว
+  //   ค่อยโยน error ทิ้ง → เหลือใบลาค้างในระบบที่ไม่มีใครเห็นและลบไม่ได้
+  let quotaInfo = null;
+  try {
+    quotaInfo = await checkQuota(employeeId, leaveTypeId, employeeSex, totalDays, null, startDate);
+  } catch (e) {
+    console.warn('[leaveService] คำนวณสิทธิ์คงเหลือไม่สำเร็จ:', e.message);
+  }
+
+  if (quotaInfo?.is_over && quotaInfo.block_when_exceeded) {
+    const r = quotaInfo.remaining_before;
+    throw new Error(
+      `ใช้สิทธิ์${quotaInfo.leave_type_name}ครบแล้ว ยื่นลาประเภทนี้ไม่ได้\n` +
+      `สิทธิ์ทั้งปี ${fmtDays(quotaInfo.quota)} วัน · ` +
+      (r > 0 ? `คงเหลือ ${fmtDays(r)} วัน แต่ขอลา ${fmtDays(quotaInfo.requested)} วัน`
+             : `ใช้ครบแล้ว (ขอลาอีก ${fmtDays(quotaInfo.requested)} วัน)`) + '\n' +
+      'หากจำเป็นต้องลาจริง กรุณาเลือก "ลาไม่รับเงิน" หรือติดต่อ HR'
+    );
+  }
+
   const result = await db.query(
     `INSERT INTO leave_requests
        (employee_id, leave_type_id, start_date, end_date, total_days, reason, is_half_day, half_day_period)
@@ -93,20 +116,13 @@ async function createLeaveRequest({ employeeId, leaveTypeId, startDate, endDate,
 
   const leave = result.rows[0];
 
-  // ── ตรวจสิทธิ์คงเหลือ ─────────────────────────────────────────
-  // ❗ ตั้งใจไม่บล็อก เพราะมีกรณีที่เกินสิทธิ์แล้วยังต้องลาจริงๆ
-  //    (ลาป่วยยาวเกินโควตา ฯลฯ) ถ้าบล็อกจะกลายเป็นว่าพนักงานป่วยแล้วยื่นใบลาไม่ได้
-  //    แทนที่จะห้าม → แนบข้อมูลไปกับใบลา ให้คนอนุมัติเห็นตอนตัดสินใจ
-  //    และส่งกลับให้หน้า LIFF แสดงเตือนตอนยื่นด้วย
-  try {
-    leave.quota_info = await checkQuota(employeeId, leaveTypeId, employeeSex, totalDays, leave.id);
-  } catch (e) {
-    console.warn('[leaveService] คำนวณสิทธิ์คงเหลือไม่สำเร็จ:', e.message);
-    leave.quota_info = null;
-  }
-
+  // ประเภทที่ไม่บล็อก (ลาป่วย/ลาคลอด) ยังแนบข้อมูลเกินสิทธิ์ไปให้คนอนุมัติเห็น
+  leave.quota_info = quotaInfo;
   return leave;
 }
+
+/** 3 ไม่ใช่ 3.0 แต่ 3.5 ต้องเห็นเศษ */
+const fmtDays = n => Number.isInteger(Number(n)) ? String(Number(n)) : Number(n).toFixed(1);
 
 /** จัดวันที่เป็น d/m/yy แบบไทย สำหรับข้อความแจ้งเตือน */
 function fmtDate(d) {
@@ -140,29 +156,39 @@ async function findOverlappingLeave(employeeId, startDate, endDate, excludeId = 
  * คำนวณว่าการลาครั้งนี้ทำให้เกินสิทธิ์หรือไม่
  * @returns {Promise<object|null>} null ถ้าประเภทนั้นไม่ได้กำหนดโควตาไว้
  */
-async function checkQuota(employeeId, leaveTypeId, employeeSex, requestedDays, excludeId = null) {
+async function checkQuota(employeeId, leaveTypeId, employeeSex, requestedDays,
+                          excludeId = null, startDate = null) {
   // ใช้ตัวคำนวณเดิมของระบบ เพื่อให้ผลตรงกับหน้า "เช็คยอดวันลา" เป๊ะ
   // (รวมกฎโควตาตามอายุงานใน leave_quota_rules ด้วย)
+  //
+  // ❗ ต้องตรวจกับ "ปีของวันที่ลา" ไม่ใช่ปีปัจจุบัน
+  //   ยื่นลาเดือนธันวาคมสำหรับวันหยุดเดือนมกราคมปีหน้า ต้องตัดสิทธิ์ปีหน้า
+  //   เดิมใช้ปีปัจจุบันเสมอ → ตัดสิทธิ์ผิดปี และบล็อกผิดคน
   const employeeService = require('./employeeService');
-  const balances = await employeeService.getLeaveBalance(employeeId, employeeSex);
+  const year = startDate ? new Date(startDate).getFullYear() : undefined;
+  const balances = await employeeService.getLeaveBalance(employeeId, employeeSex, { year });
   const row = balances.find(b => Number(b.id) === Number(leaveTypeId));
 
   // ไม่กำหนดโควตา (เช่น ลาไม่รับเงิน) → ไม่มีอะไรให้เกิน
   if (!row || row.effective_quota == null) return null;
 
   const quota = Number(row.effective_quota);
-  // used/pending ที่ดึงมารวมใบที่เพิ่งสร้างไปแล้ว — หักออกก่อนเพื่อไม่ให้นับซ้ำ
-  const usedBefore = Number(row.used_days) + Number(row.pending_days) - Number(requestedDays);
+  // ❗ excludeId ใช้ตอนตรวจ "หลัง" บันทึกแล้ว (ของเดิม) — ต้องหักใบนั้นออกไม่ให้นับซ้ำ
+  //   ตอนนี้เรียกก่อนบันทึก จึงไม่ต้องหัก ยอดที่ได้คือยอดก่อนใบนี้อยู่แล้ว
+  const alreadyCounted = excludeId ? Number(requestedDays) : 0;
+  const usedBefore = Number(row.used_days) + Number(row.pending_days) - alreadyCounted;
   const remainingBefore = quota - Math.max(usedBefore, 0);
   const over = Number(requestedDays) - remainingBefore;
 
   return {
     leave_type_name: row.name,
     quota,
-    remaining_before: Math.max(remainingBefore, 0),
+    remaining_before: Math.max(Math.round(remainingBefore * 10) / 10, 0),
     requested: Number(requestedDays),
     over_days: over > 0 ? Math.round(over * 10) / 10 : 0,
     is_over: over > 0,
+    // ประเภทนี้ตั้งค่าให้บล็อกเมื่อเกินสิทธิ์ไหม (ดู migration v36)
+    block_when_exceeded: row.block_when_exceeded !== false,
   };
 }
 

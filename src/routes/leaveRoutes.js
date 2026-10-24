@@ -103,14 +103,17 @@ router.get('/types', requireAuth, async (req, res) => {
 router.post('/types', requireAuth, async (req, res) => {
   try {
     const db = require('../db');
-    const { name, max_days, gender_restriction, is_paid, allowed_during_probation } = req.body;
+    const { name, max_days, gender_restriction, is_paid,
+            allowed_during_probation, block_when_exceeded } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'กรุณาระบุชื่อประเภทลา' });
     const { rows } = await db.query(
-      `INSERT INTO leave_types (name, max_days, gender_restriction, is_paid, allowed_during_probation)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      `INSERT INTO leave_types (name, max_days, gender_restriction, is_paid,
+                                allowed_during_probation, block_when_exceeded)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       // ไม่ส่งมา = ลาได้ (ตรงกับ default ของคอลัมน์ ไม่บล็อกโดยไม่ตั้งใจ)
+      // ส่วน block_when_exceeded ไม่ส่งมา = บล็อก ตรงกับ default เช่นกัน
       [name.trim(), max_days || null, gender_restriction || null, is_paid !== false,
-       allowed_during_probation !== false]
+       allowed_during_probation !== false, block_when_exceeded !== false]
     );
     res.status(201).json({ success: true, leave_type: rows[0] });
   } catch (err) { res.status(400).json({ error: err.message }); }
@@ -120,14 +123,15 @@ router.post('/types', requireAuth, async (req, res) => {
 router.put('/types/:id', requireAuth, async (req, res) => {
   try {
     const db = require('../db');
-    const { name, max_days, gender_restriction, is_paid, allowed_during_probation } = req.body;
+    const { name, max_days, gender_restriction, is_paid,
+            allowed_during_probation, block_when_exceeded } = req.body;
     const { rows } = await db.query(
       `UPDATE leave_types
        SET name=$1, max_days=$2, gender_restriction=$3, is_paid=$4,
-           allowed_during_probation=$5
-       WHERE id=$6 RETURNING *`,
+           allowed_during_probation=$5, block_when_exceeded=$6
+       WHERE id=$7 RETURNING *`,
       [name, max_days || null, gender_restriction || null, is_paid !== false,
-       allowed_during_probation !== false, req.params.id]
+       allowed_during_probation !== false, block_when_exceeded !== false, req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'ไม่พบประเภทลา' });
     res.json({ success: true, leave_type: rows[0] });

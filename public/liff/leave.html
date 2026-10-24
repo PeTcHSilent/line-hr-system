@@ -291,7 +291,11 @@ function applyLeaveBalance(balance) {
     const el = document.getElementById(`quota-${item.id}`);
     if (!el) return;
     const quota = item.effective_quota ?? item.max_days;
-    const remaining = quota - parseInt(item.used_days);
+    // ❗ parseFloat ไม่ใช่ parseInt — ลาครึ่งวันต้องไม่ถูกตัดทิ้ง
+    //   และต้องหัก pending ด้วย ไม่งั้นยื่นรัว ๆ ตอนใบแรกยังไม่อนุมัติจะทะลุโควตา
+    const usedAll = (parseFloat(item.used_days) || 0) + (parseFloat(item.pending_days) || 0);
+    const remaining = quota - usedAll;
+    const d = n => Number.isInteger(n) ? String(n) : n.toFixed(1);
     const btn = el.closest('.leave-type-btn');
 
     // ทดลองงาน + ประเภทนี้ถูกปิดไว้ → ปิดปุ่มเลย กดไม่ได้
@@ -307,12 +311,24 @@ function applyLeaveBalance(balance) {
       return;
     }
 
+    // ── ใช้สิทธิ์ครบแล้ว ──
+    // ❗ เดิมแค่เปลี่ยนสีเป็น "หมดสิทธิ์" แต่ยังกดยื่นได้
+    //   ตอนนี้ถ้าประเภทนั้นตั้งให้บล็อก → ปิดปุ่มไปเลย
+    //   (ลาป่วย/ลาคลอด ตั้งไม่บล็อกไว้ เพราะเป็นสิทธิตามกฎหมาย
+    //    ป่วยจริงต้องยื่นใบลาได้เสมอ ไม่งั้นกลายเป็นขาดงาน)
     if (remaining <= 0) {
-      el.textContent = 'หมดสิทธิ์';
+      const hardBlock = item.blocked_by_quota === true;
+      el.textContent = hardBlock ? 'ใช้สิทธิ์ครบแล้ว' : `เกินสิทธิ์ (ใช้ ${d(usedAll)}/${d(quota)})`;
       el.classList.add('used-up');
       btn.classList.add('no-quota');
+      if (hardBlock && btn) {
+        btn.style.opacity = '0.45';
+        btn.style.cursor  = 'not-allowed';
+        btn.dataset.blocked   = '1';
+        btn.dataset.blockMsg  = `ใช้สิทธิ์${item.name}ครบ ${d(quota)} วันแล้ว — เลือก "ลาไม่รับเงิน" หรือติดต่อ HR`;
+      }
     } else {
-      el.textContent = `เหลือ ${remaining}/${quota} วัน`;
+      el.textContent = `เหลือ ${d(remaining)}/${d(quota)} วัน`;
       if (remaining <= 3) el.classList.add('used-up');
     }
   });
@@ -332,7 +348,8 @@ function selectType(el) {
   if (el.classList.contains('hidden')) return;
   // ประเภทที่ยังไม่ได้สิทธิ์ตอนทดลองงาน — กันไว้ตั้งแต่กด
   if (el.dataset.blocked === '1') {
-    showToast('ยังอยู่ระหว่างทดลองงาน กรุณาเลือก "ลาไม่รับเงิน"');
+    // ข้อความต่างกันตามเหตุผลที่ถูกบล็อก — "กดไม่ได้" เฉย ๆ ไม่ช่วยให้รู้ว่าต้องทำยังไงต่อ
+    showToast(el.dataset.blockMsg || 'ยังอยู่ระหว่างทดลองงาน กรุณาเลือก "ลาไม่รับเงิน"');
     return;
   }
   document.querySelectorAll('.leave-type-btn').forEach(b => b.classList.remove('active'));
