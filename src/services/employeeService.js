@@ -275,7 +275,8 @@ async function updateEmployee(id, fields) {
   //    ส่วน base_salary (เงินเดือนเริ่มต้น) เป็นข้อมูลอ้างอิง ไม่ผูกประวัติ จึงยังแก้ทางนี้ได้
   const allowed = ['name', 'sex', 'phone_no', 'email', 'department_id', 'role', 'manager_id', 'base_salary', 'deduct_absent',
     'bank_name', 'bank_branch', 'bank_account_no', 'bank_account_name',
-    'probation_start_date', 'probation_end_date', 'probation_status', 'branch_id', 'hire_date', 'is_active'];
+    'probation_start_date', 'probation_end_date', 'probation_status', 'branch_id', 'hire_date', 'is_active',
+    'notify_attendance'];
   const setClauses = [];
   const values = [];
   let idx = 1;

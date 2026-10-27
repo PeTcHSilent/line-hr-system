@@ -2338,6 +2338,17 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0
           <label class="form-label">วันเริ่มงาน</label>
           <input type="date" id="f-start-date">
         </div>
+        <!-- ซ่อนตอน "เพิ่มพนักงานใหม่" เพราะ POST /api/employee ยังไม่รับฟิลด์นี้
+             ถ้าโชว์ไว้จะเป็นช่องที่ติ๊กแล้วไม่มีผล — บั๊กเงียบที่ผู้ใช้จับไม่ได้
+             พนักงานใหม่ได้ค่าเริ่มต้น "แจ้งเตือน" แล้วมาปิดทีหลังที่หน้าแก้ไข -->
+        <div class="form-group" id="f-notify-group"
+             style="display:none;align-items:center;gap:10px;padding-top:22px;">
+          <input type="checkbox" id="f-notify-attendance" checked style="width:18px;height:18px;cursor:pointer;">
+          <label for="f-notify-attendance" class="form-label" style="margin:0;cursor:pointer;">
+            แจ้งเตือน<strong>เข้า-ออกงาน</strong> ทาง LINE<br>
+            <span style="font-size:11px;color:#6b7280;">ติ๊กออก = ไม่เตือน (เช่น ผู้บริหาร) — ยังบันทึกเวลาปกติ</span>
+          </label>
+        </div>
         <div class="form-group" id="f-status-group" style="display:none;">
           <label class="form-label">สถานะพนักงาน</label>
           <select id="f-status">
@@ -3462,6 +3473,9 @@ function openAddModal() {
   // พนักงานใหม่ยังไม่มีเงินเดือน → ไปตั้งที่หน้าเงินเดือนพนักงานหลังบันทึก
   setSalaryView(null, true);
   document.getElementById('f-deduct-absent').checked = true; // default: หักเงินรายวัน
+  document.getElementById('f-notify-attendance').checked = true; // default: แจ้งเตือนเข้า-ออกงาน
+  const ng = document.getElementById('f-notify-group');
+  if (ng) ng.style.display = 'none'; // POST ยังไม่รับฟิลด์นี้ — ตั้งทีหลังที่หน้าแก้ไข
   document.getElementById('f-sex').value = '';
   document.getElementById('f-role').value = 'employee';
   document.getElementById('f-dept').value = '';
@@ -3519,6 +3533,9 @@ async function openEditModal(id) {
   document.getElementById('f-start-date').value = emp.hire_date ? emp.hire_date.slice(0,10) : '';
   // checkbox หักเงินขาดงาน (default TRUE ถ้าไม่มีค่า)
   document.getElementById('f-deduct-absent').checked = emp.deduct_absent !== false;
+  document.getElementById('f-notify-attendance').checked = emp.notify_attendance !== false;
+  const notifyGroup = document.getElementById('f-notify-group');
+  if (notifyGroup) notifyGroup.style.display = 'flex';
 
   // สถานะ ทำงาน/ออก (แสดงเฉพาะตอน edit)
   const statusGroup = document.getElementById('f-status-group');
@@ -3604,6 +3621,7 @@ async function saveEmployee() {
     //    ถ้าส่งมาด้วยจะทับค่าที่ปรับไว้ที่หน้านั้น และไม่มีประวัติการปรับ
     hire_date: document.getElementById('f-start-date').value || null,
     deduct_absent: document.getElementById('f-deduct-absent').checked,
+    notify_attendance: document.getElementById('f-notify-attendance').checked,
   };
   // is_active: เฉพาะตอน edit (ค่าจาก dropdown สถานะ)
   if (editingId) {

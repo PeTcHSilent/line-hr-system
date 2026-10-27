@@ -75,7 +75,44 @@ async function ensureMigrationsAndRegister() {
   }
   // สร้าง index ถ้ายังไม่มี
   await db.query(`CREATE INDEX IF NOT EXISTS idx_holidays_type ON holidays(holiday_type)`).catch(() => {});
+  await ensureNotifyAttendanceColumn();
   await registerAttendanceCrons();
+}
+
+// ── Auto-migration: employees.notify_attendance (migration v37) ──────
+// ❗ จำเป็น ไม่ใช่ความสะดวก:
+//    query แจ้งเตือนด้านล่างอ้างถึง e.notify_attendance
+//    ถ้ายังไม่ได้รัน migration v37 query จะ error → catch → ไม่มีใครได้รับแจ้งเตือนเลย
+//    (บั๊กเงียบที่แย่กว่าเดิม — ของเดิมแจ้งเกิน ของใหม่ไม่แจ้งใครเลย)
+//    ทำแบบเดียวกับ holiday_type ด้านบน
+async function ensureNotifyAttendanceColumn() {
+  try {
+    const { rows } = await db.query(`
+      SELECT 1 FROM information_schema.columns
+       WHERE table_name = 'employees' AND column_name = 'notify_attendance'
+    `);
+    const isNew = rows.length === 0;
+
+    await db.query(`
+      ALTER TABLE employees
+        ADD COLUMN IF NOT EXISTS notify_attendance BOOLEAN NOT NULL DEFAULT TRUE
+    `);
+
+    // ตั้งค่าตั้งต้นให้รหัสผู้บริหาร "ครั้งแรกที่สร้างคอลัมน์เท่านั้น"
+    // ถ้ารันทุกครั้งที่บูต HR จะเปิดแจ้งเตือนคืนให้ผู้บริหารคนไหนไม่ได้เลย
+    // — การตั้งค่าจากหน้าเว็บจะถูกทับทุกครั้งที่ deploy
+    if (isNew) {
+      const r = await db.query(`
+        UPDATE employees SET notify_attendance = FALSE
+         WHERE employee_code IN ('TK0000','TK0001','TK0002','TK0003')
+      `);
+      console.log(`[reminderCron] schema OK — notify_attendance created, ปิดแจ้งเตือนผู้บริหาร ${r.rowCount} คน`);
+    } else {
+      console.log('[reminderCron] schema OK — notify_attendance column ready');
+    }
+  } catch (e) {
+    console.warn('[reminderCron] notify_attendance migration warning:', e.message);
+  }
 }
 
 // ── ลงทะเบียน dynamic cron จาก settings ────────────────
@@ -113,6 +150,8 @@ async function registerAttendanceCrons() {
           SELECT e.id, e.name, e.line_user_id, e.email
           FROM employees e
           WHERE e.is_active = TRUE
+            -- ไม่แจ้งเตือนผู้บริหาร (migration v37) — ยังบันทึกเวลาปกติ
+            AND COALESCE(e.notify_attendance, TRUE) = TRUE
             AND e.id NOT IN (
               SELECT employee_id FROM attendance WHERE work_date = $1
             )
@@ -151,6 +190,8 @@ async function registerAttendanceCrons() {
             AND a.check_in IS NOT NULL
             AND a.check_out IS NULL
             AND e.is_active = TRUE
+            -- ไม่แจ้งเตือนผู้บริหาร (migration v37) — ยังบันทึกเวลาปกติ
+            AND COALESCE(e.notify_attendance, TRUE) = TRUE
         `, [today]);
 
         console.log(`  → พบ ${rows.length} คนที่ยังไม่เช็คเอาท์`);
@@ -203,6 +244,7 @@ function registerFallbackCrons() {
       const { rows } = await db.query(`
         SELECT e.id, e.name, e.line_user_id, e.email FROM employees e
         WHERE e.is_active = TRUE
+          AND COALESCE(e.notify_attendance, TRUE) = TRUE   -- ไม่แจ้งผู้บริหาร (v37)
           AND e.id NOT IN (SELECT employee_id FROM attendance WHERE work_date = $1)
           AND e.id NOT IN (SELECT employee_id FROM leave_requests WHERE status='approved' AND $1 BETWEEN start_date AND end_date)
       `, [today]);
@@ -225,6 +267,7 @@ function registerFallbackCrons() {
         SELECT e.id, e.name, e.line_user_id FROM employees e
         JOIN attendance a ON a.employee_id = e.id
         WHERE a.work_date = $1 AND a.check_in IS NOT NULL AND a.check_out IS NULL AND e.is_active = TRUE
+          AND COALESCE(e.notify_attendance, TRUE) = TRUE   -- ไม่แจ้งผู้บริหาร (v37)
       `, [today]);
       const lc = new (require('@line/bot-sdk').messagingApi.MessagingApiClient)({
         channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
