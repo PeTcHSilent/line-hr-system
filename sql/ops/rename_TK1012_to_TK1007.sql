@@ -33,6 +33,20 @@
 
 BEGIN;
 
+-- ── ด่าน 0: กันรันผิดฐานข้อมูล ────────────────────────────────
+-- ❗ อยู่นอก BEGIN โดยตั้งใจ จะได้เห็นข้อความนี้ชัด ๆ
+--    ไม่ใช่ "relation employees does not exist" ที่อ่านไม่รู้ว่าผิดตรงไหน
+DO $$ BEGIN
+  IF to_regclass('public.employees') IS NULL THEN
+    RAISE EXCEPTION E'\n\n  *** รันผิดฐานข้อมูล ***\n  ไฟล์นี้ต้องรันบนฐาน HR\n  ฐานที่เชื่อมอยู่ตอนนี้คือ "%" ซึ่งไม่มีตาราง employees\n  → เปิดแท็บของ TORKUN_HR_RAILWAY แล้วรันใหม่\n', current_database();
+  END IF;
+  IF to_regclass('public.admin_users') IS NOT NULL
+     AND to_regclass('public.inbox_conversations') IS NOT NULL THEN
+    RAISE EXCEPTION E'\n\n  *** รันผิดฐานข้อมูล ***\n  ฐาน "%" มีตารางของระบบ Sales อยู่ — นี่คือฐาน Sales ไม่ใช่ HR\n', current_database();
+  END IF;
+  RAISE NOTICE 'ฐานข้อมูลถูกต้อง: % (ระบบ HR)', current_database();
+END $$;
+
 -- ── ด่านตรวจก่อนแก้ ───────────────────────────────────────────
 -- ❗ ไม่ใช้ UPDATE ... WHERE เฉย ๆ เพราะถ้าไม่เจอแถว มันจะ "สำเร็จ"
 --    โดยไม่แก้อะไรเลย แล้วเราจะเข้าใจผิดว่าย้ายแล้ว
