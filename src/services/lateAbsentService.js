@@ -21,8 +21,11 @@ async function checkLateAbsent(dateStr) {
   const thresholdMinutes   = wh * 60 + wm + graceMinutes;  // e.g. 9*60+0+15 = 555
 
   // 2. ดึงพนักงานทั้งหมด
+  // ❗ ดึง notify_attendance มาด้วย (migration v37) — ใช้คุมเฉพาะ "การส่งแจ้งเตือน"
+  //    ไม่ได้ใช้คัดคนออกจากการตรวจ ดูเหตุผลที่บล็อกข้างล่าง
   const { rows: employees } = await db.query(
-    'SELECT id, name, line_user_id FROM employees WHERE is_active = TRUE'
+    'SELECT id, name, line_user_id, COALESCE(notify_attendance, TRUE) AS notify_attendance' +
+    ' FROM employees WHERE is_active = TRUE'
   );
 
   const lineClient = notifyEnabled
@@ -34,6 +37,14 @@ async function checkLateAbsent(dateStr) {
   const stats = { late: 0, absent: 0, ok: 0 };
 
   for (const emp of employees) {
+    // ❗ ผู้บริหาร (notify_attendance = FALSE) — "ไม่ส่งแจ้งเตือน" เท่านั้น
+    //    แต่ยัง "บันทึก warning" ตามปกติ และนี่คือจุดที่ห้ามทำผิด:
+    //      payrollService นับวันสาย/ขาด จากตาราง attendance_warnings
+    //      ถ้าข้ามการบันทึกไปด้วย = ยอดหักเงินเดือนจะเปลี่ยน
+    //      ผู้บริหารจะหายไปจากรายงานการมาทำงานโดยไม่มีใครรู้ตัว
+    //    สิ่งที่ผู้ใช้ขอคือ "ไม่ต้องแจ้งเตือน" ไม่ใช่ "ไม่ต้องบันทึก"
+    const notifyThis = emp.notify_attendance !== false;
+
     // ตรวจว่าลาหยุดวันนี้ไหม (approved leave)
     const onLeave = await db.query(
       "SELECT id FROM leave_requests WHERE employee_id=$1 AND status='approved'" +
@@ -52,7 +63,7 @@ async function checkLateAbsent(dateStr) {
       // ขาดงาน
       await saveWarning(emp.id, dateStr, 'absent', 0);
       stats.absent++;
-      if (lineClient && emp.line_user_id) {
+      if (lineClient && emp.line_user_id && notifyThis) {
         await pushAbsentWarning(lineClient, emp, dateStr).catch(() => {});
         await db.query(
           'UPDATE attendance_warnings SET notified_line=TRUE' +
@@ -72,7 +83,9 @@ async function checkLateAbsent(dateStr) {
         const minutesLate = checkInMinutes - (wh * 60 + wm);
         await saveWarning(emp.id, dateStr, 'late', minutesLate);
         stats.late++;
-        if (lineClient && emp.line_user_id) {
+        // ใช้สวิตช์ตัวเดียวกับขาดงาน — ถ้าไม่เตือนเรื่องขาดงานแล้ว
+        // แต่ยังเตือนเรื่องมาสาย จะขัดกันเอง
+        if (lineClient && emp.line_user_id && notifyThis) {
           await pushLateWarning(lineClient, emp, dateStr, minutesLate, schedule.work_start).catch(() => {});
           await db.query(
             'UPDATE attendance_warnings SET notified_line=TRUE' +
