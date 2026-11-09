@@ -36,7 +36,23 @@ async function notifyApprovers(ot, employee) {
       admins.forEach(a => { if (a.line_user_id) targets.push(a.line_user_id); });
     }
 
-    const msg = flexMessages.otApprovalRequest(ot, employee);
+    // ❗ ดึงเวลาเข้า-ออกงานจริงมาแนบไปด้วย
+    //   ผู้อนุมัติจะได้เห็นเลยว่าอยู่ครบตามที่ขอหรือไม่ ไม่ต้องเปิดหน้าเว็บเทียบเอง
+    //
+    //   ❗ ถ้าขอ OT ล่วงหน้า (ยังไม่ถึงเวลาทำ) ช่องออกงานจะยังว่าง
+    //      นั่นถูกต้องแล้ว การ์ดจะขึ้นว่า "ยังไม่ได้เช็คเอาท์ — ยังตรวจไม่ได้"
+    //      บอกตรง ๆ ดีกว่าเว้นว่างให้เข้าใจว่าไม่มีข้อมูล
+    let att = null;
+    try {
+      att = await otService.attendanceVsOT({
+        employeeId: employee.id, otDate: ot.ot_date,
+        startTime:  ot.start_time, endTime: ot.end_time,
+      });
+    } catch (e) {
+      console.error('[ot] attendanceVsOT error:', e.message);   // ไม่ให้แจ้งเตือนล้มทั้งใบ
+    }
+
+    const msg = flexMessages.otApprovalRequest(ot, employee, att);
     // ❗ ผ่าน pushService เพื่อให้เห็นสาเหตุใน log ไม่ใช่เงียบหายไป
     return await pushService.pushTo(
       targets, [msg], `OT ใหม่ของ ${employee.name}`);

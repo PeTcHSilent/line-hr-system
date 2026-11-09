@@ -350,7 +350,46 @@ function leaveStatusUpdate(leave, status) {
 /**
  * แจ้งหัวหน้า/HR เมื่อมีคำขอ OT ใหม่
  */
-function otApprovalRequest(ot, employee) {
+/**
+ * แถบสรุปว่าเวลาออกงานจริง ครอบคลุมช่วงที่ขอ OT หรือไม่
+ *
+ * ❗ ต้องสรุปให้เลยว่า "ครอบคลุม/ไม่ครอบคลุม" ไม่ใช่โชว์แค่เวลาออกงาน
+ *   ถ้าโชว์แค่ตัวเลข ผู้อนุมัติต้องมานั่งลบเวลาเองทุกใบ สุดท้ายก็ไม่ลบ
+ *   แล้วกดอนุมัติตามคำขอเหมือนเดิม — เท่ากับเพิ่มข้อมูลแต่ไม่ได้ช่วยอะไร
+ */
+function otAttendanceBox(att) {
+  if (!att) return [];
+
+  const look = {
+    covered:     { bg: '#E8F5E9', fg: '#1B5E20', icon: '✅' },
+    short:       { bg: '#FFEBEE', fg: '#B71C1C', icon: '⚠️' },
+    no_checkout: { bg: '#FFF8E1', fg: '#8D6E00', icon: '⏳' },
+    no_record:   { bg: '#F5F5F5', fg: '#555555', icon: '❓' },
+  }[att.status] || { bg: '#F5F5F5', fg: '#555555', icon: '❓' };
+
+  const verdict = {
+    covered:     `อยู่ครบตามที่ขอ (ถึง ${att.ot_end_label})`,
+    short:       `ออกก่อนเวลาที่ขอ ${att.short_minutes} นาที`,
+    no_checkout: 'ยังไม่ได้เช็คเอาท์ — ยังตรวจไม่ได้',
+    no_record:   'ไม่มีบันทึกเข้างานวันนี้',
+  }[att.status] || '-';
+
+  return [
+    { type: 'separator', margin: 'md' },
+    infoRow('เข้างานจริง', att.check_in  || '-'),
+    infoRow('ออกงานจริง', att.check_out || 'ยังไม่ออก'),
+    {
+      type: 'box', layout: 'vertical', backgroundColor: look.bg,
+      cornerRadius: '6px', paddingAll: '8px', margin: 'sm',
+      contents: [{
+        type: 'text', text: `${look.icon} ${verdict}`,
+        size: 'sm', weight: 'bold', color: look.fg, wrap: true,
+      }],
+    },
+  ];
+}
+
+function otApprovalRequest(ot, employee, att = null) {
   const date  = ot.ot_date   ? new Date(ot.ot_date).toLocaleDateString('th-TH') : '-';
   const hours = ot.total_hours || '-';
 
@@ -373,6 +412,7 @@ function otApprovalRequest(ot, employee) {
           infoRow('วันที่', date),
           infoRow('เวลา', `${ot.start_time} – ${ot.end_time}`),
           infoRow('รวม', `${hours} ชั่วโมง`),
+          ...otAttendanceBox(att),
           ...(ot.reason ? [{ type: 'separator', margin: 'md' },
             { type: 'text', text: `เหตุผล: ${ot.reason}`, size: 'sm', color: '#555555', wrap: true }
           ] : [])

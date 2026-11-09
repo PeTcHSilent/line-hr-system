@@ -220,7 +220,68 @@ async function updateOTRecord(id, { otDate, startTime, endTime, totalHours, otTy
   return result.rows[0];
 }
 
+/**
+ * เทียบเวลาเข้า-ออกงานจริง กับช่วงเวลาที่ขอ OT มา
+ *
+ * ที่มา: ผู้อนุมัติเห็นแค่ "ขอ OT 18:00–21:00" แต่ไม่รู้ว่าอยู่จริงถึงกี่โมง
+ *   ต้องไปเปิดหน้าเว็บเทียบเอง ซึ่งไม่มีใครทำ สุดท้ายกดอนุมัติไปตามคำขอ
+ *
+ * ❗ คิดในฐานข้อมูล ไม่คิดใน JS
+ *   check_out เก็บเป็น TIMESTAMPTZ ส่วน end_time เป็น TIME เฉย ๆ
+ *   เอามาลบกันใน JS ต้องแปลงเขตเวลาเอง ซึ่งพลาดง่ายมาก
+ *   (เซิร์ฟเวอร์ Railway เป็น UTC ไทยเป็น UTC+7 คลาดกัน 7 ชั่วโมงเต็ม)
+ *   ให้ Postgres แปลงด้วย AT TIME ZONE 'Asia/Bangkok' ทีเดียวจบ
+ *
+ * ❗ รองรับ OT ข้ามคืน
+ *   ถ้าเวลาสิ้นสุด <= เวลาเริ่ม แปลว่าข้ามเที่ยงคืน (เช่น 22:00–02:00)
+ *   ต้องบวกวันให้ก่อนเทียบ ไม่งั้นจะสรุปว่า "ออกก่อนเวลา" ทั้งที่อยู่ครบ
+ *
+ * @returns {{status:'covered'|'short'|'no_checkout'|'no_record',
+ *            check_in:string|null, check_out:string|null,
+ *            short_minutes:number, ot_end_label:string}}
+ */
+async function attendanceVsOT({ employeeId, otDate, startTime, endTime }) {
+  const r = await db.query(`
+    WITH p AS (
+      SELECT $2::date AS d, $3::time AS st, $4::time AS et
+    ), x AS (
+      SELECT p.*,
+             -- เวลาสิ้นสุด OT ตามเวลาไทย (บวกวันถ้าข้ามคืน)
+             (p.d + p.et + CASE WHEN p.et <= p.st THEN INTERVAL '1 day'
+                                ELSE INTERVAL '0' END) AS ot_end,
+             a.check_in, a.check_out
+        FROM p
+        LEFT JOIN attendance a
+               ON a.employee_id = $1 AND a.work_date = p.d
+    )
+    SELECT to_char(check_in  AT TIME ZONE 'Asia/Bangkok', 'HH24:MI') AS check_in,
+           to_char(check_out AT TIME ZONE 'Asia/Bangkok', 'HH24:MI') AS check_out,
+           to_char(ot_end, 'HH24:MI')                                AS ot_end_label,
+           (check_in IS NOT NULL)                                    AS has_record,
+           (check_out IS NOT NULL)                                   AS has_out,
+           CASE WHEN check_out IS NULL THEN NULL
+                ELSE GREATEST(0, CEIL(EXTRACT(EPOCH FROM
+                       (ot_end - (check_out AT TIME ZONE 'Asia/Bangkok'))) / 60))::int
+           END AS short_minutes
+      FROM x`,
+    [employeeId, otDate, startTime, endTime]);
+
+  const row = r.rows[0] || {};
+  const status = !row.has_record ? 'no_record'
+               : !row.has_out    ? 'no_checkout'
+               : row.short_minutes > 0 ? 'short' : 'covered';
+
+  return {
+    status,
+    check_in:      row.check_in  || null,
+    check_out:     row.check_out || null,
+    short_minutes: row.short_minutes || 0,
+    ot_end_label:  row.ot_end_label || endTime,
+  };
+}
+
 module.exports = {
   getAllOT, createOT, updateOTStatus, deleteOT, getOTSummary,
   getOTReportPerEmployee, getOTMonthlyBreakdown, getOTDailyRecords, updateOTRecord,
+  attendanceVsOT,
 };
