@@ -226,11 +226,22 @@ async function updateOTRecord(id, { otDate, startTime, endTime, totalHours, otTy
  * ที่มา: ผู้อนุมัติเห็นแค่ "ขอ OT 18:00–21:00" แต่ไม่รู้ว่าอยู่จริงถึงกี่โมง
  *   ต้องไปเปิดหน้าเว็บเทียบเอง ซึ่งไม่มีใครทำ สุดท้ายกดอนุมัติไปตามคำขอ
  *
- * ❗ คิดในฐานข้อมูล ไม่คิดใน JS
- *   check_out เก็บเป็น TIMESTAMPTZ ส่วน end_time เป็น TIME เฉย ๆ
- *   เอามาลบกันใน JS ต้องแปลงเขตเวลาเอง ซึ่งพลาดง่ายมาก
- *   (เซิร์ฟเวอร์ Railway เป็น UTC ไทยเป็น UTC+7 คลาดกัน 7 ชั่วโมงเต็ม)
- *   ให้ Postgres แปลงด้วย AT TIME ZONE 'Asia/Bangkok' ทีเดียวจบ
+ * ❗❗ check_in / check_out เป็น TIMESTAMP (ไม่มีเขตเวลา) ไม่ใช่ TIMESTAMPTZ
+ *   ดู database/schema.sql — และเขียนด้วย NOW() บนเซิร์ฟเวอร์ที่ TZ เป็น UTC
+ *   แปลว่าค่าที่เก็บคือ "เวลาหน้าปัด UTC" เช่นเข้างานจริง 08:57 เก็บเป็น 01:57
+ *
+ *   การแปลงจึงต้องทำสองขั้น: บอกก่อนว่าเป็น UTC แล้วค่อยแปลงเป็นไทย
+ *     (ts AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Bangkok'
+ *
+ *   ❗ เขียนแค่ ts AT TIME ZONE 'Asia/Bangkok' ขั้นเดียว = ผิดทาง
+ *     Postgres จะตีความว่า "ค่านี้เป็นเวลาไทยอยู่แล้ว" แล้วแปลงกลับเป็น UTC
+ *     ได้ผลลบ 7 แทนที่จะบวก 7 — คลาดไป 14 ชั่วโมง
+ *     เคสจริง: เข้างาน 08:57 แสดงเป็น 18:57 / ออกงาน 22:03 แสดงเป็น 08:03
+ *     แล้วสรุปว่า "ออกก่อนเวลา 837 นาที" ทั้งที่อยู่ครบ
+ *
+ *   ❗ ถ้าวันหนึ่งตั้ง TZ ของเซิร์ฟเวอร์เป็น Asia/Bangkok ค่าที่เก็บใหม่
+ *     จะเปลี่ยนความหมายทันที และโค้ดนี้จะผิดโดยไม่มีอะไรฟ้อง
+ *     ทางแก้ถาวรคือเปลี่ยนคอลัมน์เป็น TIMESTAMPTZ ซึ่งต้องย้ายข้อมูลเก่าด้วย
  *
  * ❗ รองรับ OT ข้ามคืน
  *   ถ้าเวลาสิ้นสุด <= เวลาเริ่ม แปลว่าข้ามเที่ยงคืน (เช่น 22:00–02:00)
@@ -249,26 +260,31 @@ async function attendanceVsOT({ employeeId, otDate, startTime, endTime }) {
              -- เวลาสิ้นสุด OT ตามเวลาไทย (บวกวันถ้าข้ามคืน)
              (p.d + p.et + CASE WHEN p.et <= p.st THEN INTERVAL '1 day'
                                 ELSE INTERVAL '0' END) AS ot_end,
+             -- แปลงค่าที่เก็บ (เวลาหน้าปัด UTC) ให้เป็นเวลาไทย
+             (a.check_in  AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Bangkok' AS cin_th,
+             (a.check_out AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Bangkok' AS cout_th,
              a.check_in, a.check_out
         FROM p
         LEFT JOIN attendance a
                ON a.employee_id = $1 AND a.work_date = p.d
     )
-    SELECT to_char(check_in  AT TIME ZONE 'Asia/Bangkok', 'HH24:MI') AS check_in,
-           to_char(check_out AT TIME ZONE 'Asia/Bangkok', 'HH24:MI') AS check_out,
-           to_char(ot_end, 'HH24:MI')                                AS ot_end_label,
-           (check_in IS NOT NULL)                                    AS has_record,
-           (check_out IS NOT NULL)                                   AS has_out,
+    SELECT to_char(cin_th,  'HH24:MI')        AS check_in,
+           to_char(cout_th, 'HH24:MI')        AS check_out,
+           to_char(ot_end,  'HH24:MI')        AS ot_end_label,
+           (check_in  IS NOT NULL)            AS has_record,
+           (check_out IS NOT NULL)            AS has_out,
+           -- วันที่ขอ OT ยังมาไม่ถึง = ยังทำไม่ได้ คนละเรื่องกับ "ไม่มีบันทึก"
+           (d > ((NOW() AT TIME ZONE 'Asia/Bangkok')::date)) AS is_future,
            CASE WHEN check_out IS NULL THEN NULL
-                ELSE GREATEST(0, CEIL(EXTRACT(EPOCH FROM
-                       (ot_end - (check_out AT TIME ZONE 'Asia/Bangkok'))) / 60))::int
+                ELSE GREATEST(0, CEIL(EXTRACT(EPOCH FROM (ot_end - cout_th)) / 60))::int
            END AS short_minutes
       FROM x`,
     [employeeId, otDate, startTime, endTime]);
 
   const row = r.rows[0] || {};
-  const status = !row.has_record ? 'no_record'
-               : !row.has_out    ? 'no_checkout'
+  const status = row.is_future    ? 'future'
+               : !row.has_record  ? 'no_record'
+               : !row.has_out     ? 'no_checkout'
                : row.short_minutes > 0 ? 'short' : 'covered';
 
   return {

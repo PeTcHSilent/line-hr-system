@@ -364,6 +364,7 @@ function otAttendanceBox(att) {
     covered:     { bg: '#E8F5E9', fg: '#1B5E20', icon: '✅' },
     short:       { bg: '#FFEBEE', fg: '#B71C1C', icon: '⚠️' },
     no_checkout: { bg: '#FFF8E1', fg: '#8D6E00', icon: '⏳' },
+    future:      { bg: '#E3F2FD', fg: '#0D47A1', icon: '📅' },
     no_record:   { bg: '#F5F5F5', fg: '#555555', icon: '❓' },
   }[att.status] || { bg: '#F5F5F5', fg: '#555555', icon: '❓' };
 
@@ -371,7 +372,8 @@ function otAttendanceBox(att) {
     covered:     `อยู่ครบตามที่ขอ (ถึง ${att.ot_end_label})`,
     short:       `ออกก่อนเวลาที่ขอ ${att.short_minutes} นาที`,
     no_checkout: 'ยังไม่ได้เช็คเอาท์ — ยังตรวจไม่ได้',
-    no_record:   'ไม่มีบันทึกเข้างานวันนี้',
+    future:      'ขอล่วงหน้า — ยังไม่ถึงวันที่ทำ OT',
+    no_record:   'ไม่มีบันทึกเข้างานในวันที่ขอ OT',
   }[att.status] || '-';
 
   return [
