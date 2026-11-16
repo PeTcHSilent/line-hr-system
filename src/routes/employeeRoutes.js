@@ -186,12 +186,19 @@ router.get('/notify-targets', async (req, res) => {
     }
     const db = require('../db');
     const r = await db.query(`
-      SELECT e.employee_code, e.name, e.line_user_id, e.is_active,
+      -- ❗ หนึ่งรหัสพนักงาน = หนึ่งแถว
+      --   พนักงานที่ออกแล้วจะ "คืนรหัส" ให้คนใหม่ใช้ต่อได้ (migration v34)
+      --   ตาราง employees จึงมีรหัสเดียวกันได้หลายแถว (คนเก่าที่ออก + คนปัจจุบัน)
+      --   ฝั่ง Sales จับคู่ด้วยรหัส ถ้าส่งไปทุกแถว แถวที่มาทีหลังจะทับแถวก่อน
+      --   → ได้ชื่อ/สถานะของคนที่ออกไปแล้วมาทับคนที่ทำงานอยู่
+      --   เลือกคนที่ยัง active ก่อน ถ้าไม่มีเลยค่อยเอาคนล่าสุดที่ออก
+      SELECT DISTINCT ON (UPPER(e.employee_code))
+             e.employee_code, e.name, e.line_user_id, e.is_active,
              d.name AS department_name
       FROM   employees e
       LEFT JOIN departments d ON e.department_id = d.id
       WHERE  d.name IN ('Sales', 'Admin')
-      ORDER  BY d.name, e.employee_code
+      ORDER  BY UPPER(e.employee_code), e.is_active DESC, e.id DESC
     `);
     res.json({ employees: r.rows, total: r.rows.length });
   } catch (err) {
